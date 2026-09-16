@@ -1,0 +1,10 @@
+source_id,provider,source_url,geography,observation_period,retrieval_status,rights_status,included_in_scaffold,planned_use
+imd-products,IMD,https://api.imd.gov.in/public/api_reference.html,India,Live products; exact issuance to be captured,not retrieved,account/redistribution terms unverified,No,New adapter after auth verification
+sentinel-2,ESA via Earth Engine,https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_SR_HARMONIZED,selected demo fields,Actual acquisition window required,not retrieved,verify catalog/provider terms,No,Cloud/coverage-aware normalized indices
+alphaearth,Google and Google DeepMind,https://developers.google.com/earth-engine/datasets/catalog/GOOGLE_SATELLITE_EMBEDDING_V1_ANNUAL,global; selected reference regions,Available annual year must be selected,not retrieved,CC-BY-4.0; attribution required,No,Optional landscape similarity only
+agri-understanding,Google,https://developers.google.com/agricultural-understanding/api,coverage/allowlisting dependent,Capture/event dates required,not retrieved,access and redistribution terms unverified,No,Optional field/crop suggestions
+fao-ca-principles,FAO,https://www.fao.org/conservation-agriculture/overview/conservation-agriculture-principles/en/,general principles,reference,2026-09-16 documentation review,Link/reference; verify rights before reproducing material,No,Conceptual basis; no local efficacy claim
+legacy-imd-subdivision,legacy repository,,India subdivision history,2017,local file inspected,source/license verification pending,No,Potential historical context only
+legacy-crop-production,legacy repository,,India and Maharashtra,varies; includes 2024-25,local files inspected,per-file source/license verification pending,No,Potential historical context only
+demo-practice-bundle,C2C planning scaffold,,Synthetic India node,2026-09-16 synthetic,created 2026-09-16,CC0-1.0 original synthetic example text only,Yes,Contract test only; no agronomic approval
+crop-diagnosis-images,team or verified licensed source,,not selected,not selected,not acquired,permission/license required,No,Use owned/licensed images; record label basis

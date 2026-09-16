@@ -1,0 +1,377 @@
+{
+  "version": "1.0.0",
+  "source": "ICAR Package of Practices & Vasantrao Naik Marathwada Krishi Vidyapeeth (VNMKV)",
+  "crops": [
+    {
+      "id": "soybean",
+      "name": "Soybean (\u0938\u094b\u092f\u093e\u092c\u0940\u0928)",
+      "seasons": [
+        "kharif"
+      ],
+      "soil_types": [
+        "black",
+        "loam",
+        "alluvial"
+      ],
+      "optimal_ph": [
+        6.0,
+        7.5
+      ],
+      "rainfall_requirement_mm": [
+        500,
+        900
+      ],
+      "water_need_level": 1,
+      "critical_stages": [
+        "Germination",
+        "Flower initiation (30-35 DAS)",
+        "Pod filling (55-65 DAS)"
+      ],
+      "seed_rate_kg_ha": 65,
+      "intercrop_compatibility": [
+        "pigeon_pea",
+        "cotton"
+      ],
+      "practices": [
+        "broad-bed-furrow",
+        "rhizobium-inoculation",
+        "residue-retention"
+      ]
+    },
+    {
+      "id": "cotton",
+      "name": "Cotton (\u0915\u093e\u092a\u0942\u0938)",
+      "seasons": [
+        "kharif"
+      ],
+      "soil_types": [
+        "black"
+      ],
+      "optimal_ph": [
+        6.0,
+        8.0
+      ],
+      "rainfall_requirement_mm": [
+        600,
+        1100
+      ],
+      "water_need_level": 2,
+      "critical_stages": [
+        "Squaring (40-45 DAS)",
+        "Flowering (60-70 DAS)",
+        "Boll development (80-110 DAS)"
+      ],
+      "seed_rate_kg_ha": 2.5,
+      "intercrop_compatibility": [
+        "pigeon_pea",
+        "green_gram",
+        "soybean"
+      ],
+      "practices": [
+        "diverse-rotation",
+        "pink-bollworm-scouting",
+        "in-situ-mulching"
+      ]
+    },
+    {
+      "id": "pigeon_pea",
+      "name": "Pigeon Pea / Tur (\u0924\u0942\u0930)",
+      "seasons": [
+        "kharif"
+      ],
+      "soil_types": [
+        "black",
+        "red",
+        "alluvial",
+        "loam"
+      ],
+      "optimal_ph": [
+        5.0,
+        8.0
+      ],
+      "rainfall_requirement_mm": [
+        600,
+        1000
+      ],
+      "water_need_level": 1,
+      "critical_stages": [
+        "Branching",
+        "Flower bud formation",
+        "Pod development"
+      ],
+      "seed_rate_kg_ha": 12,
+      "intercrop_compatibility": [
+        "soybean",
+        "cotton",
+        "sorghum",
+        "pearl_millet"
+      ],
+      "practices": [
+        "legume-rotation",
+        "biological-nitrogen-fixation",
+        "deep-root-aeration"
+      ]
+    },
+    {
+      "id": "chickpea",
+      "name": "Chickpea / Harbara (\u0939\u0930\u092d\u0930\u093e / \u091a\u0923\u093e)",
+      "seasons": [
+        "rabi"
+      ],
+      "soil_types": [
+        "black",
+        "alluvial",
+        "loam"
+      ],
+      "optimal_ph": [
+        6.0,
+        8.0
+      ],
+      "rainfall_requirement_mm": [
+        300,
+        650
+      ],
+      "water_need_level": 1,
+      "critical_stages": [
+        "Pre-flowering (30-35 DAS)",
+        "Pod development (55-60 DAS)"
+      ],
+      "seed_rate_kg_ha": 75,
+      "intercrop_compatibility": [
+        "wheat",
+        "mustard",
+        "linseed"
+      ],
+      "practices": [
+        "zero-tillage-after-soybean",
+        "trichoderma-seed-treatment",
+        "nipping"
+      ]
+    },
+    {
+      "id": "wheat",
+      "name": "Wheat (\u0917\u0939\u0942)",
+      "seasons": [
+        "rabi"
+      ],
+      "soil_types": [
+        "black",
+        "alluvial",
+        "loam",
+        "clay"
+      ],
+      "optimal_ph": [
+        6.0,
+        7.8
+      ],
+      "rainfall_requirement_mm": [
+        350,
+        650
+      ],
+      "water_need_level": 2,
+      "critical_stages": [
+        "Crown root initiation (CRI, 21 DAS)",
+        "Tillering",
+        "Jointing",
+        "Flowering",
+        "Milking"
+      ],
+      "seed_rate_kg_ha": 100,
+      "intercrop_compatibility": [
+        "chickpea",
+        "mustard"
+      ],
+      "practices": [
+        "happy-seeder-direct-drilling",
+        "irrigation-at-critical-stages"
+      ]
+    },
+    {
+      "id": "sorghum",
+      "name": "Sorghum / Jowar (\u091c\u094d\u0935\u093e\u0930\u0940)",
+      "seasons": [
+        "kharif",
+        "rabi"
+      ],
+      "soil_types": [
+        "black",
+        "red",
+        "loam"
+      ],
+      "optimal_ph": [
+        5.5,
+        8.5
+      ],
+      "rainfall_requirement_mm": [
+        350,
+        800
+      ],
+      "water_need_level": 1,
+      "critical_stages": [
+        "Knee-high (30 DAS)",
+        "Boot leaf stage",
+        "Grain filling"
+      ],
+      "seed_rate_kg_ha": 10,
+      "intercrop_compatibility": [
+        "pigeon_pea",
+        "cowpea"
+      ],
+      "practices": [
+        "compartmental-bunding",
+        "trash-mulching",
+        "striga-scouting"
+      ]
+    },
+    {
+      "id": "pearl_millet",
+      "name": "Pearl Millet / Bajra (\u092c\u093e\u091c\u0930\u0940)",
+      "seasons": [
+        "kharif",
+        "summer"
+      ],
+      "soil_types": [
+        "red",
+        "sandy",
+        "black",
+        "loam"
+      ],
+      "optimal_ph": [
+        5.5,
+        8.0
+      ],
+      "rainfall_requirement_mm": [
+        300,
+        700
+      ],
+      "water_need_level": 1,
+      "critical_stages": [
+        "Tillering (20-25 DAS)",
+        "Booting",
+        "Grain formation"
+      ],
+      "seed_rate_kg_ha": 4,
+      "intercrop_compatibility": [
+        "moth_bean",
+        "cluster_bean",
+        "pigeon_pea"
+      ],
+      "practices": [
+        "dryland-dust-mulching",
+        "ridging-and-furrowing"
+      ]
+    },
+    {
+      "id": "onion",
+      "name": "Onion (\u0915\u093e\u0902\u0926\u093e)",
+      "seasons": [
+        "kharif",
+        "rabi",
+        "summer"
+      ],
+      "soil_types": [
+        "black",
+        "red",
+        "loam",
+        "alluvial"
+      ],
+      "optimal_ph": [
+        6.0,
+        7.5
+      ],
+      "rainfall_requirement_mm": [
+        400,
+        800
+      ],
+      "water_need_level": 2,
+      "critical_stages": [
+        "Bulb initiation (45-50 DAT)",
+        "Bulb development (70-90 DAT)"
+      ],
+      "seed_rate_kg_ha": 10,
+      "intercrop_compatibility": [
+        "garlic",
+        "coriander"
+      ],
+      "practices": [
+        "raised-bed-planting",
+        "drip-fertigation",
+        "thrips-sticky-traps"
+      ]
+    },
+    {
+      "id": "sugarcane",
+      "name": "Sugarcane (\u090a\u0938)",
+      "seasons": [
+        "kharif",
+        "rabi",
+        "summer"
+      ],
+      "soil_types": [
+        "black",
+        "alluvial",
+        "clay",
+        "loam"
+      ],
+      "optimal_ph": [
+        6.0,
+        8.0
+      ],
+      "rainfall_requirement_mm": [
+        1000,
+        2000
+      ],
+      "water_need_level": 3,
+      "critical_stages": [
+        "Formative stage (60-120 DAP)",
+        "Grand growth stage (120-270 DAP)"
+      ],
+      "seed_rate_kg_ha": 25000,
+      "intercrop_compatibility": [
+        "potato",
+        "chickpea",
+        "soybean"
+      ],
+      "practices": [
+        "trash-mulching-5t-ha",
+        "subsurface-drip",
+        "single-eye-bud-settling"
+      ]
+    },
+    {
+      "id": "rice",
+      "name": "Rice / Paddy (\u092d\u093e\u0924)",
+      "seasons": [
+        "kharif"
+      ],
+      "soil_types": [
+        "clay",
+        "alluvial",
+        "black"
+      ],
+      "optimal_ph": [
+        5.5,
+        7.5
+      ],
+      "rainfall_requirement_mm": [
+        900,
+        1800
+      ],
+      "water_need_level": 3,
+      "critical_stages": [
+        "Panicle initiation",
+        "Flowering / heading",
+        "Milking"
+      ],
+      "seed_rate_kg_ha": 40,
+      "intercrop_compatibility": [
+        "fish_culture",
+        "azolla"
+      ],
+      "practices": [
+        "system-of-rice-intensification",
+        "alternate-wetting-and-drying"
+      ]
+    }
+  ]
+}

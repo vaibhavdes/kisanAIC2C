@@ -1,0 +1,126 @@
+{
+  "version": "1.0.0",
+  "source": "Indian Council of Agricultural Research (ICAR) & NBSS&LUP",
+  "nutrients": {
+    "nitrogen_kg_ha": {
+      "name": "Available Nitrogen (N)",
+      "unit": "kg/ha",
+      "method": "Alkaline Permanganate (Subbiah and Asija)",
+      "thresholds": {
+        "low": {
+          "max": 280.0,
+          "status": "Deficient",
+          "fertilizer_adjustment": "+25% to recommended dose"
+        },
+        "medium": {
+          "min": 280.0,
+          "max": 560.0,
+          "status": "Adequate",
+          "fertilizer_adjustment": "100% recommended dose"
+        },
+        "high": {
+          "min": 560.0,
+          "status": "Surplus",
+          "fertilizer_adjustment": "-25% to recommended dose"
+        }
+      }
+    },
+    "phosphorus_kg_ha": {
+      "name": "Available Phosphorus (P2O5)",
+      "unit": "kg/ha",
+      "method": "Olsen method (0.5 M NaHCO3)",
+      "thresholds": {
+        "low": {
+          "max": 10.0,
+          "status": "Deficient",
+          "fertilizer_adjustment": "+25% to recommended dose"
+        },
+        "medium": {
+          "min": 10.0,
+          "max": 25.0,
+          "status": "Adequate",
+          "fertilizer_adjustment": "100% recommended dose"
+        },
+        "high": {
+          "min": 25.0,
+          "status": "Surplus",
+          "fertilizer_adjustment": "-25% to recommended dose"
+        }
+      }
+    },
+    "potassium_kg_ha": {
+      "name": "Available Potassium (K2O)",
+      "unit": "kg/ha",
+      "method": "Neutral 1N Ammonium Acetate",
+      "thresholds": {
+        "low": {
+          "max": 108.0,
+          "status": "Deficient",
+          "fertilizer_adjustment": "+25% to recommended dose"
+        },
+        "medium": {
+          "min": 108.0,
+          "max": 280.0,
+          "status": "Adequate",
+          "fertilizer_adjustment": "100% recommended dose"
+        },
+        "high": {
+          "min": 280.0,
+          "status": "Surplus",
+          "fertilizer_adjustment": "-25% to recommended dose"
+        }
+      }
+    },
+    "organic_carbon_percent": {
+      "name": "Soil Organic Carbon (SOC)",
+      "unit": "%",
+      "method": "Walkley-Black wet oxidation",
+      "thresholds": {
+        "low": {
+          "max": 0.5,
+          "status": "Low organic fertility, poor moisture retention",
+          "remedy": "Apply 5-10 t/ha FYM or compost, practice mulch retention"
+        },
+        "medium": {
+          "min": 0.5,
+          "max": 0.75,
+          "status": "Moderate organic fertility",
+          "remedy": "Maintain legume crop rotation and green manuring"
+        },
+        "high": {
+          "min": 0.75,
+          "status": "High biological fertility",
+          "remedy": "Conserve through reduced tillage"
+        }
+      }
+    },
+    "ph": {
+      "name": "Soil Reaction (pH)",
+      "unit": "pH (1:2.5 soil-water suspension)",
+      "classes": {
+        "acidic": {
+          "max": 6.0,
+          "status": "Acidic",
+          "remedy": "Apply agricultural lime (CaCO3)"
+        },
+        "neutral": {
+          "min": 6.0,
+          "max": 7.5,
+          "status": "Optimal Neutral",
+          "remedy": "Maintain balanced organic amendments"
+        },
+        "moderately_alkaline": {
+          "min": 7.5,
+          "max": 8.5,
+          "status": "Calcareous Vertisols",
+          "remedy": "Apply zinc sulfate foliar spray if interveinal chlorosis appears"
+        },
+        "strongly_alkaline": {
+          "min": 8.5,
+          "status": "Sodic / Saline tract",
+          "remedy": "Apply gypsum (CaSO4), establish deep drainage channels"
+        }
+      }
+    }
+  }
+}
