@@ -1,4 +1,3 @@
-import React from "react";
 import {
   Activity,
   ArrowRight,
@@ -9,7 +8,9 @@ import {
   Microscope,
   ShieldCheck,
   Sparkles,
-  Sprout
+  Sprout,
+  Trash2,
+  User
 } from "lucide-react";
 import { Json, TranslationDictionary, View } from "../types";
 import { VerifiedDataSourcesPanel } from "../components/VerifiedDataSourcesPanel";
@@ -20,6 +21,7 @@ interface HomeViewProps {
   selected: string;
   setSelected: (id: string) => void;
   go: (v: View) => void;
+  onDeleteFarm?: (id: string) => Promise<void>;
 }
 
 export const HomeView: React.FC<HomeViewProps> = ({
@@ -27,9 +29,20 @@ export const HomeView: React.FC<HomeViewProps> = ({
   farms,
   selected,
   setSelected,
-  go
+  go,
+  onDeleteFarm
 }) => {
   const activeFarm = farms.find((f) => f.id === selected) || farms[0];
+
+  const isFarmMine = (f: Json) => {
+    if (f.is_mine) return true;
+    try {
+      const myIds = JSON.parse(localStorage.getItem("kisanai_my_farm_ids") || "[]");
+      return Array.isArray(myIds) && myIds.includes(f.id);
+    } catch {
+      return false;
+    }
+  };
 
   return (
     <>
@@ -48,11 +61,49 @@ export const HomeView: React.FC<HomeViewProps> = ({
         {activeFarm ? (
           <div className="active-farm-resume-card">
             <div className="resume-card-header">
-              <span className="resume-card-badge">
-                <span className="pulse-dot" />
-                ACTIVE FARM LOADED & READY
-              </span>
-              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                <span className="resume-card-badge">
+                  <span className="pulse-dot" />
+                  ACTIVE FARM LOADED
+                </span>
+                {isFarmMine(activeFarm) ? (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", background: "#e8f5e9", color: "#1b5e20", padding: "2px 8px", borderRadius: "12px", fontSize: "11px", fontWeight: 700, border: "1px solid #c8e6c9" }}>
+                    <User size={12} />
+                    My Farm
+                  </span>
+                ) : (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", background: "#f0f4f8", color: "#334155", padding: "2px 8px", borderRadius: "12px", fontSize: "11px", fontWeight: 600, border: "1px solid #cbd5e1" }}>
+                    🌱 Community Farm
+                  </span>
+                )}
+                {isFarmMine(activeFarm) && onDeleteFarm && (
+                  <button
+                    onClick={() => {
+                      if (window.confirm(`Are you sure you want to delete "${activeFarm.name}"? This action cannot be undone.`)) {
+                        onDeleteFarm(activeFarm.id);
+                      }
+                    }}
+                    style={{
+                      background: "#fff",
+                      border: "1px solid #fca5a5",
+                      color: "#dc2626",
+                      borderRadius: "6px",
+                      padding: "3px 8px",
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px"
+                    }}
+                    title="Delete your farm (only creator can delete)"
+                  >
+                    <Trash2 size={12} />
+                    <span>Delete</span>
+                  </button>
+                )}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 600 }}>
                   Switch Farm:
                 </span>
@@ -67,11 +118,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   className="active-farm-select"
                   style={{ padding: "6px 12px", fontSize: "13px" }}
                 >
-                  {farms.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.name} · {f.district}, {f.state_code}
-                    </option>
-                  ))}
+                  {farms.map((f) => {
+                    const mine = isFarmMine(f);
+                    return (
+                      <option key={f.id} value={f.id}>
+                        {mine ? "👤 [My Farm] " : "🌱 "}
+                        {f.name} · {f.district}, {f.state_code}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
             </div>

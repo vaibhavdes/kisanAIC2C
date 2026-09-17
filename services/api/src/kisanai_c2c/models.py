@@ -63,6 +63,7 @@ class FarmCreate(BaseModel):
     previous_crop: str | None = Field(default=None, max_length=80)
     sowing_date: date | None = None
     crop_status: Literal["planning", "planted", "harvested"] = "planning"
+    creator_ip: str | None = None
 
     @field_validator("country_code", "state_code")
     @classmethod
@@ -76,8 +77,11 @@ class Farm(FarmCreate):
     node_id: str
     area_ha: float
     version: int = 1
+    creator_ip: str | None = None
+    is_mine: bool | None = None
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
+
 
 
 class SoilValues(BaseModel):

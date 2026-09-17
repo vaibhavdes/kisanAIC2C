@@ -264,6 +264,13 @@ export function FarmFormView({ t, done }: FarmFormViewProps) {
       });
       setSavedFarmId(f.id);
       localStorage.setItem("kisanai_cached_farm", JSON.stringify(f));
+      try {
+        const myIds = JSON.parse(localStorage.getItem("kisanai_my_farm_ids") || "[]");
+        if (!myIds.includes(f.id)) {
+          myIds.push(f.id);
+          localStorage.setItem("kisanai_my_farm_ids", JSON.stringify(myIds));
+        }
+      } catch {}
       done(f.id);
     } catch (err) {
       alert((err as Error).message);

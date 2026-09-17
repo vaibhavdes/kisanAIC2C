@@ -83,12 +83,15 @@ class AppService:
         self.store.put("farms", default_farm.id, default_farm.model_dump(mode="json"))
         return default_farm
 
-    def create_farm(self, actor: Actor, payload: FarmCreate) -> Farm:
+    def create_farm(self, actor: Actor, payload: FarmCreate, client_ip: str | None = None) -> Farm:
         area_ha = payload.area_value if payload.area_unit == "hectare" else payload.area_value * 0.40468564224
         farm_id = payload.id if payload.id else f"farm_{uuid4().hex}"
+        ip = client_ip or payload.creator_ip
         farm = Farm(
             id=farm_id,
-            **payload.model_dump(exclude={"id"}),
+            **payload.model_dump(exclude={"id", "creator_ip"}),
+            creator_ip=ip,
+            is_mine=True,
             area_ha=round(area_ha, 4),
             owner_subject=actor.subject,
             node_id=actor.node_id,
@@ -96,21 +99,35 @@ class AppService:
         self.store.put("farms", farm.id, farm.model_dump(mode="json"))
         return farm
 
-    def farms(self, actor: Actor) -> list[Farm]:
-        items = self.store.list("farms", filters={"node_id": actor.node_id, "owner_subject": actor.subject})
+    def farms(self, actor: Actor, client_ip: str | None = None) -> list[Farm]:
+        filters = {"node_id": actor.node_id}
+        if actor.subject != "local-farmer":
+            filters["owner_subject"] = actor.subject
+        items = self.store.list("farms", filters=filters)
         valid = [item for item in items if item.get("id") != "farm_default_mh" and "demonstration" not in str(item.get("name", "")).lower()]
-        return [Farm.model_validate(item) for item in valid]
+        result: list[Farm] = []
+        for item in valid:
+            f = Farm.model_validate(item)
+            is_mine = False
+            if f.creator_ip:
+                is_mine = bool(client_ip and f.creator_ip == client_ip)
+            elif f.owner_subject == actor.subject:
+                is_mine = True
+            f.is_mine = is_mine
+            result.append(f)
+        return result
 
-    def farm(self, actor: Actor, farm_id: str, *, expert_allowed: bool = False) -> Farm:
+    def farm(self, actor: Actor, farm_id: str, client_ip: str | None = None, *, expert_allowed: bool = False) -> Farm:
         value = self.store.get("farms", farm_id)
         if not value:
-            node_farms = self.store.list("farms", filters={"node_id": actor.node_id, "owner_subject": actor.subject})
+            node_farms = self.store.list("farms", filters={"node_id": actor.node_id})
             valid_farms = [f for f in node_farms if f.get("id") != "farm_default_mh" and "demonstration" not in str(f.get("name", "")).lower()]
             if valid_farms and farm_id and farm_id.startswith("farm_"):
                 base = Farm.model_validate(valid_farms[0])
                 recovered = base.model_copy(update={
                     "id": farm_id,
                     "owner_subject": actor.subject,
+                    "creator_ip": client_ip,
                     "node_id": actor.node_id,
                 })
                 self.store.put("farms", farm_id, recovered.model_dump(mode="json"))
@@ -118,25 +135,56 @@ class AppService:
 
         if not value or value.get("node_id") != actor.node_id:
             raise LookupError("Farm not found")
-        if value.get("owner_subject") != actor.subject and not (expert_allowed and Role.expert in actor.roles):
+        if actor.subject != "local-farmer" and value.get("owner_subject") != actor.subject and not (expert_allowed and Role.expert in actor.roles):
             raise PermissionError("Farm access denied")
-        return Farm.model_validate(value)
+        f = Farm.model_validate(value)
+        is_mine = False
+        if f.creator_ip:
+            is_mine = bool(client_ip and f.creator_ip == client_ip)
+        elif f.owner_subject == actor.subject:
+            is_mine = True
+        f.is_mine = is_mine
+        return f
 
-    def upsert_farm(self, actor: Actor, farm_id: str, payload: FarmCreate, expected_version: int | None = None) -> Farm:
+    def delete_farm(self, actor: Actor, farm_id: str, client_ip: str | None = None) -> bool:
+        value = self.store.get("farms", farm_id)
+        if not value or value.get("node_id") != actor.node_id:
+            raise LookupError("Farm not found")
+        f = Farm.model_validate(value)
+        is_creator = False
+        if Role.expert in actor.roles:
+            is_creator = True
+        elif f.creator_ip:
+            is_creator = bool(client_ip and f.creator_ip == client_ip)
+        elif f.owner_subject == actor.subject:
+            is_creator = True
+        if not is_creator:
+            raise PermissionError("Only the creator of this farm can delete it.")
+        return self.store.delete("farms", farm_id)
+
+    def upsert_farm(self, actor: Actor, farm_id: str, payload: FarmCreate, expected_version: int | None = None, client_ip: str | None = None) -> Farm:
         value = self.store.get("farms", farm_id)
         if not value:
             payload_with_id = payload.model_copy(update={"id": farm_id})
-            return self.create_farm(actor, payload_with_id)
+            return self.create_farm(actor, payload_with_id, client_ip=client_ip)
         current = Farm.model_validate(value)
         if current.node_id != actor.node_id:
             raise LookupError("Farm not found")
-        if current.owner_subject != actor.subject and not (Role.expert in actor.roles):
+        is_creator = False
+        if Role.expert in actor.roles:
+            is_creator = True
+        elif client_ip and current.creator_ip and current.creator_ip == client_ip:
+            is_creator = True
+        elif current.owner_subject == actor.subject:
+            is_creator = True
+        if not is_creator:
             raise PermissionError("Farm access denied")
         if expected_version is not None and current.version != expected_version:
             raise RuntimeError("Farm version conflict")
         area_ha = payload.area_value if payload.area_unit == "hectare" else payload.area_value * 0.40468564224
         updated = current.model_copy(update={
-            **payload.model_dump(exclude={"id"}),
+            **payload.model_dump(exclude={"id", "creator_ip"}),
+            "creator_ip": current.creator_ip or client_ip,
             "area_ha": round(area_ha, 4),
             "version": current.version + 1,
             "updated_at": datetime.now(UTC),
@@ -144,8 +192,8 @@ class AppService:
         self.store.put("farms", farm_id, updated.model_dump(mode="json"))
         return updated
 
-    def update_farm(self, actor: Actor, farm_id: str, payload: FarmCreate, expected_version: int) -> Farm:
-        return self.upsert_farm(actor, farm_id, payload, expected_version)
+    def update_farm(self, actor: Actor, farm_id: str, payload: FarmCreate, expected_version: int, client_ip: str | None = None) -> Farm:
+        return self.upsert_farm(actor, farm_id, payload, expected_version, client_ip=client_ip)
 
     def save_media(self, actor: Actor, content: bytes, content_type: str, purpose: str) -> MediaRecord:
         if len(content) > self.settings.media_max_bytes:

@@ -221,6 +221,33 @@ export function App() {
     loadCropRecs(season);
   }, [farm?.id, locale]);
 
+  const deleteFarm = async (farmId: string) => {
+    try {
+      await api(`/api/v1/farms/${farmId}`, { method: "DELETE" });
+      try {
+        const myIds = JSON.parse(localStorage.getItem("kisanai_my_farm_ids") || "[]");
+        localStorage.setItem(
+          "kisanai_my_farm_ids",
+          JSON.stringify(myIds.filter((id: string) => id !== farmId))
+        );
+      } catch {}
+      const remaining = farms.filter((f) => f.id !== farmId);
+      setFarms(remaining);
+      if (selected === farmId) {
+        if (remaining.length > 0) {
+          setSelected(remaining[0].id);
+          localStorage.setItem("kisanai_cached_farm", JSON.stringify(remaining[0]));
+        } else {
+          setSelected("");
+          localStorage.removeItem("kisanai_cached_farm");
+          setView("farm");
+        }
+      }
+    } catch (e) {
+      alert((e as Error).message || "Failed to delete farm");
+    }
+  };
+
   return (
     <div className="shell">
       <Header
@@ -229,6 +256,9 @@ export function App() {
         view={view}
         setView={setView}
         setShowLangModal={setShowLangModal}
+        farms={farms}
+        selected={selected}
+        setSelected={setSelected}
       />
 
       {showLangModal && (
@@ -269,6 +299,7 @@ export function App() {
             selected={selected}
             setSelected={setSelected}
             go={setView}
+            onDeleteFarm={deleteFarm}
           />
         )}
         {view === "farm" && (

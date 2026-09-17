@@ -319,5 +319,43 @@ def test_latest_soil_and_partial_values(service, farmer):
     assert fetched.values.ph == 6.8
 
 
+def test_ip_linked_farm_ownership_and_deletion(service: AppService, farmer: Actor):
+    payload = FarmCreate(
+        name="IP Test Farm", state_code="MH", state_name="Maharashtra", district="Solapur",
+        area_value=3, location=Location(latitude=17.65, longitude=75.9),
+        water_access="rainfed"
+    )
+    creator_ip = "192.168.1.10"
+    other_ip = "203.0.113.50"
+
+    # 1. Create farm with creator_ip
+    farm = service.create_farm(farmer, payload, client_ip=creator_ip)
+    assert farm.creator_ip == creator_ip
+    assert farm.is_mine is True
+
+    # 2. List farms as the creator IP -> is_mine should be True
+    creator_farms = service.farms(farmer, client_ip=creator_ip)
+    matched_creator = next(f for f in creator_farms if f.id == farm.id)
+    assert matched_creator.is_mine is True
+
+    # 3. List farms as other IP -> farm should still be visible ("visible to everyone like currently"), but is_mine False
+    other_farms = service.farms(farmer, client_ip=other_ip)
+    matched_other = next(f for f in other_farms if f.id == farm.id)
+    assert matched_other.is_mine is False
+
+    # 4. Attempt to delete by non-creator IP -> raises PermissionError
+    with pytest.raises(PermissionError, match="Only the creator of this farm can delete it"):
+        service.delete_farm(farmer, farm.id, client_ip=other_ip)
+
+    # 5. Creator deletes farm -> succeeds
+    deleted = service.delete_farm(farmer, farm.id, client_ip=creator_ip)
+    assert deleted is True
+
+    # 6. Verify farm is gone
+    remaining = service.farms(farmer, client_ip=creator_ip)
+    assert not any(f.id == farm.id for f in remaining)
+
+
+
 
 

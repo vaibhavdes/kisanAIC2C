@@ -105,19 +105,55 @@ def me(actor: Actor = Depends(current_actor)):
     return actor
 
 
+def get_client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    real_ip = request.headers.get("x-real-ip")
+    if real_ip:
+        return real_ip.strip()
+    return request.client.host if request.client else "127.0.0.1"
+
+
 @app.post("/api/v1/farms", response_model=Farm, status_code=201)
-def create_farm(payload: FarmCreate, actor: Actor = Depends(current_actor), svc: AppService = Depends(service)):
-    return svc.create_farm(actor, payload)
+def create_farm(payload: FarmCreate, request: Request, actor: Actor = Depends(current_actor), svc: AppService = Depends(service)):
+    client_ip = get_client_ip(request)
+    return svc.create_farm(actor, payload, client_ip=client_ip)
 
 
 @app.get("/api/v1/farms", response_model=list[Farm])
-def list_farms(actor: Actor = Depends(current_actor), svc: AppService = Depends(service)):
-    return svc.farms(actor)
+def list_farms(request: Request, actor: Actor = Depends(current_actor), svc: AppService = Depends(service)):
+    client_ip = get_client_ip(request)
+    return svc.farms(actor, client_ip=client_ip)
+
+
+@app.get("/api/v1/farms/{farm_id}", response_model=Farm)
+def get_farm(farm_id: str, request: Request, actor: Actor = Depends(current_actor), svc: AppService = Depends(service)):
+    client_ip = get_client_ip(request)
+    try:
+        return svc.farm(actor, farm_id, client_ip=client_ip)
+    except LookupError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc))
+    except PermissionError as exc:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, str(exc))
 
 
 @app.put("/api/v1/farms/{farm_id}", response_model=Farm)
-def update_farm(farm_id: str, payload: FarmCreate, version: int, actor: Actor = Depends(current_actor), svc: AppService = Depends(service)):
-    return svc.update_farm(actor, farm_id, payload, version)
+def update_farm(farm_id: str, payload: FarmCreate, version: int, request: Request, actor: Actor = Depends(current_actor), svc: AppService = Depends(service)):
+    client_ip = get_client_ip(request)
+    return svc.update_farm(actor, farm_id, payload, version, client_ip=client_ip)
+
+
+@app.delete("/api/v1/farms/{farm_id}", status_code=200)
+def delete_farm(farm_id: str, request: Request, actor: Actor = Depends(current_actor), svc: AppService = Depends(service)):
+    client_ip = get_client_ip(request)
+    try:
+        svc.delete_farm(actor, farm_id, client_ip=client_ip)
+        return {"status": "deleted", "farm_id": farm_id}
+    except LookupError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc))
+    except PermissionError as exc:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, str(exc))
 
 
 @app.post("/api/v1/media", status_code=201)
