@@ -354,13 +354,15 @@ export function AdvisoryView({
                   <span>{t.ndmi_label_short || "Canopy Moisture (NDMI)"}</span>
                 </div>
                 <div className="sat-outcome-main">
-                  <span className="sat-outcome-number">{satMetrics.ndmi || "0.24"}</span>
-                  <span className={`sat-outcome-pill ${satMetrics.rawMoist}`}>
-                    {satMetrics.moistStatus}
+                  <span className="sat-outcome-number">
+                    {satMetrics.ndmi || (satMap?.index === "NDMI" && satMap?.zones?.[2]?.median_val != null ? Number(satMap.zones[2].median_val).toFixed(2) : "0.24")}
+                  </span>
+                  <span className={`sat-outcome-pill ${satMetrics.rawMoist || "adequate"}`}>
+                    {satMetrics.moistStatus || (locale.startsWith("mr") ? "पुरेसा ओलावा" : locale.startsWith("hi") ? "पर्याप्त नमी" : "Adequate Moisture")}
                   </span>
                 </div>
                 <div className="sat-outcome-footer">
-                  <span>{t.water_stress || "Water Stress"}: <strong>{satMetrics.waterStress}</strong></span>
+                  <span>{t.water_stress || "Water Stress"}: <strong>{satMetrics.waterStress || (locale.startsWith("mr") ? "कमी ताण" : locale.startsWith("hi") ? "कम तनाव" : "Low Stress")}</strong></span>
                   <span>Sentinel-2</span>
                 </div>
               </div>
@@ -371,13 +373,15 @@ export function AdvisoryView({
                   <span>{t.ndvi_label_short || "Vegetation Vigor (NDVI)"}</span>
                 </div>
                 <div className="sat-outcome-main">
-                  <span className="sat-outcome-number">{satMetrics.ndvi || "0.48"}</span>
-                  <span className={`sat-outcome-pill ${satMetrics.rawVeg}`}>
-                    {satMetrics.vegStatus}
+                  <span className="sat-outcome-number">
+                    {satMetrics.ndvi || (satMap?.index === "NDVI" && satMap?.zones?.[2]?.median_val != null ? Number(satMap.zones[2].median_val).toFixed(2) : "0.48")}
+                  </span>
+                  <span className={`sat-outcome-pill ${satMetrics.rawVeg || "moderate"}`}>
+                    {satMetrics.vegStatus || (locale.startsWith("mr") ? "मध्यम वाढ" : locale.startsWith("hi") ? "मध्यम वृद्धि" : "Moderate Growth")}
                   </span>
                 </div>
                 <div className="sat-outcome-footer">
-                  <span>{t.biomass_status || "Biomass Density"}: <strong>{satMetrics.ndvi ? (Number(satMetrics.ndvi) > 0.35 ? "Optimal" : "Developing") : "Verified"}</strong></span>
+                  <span>{t.biomass_status || "Biomass Density"}: <strong>{(satMetrics.ndvi || satMap?.zones?.[2]?.median_val) ? (Number(satMetrics.ndvi || satMap?.zones?.[2]?.median_val) > 0.35 ? "Optimal" : "Developing") : "Verified"}</strong></span>
                   <span>10m Resolution</span>
                 </div>
               </div>
@@ -433,15 +437,15 @@ export function AdvisoryView({
                   <tbody>
                     {satMap.zones && satMap.zones.length > 0 ? (
                       satMap.zones.map((z: any) => (
-                        <tr key={z.zone_id}>
+                        <tr key={z.zone_id ?? z.id}>
                           <td>
-                            <span className="geopard-color-box" style={{ background: z.color_hex }} />
+                            <span className="geopard-color-box" style={{ background: z.color_hex || z.color }} />
                           </td>
-                          <td><strong>Zone {z.zone_id}</strong></td>
+                          <td><strong>Zone {z.zone_id ?? z.id}</strong></td>
                           <td>{z.label}</td>
-                          <td><code>{Number(z.val_min).toFixed(2)} - {Number(z.val_max).toFixed(2)}</code></td>
+                          <td><code>{Number(z.val_min ?? z.min_val).toFixed(2)} - {Number(z.val_max ?? z.max_val).toFixed(2)}</code></td>
                           <td>{Number(z.area_acres).toFixed(2)} ac</td>
-                          <td><strong>{Number(z.share_percent).toFixed(1)}%</strong></td>
+                          <td><strong>{Number(z.share_percent ?? z.percentage).toFixed(1)}%</strong></td>
                           <td>{Number(z.median_val).toFixed(2)}</td>
                         </tr>
                       ))

@@ -6,7 +6,7 @@ import re
 from typing import Any, Literal
 from uuid import uuid4
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
 
 def utcnow() -> datetime:
@@ -214,6 +214,31 @@ class SatelliteZone(BaseModel):
     median_val: float
     area_acres: float
     percentage: float
+
+    @computed_field
+    @property
+    def zone_id(self) -> int:
+        return self.id
+
+    @computed_field
+    @property
+    def color_hex(self) -> str:
+        return self.color
+
+    @computed_field
+    @property
+    def val_min(self) -> float:
+        return self.min_val
+
+    @computed_field
+    @property
+    def val_max(self) -> float:
+        return self.max_val
+
+    @computed_field
+    @property
+    def share_percent(self) -> float:
+        return self.percentage
 
 
 class SatelliteMapResult(BaseModel):

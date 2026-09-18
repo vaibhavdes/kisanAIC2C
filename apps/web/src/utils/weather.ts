@@ -139,24 +139,27 @@ export function parseSatelliteMetrics(evidence: Json[], locale: Locale): Satelli
   const tr = STATUS_TRANSLATIONS[locale] || STATUS_TRANSLATIONS["en-IN"];
 
   for (const snap of evidence) {
-    if (snap.kind === "satellite_indices") {
+    if (snap.kind === "satellite_indices" || snap.kind === "satellite_observation") {
       hasData = true;
       const vals = (snap.values as Json[]) || [];
       for (const v of vals) {
-        const name = v.name as string;
+        const name = (v.name as string) || "";
         const val = v.value;
-        if (name === "ndvi_median") ndvi = Number(val).toFixed(2);
-        else if (name === "ndwi_median") ndwi = Number(val).toFixed(2);
-        else if (name === "ndmi_median") ndmi = Number(val).toFixed(2);
-        else if (name === "water_stress") {
-          rawMoist = String(val);
-          waterStress = tr[rawMoist] || String(val);
+        if (name === "ndvi_median" || name === "ndvi") {
+          if (val !== null && val !== undefined) ndvi = Number(val).toFixed(2);
+        } else if (name === "ndwi_median" || name === "ndwi") {
+          if (val !== null && val !== undefined) ndwi = Number(val).toFixed(2);
+        } else if (name === "ndmi_median" || name === "ndmi") {
+          if (val !== null && val !== undefined) ndmi = Number(val).toFixed(2);
+        } else if (name === "water_stress") {
+          const sVal = String(val).toLowerCase();
+          waterStress = tr[sVal] || sVal.replace("_", " ");
         } else if (name === "vegetation_status") {
-          rawVeg = String(val);
-          vegStatus = tr[rawVeg] || String(val);
+          rawVeg = String(val).toLowerCase();
+          vegStatus = tr[rawVeg] || rawVeg.replace("_", " ");
         } else if (name === "moisture_status") {
-          rawMoist = String(val);
-          moistStatus = tr[rawMoist] || String(val);
+          rawMoist = String(val).toLowerCase();
+          moistStatus = tr[rawMoist] || rawMoist.replace("_", " ");
         }
       }
     }
