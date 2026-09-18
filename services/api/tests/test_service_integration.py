@@ -285,6 +285,18 @@ def test_reverse_geocode_endpoint():
     assert res["state_code"] == "MH"
 
 
+def test_ip_geocode_endpoint():
+    from starlette.requests import Request
+    from kisanai_c2c.main import ip_geocode
+    scope = {"type": "http", "headers": [(b"x-forwarded-for", b"127.0.0.1")]}
+    res = ip_geocode(Request(scope))
+    assert res["district"] == "Pune"
+    assert res["state_name"] == "Maharashtra"
+    assert res["state_code"] == "MH"
+    assert res["latitude"] == 18.5204
+    assert res["longitude"] == 73.8567
+
+
 def test_latest_soil_and_partial_values(service, farmer):
     farm = service.create_farm(farmer, FarmCreate(
         name="Soil Test Farm",

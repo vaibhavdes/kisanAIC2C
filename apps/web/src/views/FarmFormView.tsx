@@ -93,7 +93,7 @@ export function FarmFormView({ t, done }: FarmFormViewProps) {
       }
       setBoundaryCoords([]);
     } catch (e: any) {
-      alert(e.message || "PIN code lookup failed");
+      setPincodeMsg("❌ " + (e.message || "PIN code lookup failed. Please select your district from the dropdown."));
     } finally {
       setPincodeLoading(false);
     }
@@ -116,49 +116,90 @@ export function FarmFormView({ t, done }: FarmFormViewProps) {
   };
 
   const locate = () => {
+    setGeocoding(true);
+    setGeoAddress("Detecting GPS coordinates & resolving district...");
+
+    const applyCoordsAndReverse = async (lat: number, lon: number, sourceLabel: string) => {
+      setFormData(prev => ({
+        ...prev,
+        latitude: lat.toFixed(4),
+        longitude: lon.toFixed(4)
+      }));
+      setBoundaryCoords([]);
+      try {
+        const rev = await api<any>(`/api/v1/geo/reverse?latitude=${lat}&longitude=${lon}`);
+        if (rev) {
+          setFormData(prev => ({
+            ...prev,
+            district: rev.district || prev.district,
+            state_name: rev.state_name || prev.state_name,
+            state_code: rev.state_code || prev.state_code,
+            village: rev.village || prev.village,
+            pincode: rev.pincode || prev.pincode,
+          }));
+          const labelParts = [rev.village, rev.district, rev.state_name].filter(Boolean);
+          setGeoAddress(`✓ ${sourceLabel}: ${labelParts.join(", ")} (${lat.toFixed(3)}°N, ${lon.toFixed(3)}°E)`);
+        } else {
+          setGeoAddress(`✓ ${sourceLabel}: ${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E`);
+        }
+      } catch {
+        setGeoAddress(`✓ ${sourceLabel}: ${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E`);
+      } finally {
+        setGeocoding(false);
+      }
+    };
+
+    const tryIpFallback = async () => {
+      try {
+        setGeoAddress("GPS unavailable on device. Detecting network location...");
+        const ipGeo = await api<any>("/api/v1/geo/ip");
+        if (ipGeo && ipGeo.latitude && ipGeo.longitude) {
+          const lat = Number(ipGeo.latitude);
+          const lon = Number(ipGeo.longitude);
+          setFormData(prev => ({
+            ...prev,
+            latitude: lat.toFixed(4),
+            longitude: lon.toFixed(4),
+            district: ipGeo.district || prev.district,
+            state_name: ipGeo.state_name || prev.state_name,
+            state_code: ipGeo.state_code || prev.state_code,
+            village: ipGeo.village || prev.village,
+            pincode: ipGeo.pincode || prev.pincode,
+          }));
+          const labelParts = [ipGeo.village, ipGeo.district, ipGeo.state_name].filter(Boolean);
+          setGeoAddress(`📍 Network Location Detected: ${labelParts.join(", ")} (${lat.toFixed(3)}°N, ${lon.toFixed(3)}°E)`);
+          return;
+        }
+      } catch {
+        // Continue to gentle guidance
+      }
+      setGeoAddress("⚠️ GPS signal unavailable on this device. Please enter your 6-digit PIN code or choose your district from the dropdown below.");
+    };
+
     if (!navigator.geolocation) {
-      alert("Geolocation is not supported by your browser");
+      tryIpFallback().finally(() => setGeocoding(false));
       return;
     }
-    setGeocoding(true);
-    setGeoAddress("Detecting precise GPS coordinates & resolving district...");
+
+    // 1. Try High Accuracy (hardware GPS) with 4s timeout
     navigator.geolocation.getCurrentPosition(
-      async pos => {
-        const lat = pos.coords.latitude;
-        const lon = pos.coords.longitude;
-        setFormData(prev => ({
-          ...prev,
-          latitude: lat.toFixed(4),
-          longitude: lon.toFixed(4)
-        }));
-        setBoundaryCoords([]);
-        try {
-          const rev = await api<any>(`/api/v1/geo/reverse?latitude=${lat}&longitude=${lon}`);
-          if (rev) {
-            setFormData(prev => ({
-              ...prev,
-              district: rev.district || prev.district,
-              state_name: rev.state_name || prev.state_name,
-              state_code: rev.state_code || prev.state_code,
-              village: rev.village || prev.village,
-              pincode: rev.pincode || prev.pincode,
-            }));
-            const labelParts = [rev.village, rev.district, rev.state_name].filter(Boolean);
-            setGeoAddress(`✓ GPS Location Detected: ${labelParts.join(", ")} (${lat.toFixed(3)}°N, ${lon.toFixed(3)}°E)`);
-          } else {
-            setGeoAddress(`✓ GPS coordinates locked: ${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E`);
-          }
-        } catch {
-          setGeoAddress(`✓ GPS coordinates locked: ${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E`);
-        } finally {
-          setGeocoding(false);
-        }
+      pos => {
+        applyCoordsAndReverse(pos.coords.latitude, pos.coords.longitude, "GPS Location Detected");
       },
-      err => {
-        setGeocoding(false);
-        alert("GPS detection failed: " + err.message);
+      () => {
+        // 2. High accuracy failed (Position update is unavailable / timeout) -> Fallback to low accuracy
+        navigator.geolocation.getCurrentPosition(
+          pos => {
+            applyCoordsAndReverse(pos.coords.latitude, pos.coords.longitude, "Location Detected");
+          },
+          () => {
+            // 3. Both failed -> Fallback to backend IP Geolocation without intrusive alert()
+            tryIpFallback().finally(() => setGeocoding(false));
+          },
+          { enableHighAccuracy: false, timeout: 6000, maximumAge: 300000 }
+        );
       },
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: true, timeout: 4000, maximumAge: 60000 }
     );
   };
 

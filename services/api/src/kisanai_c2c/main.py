@@ -684,6 +684,57 @@ def reverse_geocode(latitude: float, longitude: float):
     return result
 
 
+@app.get("/api/v1/geo/ip")
+def ip_geocode(request: Request):
+    client_ip = get_client_ip(request)
+
+    # Try public IP geocoding if not local/private
+    if client_ip and not (
+        client_ip.startswith("127.") or client_ip in ("::1", "localhost") or
+        client_ip.startswith("192.168.") or client_ip.startswith("10.") or client_ip.startswith("172.")
+    ):
+        try:
+            import requests
+            resp = requests.get(
+                f"http://ip-api.com/json/{client_ip}?fields=status,message,country,countryCode,region,regionName,city,zip,lat,lon,district",
+                timeout=2.5,
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get("status") == "success":
+                    lat = float(data.get("lat", 18.5204))
+                    lon = float(data.get("lon", 73.8567))
+                    city = data.get("city") or data.get("district") or "Pune"
+                    region = data.get("regionName") or "Maharashtra"
+                    sc = STATE_NAME_TO_CODE.get(region.lower(), data.get("region") or "MH")
+                    dist = data.get("district") or city
+                    return {
+                        "latitude": round(lat, 4),
+                        "longitude": round(lon, 4),
+                        "district": dist,
+                        "state_name": region,
+                        "state_code": sc,
+                        "village": city,
+                        "pincode": data.get("zip") or None,
+                        "source": "ip_network_lookup",
+                    }
+        except Exception:
+            pass
+
+    # Central Maharashtra fallback for local development or unresolvable IP
+    return {
+        "latitude": 18.5204,
+        "longitude": 73.8567,
+        "district": "Pune",
+        "state_name": "Maharashtra",
+        "state_code": "MH",
+        "village": "Pune Central",
+        "pincode": "411001",
+        "source": "ip_default_central",
+    }
+
+
+
 from pathlib import Path
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
