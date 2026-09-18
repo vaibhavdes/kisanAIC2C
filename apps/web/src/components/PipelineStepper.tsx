@@ -15,7 +15,7 @@ export const PipelineStepper: React.FC<PipelineStepperProps> = ({
   farm
 }) => {
   const stepOrder: View[] = ["farm", "weather", "soil", "crops", "advice"];
-  const currentIndex = stepOrder.indexOf(view);
+  const effectiveIndex = view === "diagnose" ? 5 : stepOrder.indexOf(view);
 
   return (
     <div className="pipeline-stepper-bar">
@@ -30,7 +30,7 @@ export const PipelineStepper: React.FC<PipelineStepperProps> = ({
 
       <button
         className={`step-node ${
-          view === "weather" ? "active" : farm && currentIndex > 1 ? "done" : ""
+          view === "weather" ? "active" : farm && effectiveIndex > 1 ? "done" : ""
         }`}
         disabled={!farm}
         onClick={() => setView("weather")}
@@ -40,13 +40,13 @@ export const PipelineStepper: React.FC<PipelineStepperProps> = ({
       </button>
       <div
         className={`step-connector ${
-          farm && currentIndex > 1 ? "active" : ""
+          farm && effectiveIndex > 1 ? "active" : ""
         }`}
       />
 
       <button
         className={`step-node ${
-          view === "soil" ? "active" : farm && currentIndex > 2 ? "done" : ""
+          view === "soil" ? "active" : farm && effectiveIndex > 2 ? "done" : ""
         }`}
         disabled={!farm}
         onClick={() => setView("soil")}
@@ -56,13 +56,13 @@ export const PipelineStepper: React.FC<PipelineStepperProps> = ({
       </button>
       <div
         className={`step-connector ${
-          farm && currentIndex > 2 ? "active" : ""
+          farm && effectiveIndex > 2 ? "active" : ""
         }`}
       />
 
       <button
         className={`step-node ${
-          view === "crops" ? "active" : farm && currentIndex > 3 ? "done" : ""
+          view === "crops" ? "active" : farm && effectiveIndex > 3 ? "done" : ""
         }`}
         disabled={!farm}
         onClick={() => setView("crops")}
@@ -72,12 +72,12 @@ export const PipelineStepper: React.FC<PipelineStepperProps> = ({
       </button>
       <div
         className={`step-connector ${
-          farm && currentIndex > 3 ? "active" : ""
+          farm && effectiveIndex > 3 ? "active" : ""
         }`}
       />
 
       <button
-        className={`step-node ${view === "advice" ? "active" : ""}`}
+        className={`step-node ${view === "advice" ? "active" : farm && effectiveIndex >= 5 ? "done" : ""}`}
         disabled={!farm}
         onClick={() => setView("advice")}
       >

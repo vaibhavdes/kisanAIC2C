@@ -3,9 +3,11 @@ import {
   ArrowRight,
   ChevronRight,
   CloudRain,
+  FileText,
   Leaf,
   MapPin,
   Microscope,
+  Plus,
   ShieldCheck,
   Sparkles,
   Sprout,
@@ -103,7 +105,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   </button>
                 )}
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                 <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 600 }}>
                   Switch Farm:
                 </span>
@@ -128,6 +130,26 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     );
                   })}
                 </select>
+                <button
+                  onClick={() => go("farm")}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    background: "#ecfdf5",
+                    color: "#15803d",
+                    border: "1px solid #a7f3d0",
+                    borderRadius: "8px",
+                    padding: "6px 10px",
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    cursor: "pointer"
+                  }}
+                  title="Plot and onboard a new farm"
+                >
+                  <Plus size={13} />
+                  <span>+ New Farm</span>
+                </button>
               </div>
             </div>
 
@@ -156,44 +178,50 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 onClick={() => go("weather")}
               >
                 <CloudRain size={16} />
-                <span>2. Local Weather & Alerts</span>
+                <span>{t.step_weather || "2. Local Weather & Alerts"}</span>
+                <ArrowRight size={14} style={{ marginLeft: "auto" }} />
+              </button>
+              <button className="resume-action-btn" onClick={() => go("soil")}>
+                <FileText size={16} />
+                <span>{t.step_soil || "3. Soil Health Card"}</span>
                 <ArrowRight size={14} style={{ marginLeft: "auto" }} />
               </button>
               <button className="resume-action-btn" onClick={() => go("crops")}>
                 <Sprout size={16} />
-                <span>3. Recommended Crops</span>
+                <span>{t.step_crops || "4. Recommended Crops"}</span>
                 <ArrowRight size={14} style={{ marginLeft: "auto" }} />
               </button>
               <button className="resume-action-btn" onClick={() => go("advice")}>
                 <Activity size={16} />
-                <span>4. Field Action Plan</span>
+                <span>{t.step_advice || "5. Field Action Plan"}</span>
                 <ArrowRight size={14} style={{ marginLeft: "auto" }} />
               </button>
               <button className="resume-action-btn" onClick={() => go("diagnose")}>
                 <Microscope size={16} />
-                <span>5. Plant Doctor</span>
-                <ArrowRight size={14} style={{ marginLeft: "auto" }} />
-              </button>
-              <button className="resume-action-btn" onClick={() => go("farm")}>
-                <MapPin size={16} />
-                <span>Edit Field Boundary</span>
+                <span>{t.plant_doctor || t.diagnose || "Plant Doctor"}</span>
                 <ArrowRight size={14} style={{ marginLeft: "auto" }} />
               </button>
             </div>
           </div>
-        ) : (
-          <div className="cta-row" style={{ marginTop: "24px" }}>
-            <button
-              className="primary"
-              onClick={() => go("farm")}
-              style={{ padding: "16px 28px", fontSize: "16px", borderRadius: "14px" }}
-            >
-              <MapPin size={20} />
-              <span>Get Started — Plot Your Field</span>
-              <ArrowRight size={18} />
-            </button>
-          </div>
-        )}
+        ) : null}
+
+        {/* Primary Onboarding CTA — Always available for new users or adding farms */}
+        <div className="cta-row" style={{ marginTop: activeFarm ? "20px" : "24px", display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
+          <button
+            className="primary"
+            onClick={() => go("farm")}
+            style={{ padding: activeFarm ? "14px 26px" : "16px 28px", fontSize: activeFarm ? "15px" : "16px", borderRadius: "14px" }}
+          >
+            <MapPin size={20} />
+            <span>{activeFarm ? (t.btn_plot_own_field || "Plot Your Own Field / New Farm") : (t.get_started_plot || "Get Started — Plot Your Field")}</span>
+            <ArrowRight size={18} />
+          </button>
+          {activeFarm && !isFarmMine(activeFarm) && (
+            <span style={{ fontSize: "13px", color: "var(--muted)", maxWidth: "440px" }}>
+              🌱 <b>Viewing community field.</b> Tap above to plot your own boundary for personalized satellite canopy scans and local IMD alerts.
+            </span>
+          )}
+        </div>
       </section>
 
       {/* Platform Mission & Overview */}

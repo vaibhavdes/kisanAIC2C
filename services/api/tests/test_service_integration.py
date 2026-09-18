@@ -356,6 +356,72 @@ def test_ip_linked_farm_ownership_and_deletion(service: AppService, farmer: Acto
     assert not any(f.id == farm.id for f in remaining)
 
 
+def test_soil_date_flexible_parsing(service: AppService, farmer: Actor):
+    from datetime import date
+    from kisanai_c2c.models import SoilExtraction, SoilValues, SoilTestCreate
+
+    # 1. Indian format DD-MM-YYYY (the exact issue reported: '25-06-2015')
+    ext_dash = SoilExtraction(
+        values=SoilValues(ph=7.4, nitrogen_kg_ha=240.0),
+        sample_date="25-06-2015",
+        source="gemini_api",
+        model="gemini-2.5-flash",
+    )
+    assert ext_dash.sample_date == date(2015, 6, 25)
+
+    # 2. Indian slash format DD/MM/YYYY
+    ext_slash = SoilExtraction(
+        values=SoilValues(ph=7.4),
+        sample_date="25/06/2015",
+        source="gemini_api",
+        model="gemini-2.5-flash",
+    )
+    assert ext_slash.sample_date == date(2015, 6, 25)
+
+    # 3. Standard ISO format YYYY-MM-DD
+    ext_iso = SoilExtraction(
+        values=SoilValues(ph=7.4),
+        sample_date="2015-06-25",
+        source="gemini_api",
+        model="gemini-2.5-flash",
+    )
+    assert ext_iso.sample_date == date(2015, 6, 25)
+
+    # 4. Textual format
+    ext_text = SoilExtraction(
+        values=SoilValues(ph=7.4),
+        sample_date="25 June 2015",
+        source="gemini_api",
+        model="gemini-2.5-flash",
+    )
+    assert ext_text.sample_date == date(2015, 6, 25)
+
+    # 5. Unparseable OCR text gracefully falls back to None instead of crashing
+    ext_unparseable = SoilExtraction(
+        values=SoilValues(ph=7.4),
+        sample_date="illegible handwritten stamp",
+        source="gemini_api",
+        model="gemini-2.5-flash",
+    )
+    assert ext_unparseable.sample_date is None
+
+    # 6. Manual SoilTestCreate with DD-MM-YYYY
+    farm = service.create_farm(farmer, FarmCreate(
+        name="Date Test Farm", state_code="MH", state_name="Maharashtra", district="Pune",
+        soil_type="black", water_access="rainfed", area_value=2, location=Location(latitude=18.5, longitude=73.8),
+    ))
+    saved_soil = service.save_soil_test(farmer, farm.id, SoilTestCreate(
+        values=SoilValues(ph=7.1, nitrogen_kg_ha=260.0),
+        sample_date="25-06-2015",
+        source="manual",
+        confirmed=True,
+    ))
+    assert saved_soil.sample_date == date(2015, 6, 25)
+    fetched = service.latest_soil(farm.id)
+    assert fetched.sample_date == date(2015, 6, 25)
+
+
+
 
 
 

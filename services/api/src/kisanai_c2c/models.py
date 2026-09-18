@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime
 from enum import StrEnum
+import re
 from typing import Any, Literal
 from uuid import uuid4
 
@@ -10,6 +11,56 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 def utcnow() -> datetime:
     return datetime.now(UTC)
+
+
+def parse_flexible_date(v: Any) -> date | None:
+    """Safely parse flexible date strings into a standard python date.
+
+    Supports:
+    - ISO format: YYYY-MM-DD, YYYY/MM/DD, YYYY.MM.DD
+    - Indian / British format: DD-MM-YYYY, DD/MM/YYYY, DD.MM.YYYY
+    - 2-digit year: DD-MM-YY, DD/MM/YY
+    - Textual dates: '25 June 2015', '25 Jun 2015'
+    - Falls back to None if unparseable, preventing validation crashes on OCR cards.
+    """
+    if v is None or v == "" or str(v).lower() in ("null", "none", "n/a", "-"):
+        return None
+    if isinstance(v, date) and not isinstance(v, datetime):
+        return v
+    if isinstance(v, datetime):
+        return v.date()
+    if not isinstance(v, str):
+        return None
+
+    s = v.strip()
+    formats = [
+        "%Y-%m-%d",
+        "%d-%m-%Y",
+        "%d/%m/%Y",
+        "%Y/%m/%d",
+        "%d.%m.%Y",
+        "%Y.%m.%d",
+        "%d-%m-%y",
+        "%d/%m/%y",
+        "%d %b %Y",
+        "%d %B %Y",
+        "%b %d, %Y",
+        "%B %d, %Y",
+    ]
+    for fmt in formats:
+        try:
+            return datetime.strptime(s, fmt).date()
+        except ValueError:
+            continue
+
+    m = re.match(r"^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$", s)
+    if m:
+        try:
+            return date(int(m.group(3)), int(m.group(2)), int(m.group(1)))
+        except ValueError:
+            pass
+
+    return None
 
 
 class Role(StrEnum):
@@ -102,6 +153,11 @@ class SoilExtraction(BaseModel):
     source: str
     model: str
 
+    @field_validator("sample_date", mode="before")
+    @classmethod
+    def validate_sample_date(cls, v: Any) -> date | None:
+        return parse_flexible_date(v)
+
 
 class SoilTestCreate(BaseModel):
     values: SoilValues
@@ -110,6 +166,11 @@ class SoilTestCreate(BaseModel):
     source: Literal["manual", "soil_card_confirmed"] = "manual"
     extraction_id: str | None = None
     confirmed: bool = True
+
+    @field_validator("sample_date", mode="before")
+    @classmethod
+    def validate_sample_date(cls, v: Any) -> date | None:
+        return parse_flexible_date(v)
 
 
 class SoilTest(SoilTestCreate):

@@ -265,18 +265,6 @@ export function DiagnoseView({ t, locale, farm, go }: DiagnoseViewProps) {
           </ul>
         </article>
       )}
-
-      {/* Navigation Footer */}
-      <div className="pipeline-footer-nav" style={{ display: "flex", justifyContent: "space-between" }}>
-        <button className="nav-prev-btn" onClick={() => go(farm ? "advice" : "home")}>
-          {farm ? (t.btn_back_plan || "← Back to Field Plan") : "← Back to Home"}
-        </button>
-        {farm && (
-          <button className="nav-next-btn" onClick={() => go("weather")}>
-            {t.weather || "Check Local Weather →"}
-          </button>
-        )}
-      </div>
     </section>
   );
 }
