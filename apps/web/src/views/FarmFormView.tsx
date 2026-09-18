@@ -181,25 +181,31 @@ export function FarmFormView({ t, done }: FarmFormViewProps) {
       return;
     }
 
-    // 1. Try High Accuracy (hardware GPS) with 4s timeout
+    // 1. Try High Accuracy hardware GPS (10s timeout matching original morning setting)
     navigator.geolocation.getCurrentPosition(
       pos => {
         applyCoordsAndReverse(pos.coords.latitude, pos.coords.longitude, "GPS Location Detected");
       },
-      () => {
-        // 2. High accuracy failed (Position update is unavailable / timeout) -> Fallback to low accuracy
+      err => {
+        // If permission was denied by user
+        if (err.code === 1) {
+          setGeoAddress("Location permission not granted. Detecting network location...");
+          tryIpFallback().finally(() => setGeocoding(false));
+          return;
+        }
+        // 2. High accuracy unavailable or timed out -> Fallback to low accuracy (Wi-Fi/Cellular/Cache)
         navigator.geolocation.getCurrentPosition(
           pos => {
             applyCoordsAndReverse(pos.coords.latitude, pos.coords.longitude, "Location Detected");
           },
           () => {
-            // 3. Both failed -> Fallback to backend IP Geolocation without intrusive alert()
+            // 3. Both browser options failed -> Fallback to backend IP Geolocation
             tryIpFallback().finally(() => setGeocoding(false));
           },
           { enableHighAccuracy: false, timeout: 6000, maximumAge: 300000 }
         );
       },
-      { enableHighAccuracy: true, timeout: 4000, maximumAge: 60000 }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
     );
   };
 
