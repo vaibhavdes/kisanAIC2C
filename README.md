@@ -44,8 +44,8 @@ Each deployment is a **node** serving one or more states (ISO 3166-2 codes such 
 - **Agronomy packs** are the state crop calendars: sowing windows by season, irrigation needs, groundwater category, legal sowing dates and priority practices. They follow [`contracts/agronomy-pack.schema.json`](contracts/agronomy-pack.schema.json) (JSON Schema 2020-12, ISO codes, crop IDs plus scientific names), so any country or state can publish one.
 - A node publishes a manifest at `/.well-known/agrin-node` listing its packs, practices and signal endpoint.
 - An officer on another node can import a pack **only from an allowlisted peer**. It is schema-validated, deduplicated by digest and **used only after expert approval**. Farms in that state immediately switch from the global baseline to the regional calendar.
-- **Practice bundles** ([`contracts/practice-bundle.schema.json`](contracts/practice-bundle.schema.json)) travel the same way, with field evidence attached once at least 5 farmer outcomes exist.
-- **Signals** are district-level crop-health counts. They are published only for groups of 5 or more reports; no farm, farmer or location is ever shared.
+- **Practice bundles** ([`contracts/practice-bundle.schema.json`](contracts/practice-bundle.schema.json)) travel the same way. A node's practice write-ups ([`data/practices/practice_library.json`](data/practices/practice_library.json)) start as drafts and are published only after that node's expert reviews them. Field evidence is attached once at least 5 farmer outcomes exist.
+- **Signals** are district-level crop-health counts, published only for groups of 5 or more reports; no farm, farmer or location is ever shared. Each node's officers see their peers' signals in the expert workspace, which gives early warning of outbreaks across state borders.
 
 Bundled packs: **Maharashtra, Punjab, Uttar Pradesh**. They are curated from the published state university packages of practice and are marked *pending state expert review*. Farms outside those states, including other BRICS countries, get the **global baseline**: FAO EcoCrop climate and soil fit plus the water balance, with sowing dates found by temperature. The crop catalog includes crops such as teff, cassava, canola and oats, with names in English, Hindi, Marathi, Telugu, Kannada, Portuguese, Russian and Chinese.
 
@@ -71,12 +71,12 @@ React + Vite (apps/web) ── same origin ──> FastAPI (services/api) on Clo
 | Source | Use | Licence / terms |
 |---|---|---|
 | FAO EcoCrop (via the OpenCLIM EcoCrop database) | Crop temperature, rainfall, pH and soil ranges | Open Government Licence v3 |
-| ISRIC SoilGrids 2.0 (Earth Engine) | Estimated pH, organic carbon, clay and sand when no soil test exists | CC-BY 4.0 |
+| ISRIC SoilGrids 2.0 (Earth Engine) | Estimated pH, organic carbon, clay and sand when no soil test exists (averaged within 300 m of the field, or 1.5 km where nearer cells are masked) | CC-BY 4.0 |
 | ESA WorldCover v200 (Earth Engine) | Land cover; nearby cropland for comparison | CC-BY 4.0 |
 | Copernicus Sentinel-2 SR (Earth Engine) | NDVI / NDMI / NDWI | Copernicus open licence |
 | Open-Meteo forecast and ERA5 archive | Hourly and daily forecast, 2015-2024 climate normals | CC-BY 4.0 |
 | India Meteorological Department | District warnings (when credentials are configured) | IMD terms |
-| State university packages of practice; CGWB; Punjab Preservation of Subsoil Water Act 2009 | Sowing windows, groundwater category, legal sowing dates | Cited per pack |
+| State university packages of practice; CGWB Dynamic Ground Water Resources assessment; Punjab Preservation of Subsoil Water Act 2009 | Sowing windows, state groundwater category, legal sowing dates | Cited per pack |
 | Esri World Imagery; OpenStreetMap / CARTO labels; Nominatim | Field-plotting map and place search | Esri, ODbL |
 | pincodeapi.in | PIN code lookup | Service terms |
 
@@ -125,9 +125,10 @@ For durable data, use `STORE_PROVIDER=firestore` and `MEDIA_PROVIDER=gcs`. SQLit
 
 - Bundled state packs are curated by the team from published sources and still need sign-off by state experts. The app labels them that way.
 - The global baseline is coarse. It can suggest crops that are climatically possible but not locally grown, and a regional pack fixes that.
+- Groundwater is applied at state level (CGWB). Block-level categories vary inside a state, so a pack can add district values only with a cited source.
 - IMD warnings need IMD API credentials. Without them the app says IMD is unavailable and uses Open-Meteo only.
 - Plant Doctor is screening, not a lab diagnosis. It never names pesticide products or doses.
-- The officer access code is a shared secret. A production rollout should use the state's identity provider.
+- The officer access code is a shared secret per node. A production rollout should put the expert workspace behind the state's identity provider.
 
 ## Digital Public Good checklist
 

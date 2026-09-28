@@ -1,13 +1,24 @@
-# Exchange contract v1.0.0 — draft
+# Exchange contracts
 
-[practice-bundle.schema.json](practice-bundle.schema.json) defines the strict public shape. [The synthetic example](examples/synthetic-practice-bundle.json) is schema-valid but intentionally draft/unreviewed; it must not activate as advice.
+JSON Schema (Draft 2020-12) documents that KISANAI nodes publish and import. They are an application protocol written for this project, not an official AgriN or BRICS standard.
 
-This is an original application protocol for the demo, not an official AgriN or BRICS standard. Unknown properties are forbidden, including exact geometry and identity fields. This cannot detect personal information embedded in text: the application must add content inspection, an allowlist exporter and human review.
+| Schema | Content |
+|---|---|
+| [agronomy-pack.schema.json](agronomy-pack.schema.json) | A state's crop calendar: sowing windows per crop and season, irrigation needs, groundwater category, sowing regulations, priority practices, sources, licence and review status |
+| [practice-bundle.schema.json](practice-bundle.schema.json) | One regenerative practice: steps, crops, seasons, water contexts, contraindications, sources and, when at least 5 outcomes exist, aggregated field evidence |
 
-`c2c-demo-1` is a small local vocabulary, not an international crop taxonomy. Crop groups are cereals, pulses, oilseeds, vegetables and other; water contexts are rainfed, supplemental irrigation and irrigated. Map crop-specific local codes separately; no generic group is sufficient for agronomic eligibility. Season/climate text requires destination review, not fuzzy auto-approval.
+Conventions:
+- Regions use ISO 3166-2 codes (`IN-MH`).
+- Crops use catalog IDs plus scientific names.
+- Practices use the practice codes in `data/practices/regenerative_practices.json`.
+- Unknown properties are rejected, so bundles cannot carry farm geometry or identities.
 
-Before activation require supported schema/vocabulary, permitted license, trusted upload/origin policy, origin review, local compatibility, local expert approval and non-synthetic status. Store destination review outside the source bundle. Synthetic bundles can demonstrate validation/rejection and sandbox review but cannot become live farmer advice.
+Receiving node rules (implemented in `service.py`):
+- import only from allowlisted peers or an expert's paste;
+- validate against the schema;
+- deduplicate by content digest;
+- store the import as *pending*.
 
-Validate with JSON Schema Draft 2020-12 and a format checker. Check timestamps semantically (including no misleading future source review), URI safety, payload size and privacy separately. Source URLs are citations; do not automatically fetch arbitrary imported URLs. Digest/idempotency detection is receiver metadata and does not establish authenticity.
+Nothing is used for farmer advice until a local expert approves it. An approved pack supersedes older versions for the same region.
 
-Future contract changes use versioning and explicit migration. Generate API OpenAPI/types during B01; do not use this exchange schema as the private farm-data model.
+Bump `schema_version` for any breaking change.

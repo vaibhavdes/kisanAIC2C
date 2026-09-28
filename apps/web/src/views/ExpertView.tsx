@@ -143,10 +143,11 @@ function Dashboard({ t }: { t: T }) {
   );
 }
 
-function DataTable({ t, title, rows, cols, empty }: { t: T; title: string; rows: Json[]; cols: string[]; empty: string }) {
+function DataTable({ t, title, rows, cols, empty, note }: { t: T; title: string; rows: Json[]; cols: string[]; empty: string; note?: string }) {
   return (
     <div className="card-block">
       <h3>{title}</h3>
+      {note && <p className="muted">{note}</p>}
       {rows.length ? (
         <div className="table-wrap">
           <table className="data-table">
@@ -304,6 +305,8 @@ function NetworkTab({ t, locale }: { t: T; locale: Locale }) {
   const packs = useExpert<Json[]>("/api/v1/expert/packs");
   const peers = useExpert<Json>("/api/v1/expert/network/peers");
   const imports = useExpert<Json[]>("/api/v1/expert/exchange/imports");
+  const signals = useExpert<Json>("/api/v1/expert/network/signals");
+  const cropName = useCropName(locale);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [paste, setPaste] = useState("");
@@ -398,6 +401,10 @@ function NetworkTab({ t, locale }: { t: T; locale: Locale }) {
           </div>
         ))}
       </div>
+
+      <DataTable t={t} title={t("ex_peer_signals")} note={t("ex_peer_signals_desc")} empty={t("ex_no_peer_signals")} cols={["node", "state", "district", "crop", "category", "reports"]}
+                 rows={((signals.data?.signals || []) as Json[]).map((s) => ({ node: s.node_id, state: s.subdivision_code, district: s.district,
+                   crop: cropName(s.crop), category: t(`category_${s.category}`), reports: s.reports }))} />
 
       <div className="card-block">
         <h3>{t("ex_review_queue")}</h3>

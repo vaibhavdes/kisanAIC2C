@@ -8,9 +8,9 @@
 | `services/api/` | FastAPI service, recommendation engine, providers and tests |
 | `contracts/` | JSON Schemas exchanged between nodes (agronomy pack, practice bundle) |
 | `data/crops/global_crop_catalog.json` | ~36 crops: EcoCrop ranges, cycle, water class, N-fixing, names in 8 languages |
-| `data/practices/regenerative_practices.json` | Regenerative practice catalog with localized names |
+| `data/practices/regenerative_practices.json` | Regenerative practice catalog with localized names (used by the engine) |
+| `data/practices/practice_library.json` | Detailed practice write-ups loaded into a node's library as drafts for expert review |
 | `data/packs/IN-*.json` | Bundled state agronomy packs (MH, PB, UP) |
-| `data/agri_baselines/`, `data/manifests/` | Source tables used to build the packs and the optional BigQuery load |
 | `static/` | Built web app served by the API (`npm run build:static`) |
 | `infra/cloud-run/` | Deploy scripts (`deploy.sh` for production, `deploy-test-nodes.sh` for two peer test nodes) |
 | `config/cloud-run.example.yaml` | Env-vars file template for one node |
@@ -28,7 +28,7 @@
 | `models.py` | Pydantic models shared by API and store |
 | `store.py` | Document store: SQLite (filters in SQL) or Firestore |
 | `media.py` | Upload storage: local directory or GCS |
-| `auth.py` | Anonymous device actors (`X-Actor-Id`) and expert access (`X-Expert-Token`) |
+| `auth.py` | Anonymous device actors (`X-Actor-Id`) and expert access code (`X-Expert-Token`) |
 | `settings.py` | Environment configuration (see `.env.example`) |
 | `providers/weather.py` | Open-Meteo daily + hourly forecast, IMD district warnings (India only) |
 | `providers/land.py` | Climate normals (Open-Meteo ERA5, fallback WorldClim + Hargreaves PET), SoilGrids soil and WorldCover land cover |
@@ -38,8 +38,7 @@
 
 Scripts in `services/api/scripts/`:
 - `build_crop_catalog.py` builds the crop catalog from the EcoCrop CSV;
-- `build_agronomy_packs.py` builds the state packs;
-- `ingest_regional_data.py` and `ingest_to_bigquery.py` load the optional BigQuery baselines.
+- `build_agronomy_packs.py` builds the state packs and validates them against the contract.
 
 Tests (`services/api/tests/`) run offline with in-memory stores:
 - `test_engine.py` covers ranking, windows, water balance and rejections;

@@ -149,6 +149,7 @@ export function SoilView({ t, locale, farm, go }: Props) {
                 <SourceBadge t={t} kind="estimated" />
               </div>
               <p className="muted">{t("soil_estimate_desc")}</p>
+              {estimate.radius_m > 300 && <p className="muted">{t("soil_estimate_wide", { km: estimate.radius_m / 1000 })}</p>}
               <div className="stat-row">
                 {estimate.ph != null && <span>pH: <b>{estimate.ph}</b></span>}
                 {estimate.texture_class && <span>{t("texture")}: <b>{t(`texture_${estimate.texture_class}`)}</b></span>}
@@ -157,6 +158,8 @@ export function SoilView({ t, locale, farm, go }: Props) {
               </div>
             </div>
           )}
+
+          {land.data && !estimate && !saved && <p className="muted">{t("soil_estimate_none")}</p>}
 
           <div className="choice-row">
             <label className="choice-card">

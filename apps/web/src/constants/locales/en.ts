@@ -226,6 +226,8 @@ export const en: Record<string, string> = {
   soil_no_test_desc: "Upload a photo or PDF of your Soil Health Card, or type the values. Until then we use a modelled estimate.",
   soil_estimate_title: "Estimated soil for your location",
   soil_estimate_desc: "From global soil maps (ISRIC SoilGrids, 250 m). It can differ from your field - only your test is exact.",
+  soil_estimate_wide: "Averaged within {km} km of your field, because the nearest soil map cells are empty (for example buildings or water).",
+  soil_estimate_none: "No soil map estimate is available at this spot. Add your Soil Health Card for soil-based advice.",
   texture: "Texture",
   clay: "Clay",
   sand: "Sand",
