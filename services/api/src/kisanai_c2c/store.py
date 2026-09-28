@@ -60,8 +60,8 @@ class SQLiteDocumentStore:
                     document_id,
                     value.get("node_id"),
                     value.get("owner_subject"),
-                    value.get("created_at"),
-                    value.get("updated_at") or value.get("created_at"),
+                    value.get("created_at") or value.get("fetched_at"),
+                    value.get("updated_at") or value.get("created_at") or value.get("fetched_at"),
                     encoded,
                 ),
             )
@@ -75,23 +75,23 @@ class SQLiteDocumentStore:
         return json.loads(row["body"]) if row else None
 
     def list(self, collection: str, *, filters: dict[str, Any] | None = None, limit: int = 100) -> list[dict[str, Any]]:
+        """Newest first. Filters are applied in SQL (indexed columns or JSON fields) before LIMIT."""
         filters = filters or {}
-        supported = {"node_id", "owner_subject"}
         sql = "SELECT body FROM documents WHERE collection=?"
         params: list[Any] = [collection]
-        for key in supported:
-            if key in filters:
+        for key, value in filters.items():
+            if not key.replace("_", "").isalnum():
+                raise ValueError(f"Invalid filter field: {key}")
+            if key in {"node_id", "owner_subject"}:
                 sql += f" AND {key}=?"
-                params.append(filters[key])
+            else:
+                sql += f" AND json_extract(body, '$.{key}')=?"
+            params.append(value)
         sql += " ORDER BY COALESCE(updated_at, created_at) DESC LIMIT ?"
         params.append(min(max(limit, 1), 500))
         with self._connect() as connection:
             rows = connection.execute(sql, params).fetchall()
-        values = [json.loads(row["body"]) for row in rows]
-        for key, expected in filters.items():
-            if key not in supported:
-                values = [value for value in values if value.get(key) == expected]
-        return values
+        return [json.loads(row["body"]) for row in rows]
 
     def delete(self, collection: str, document_id: str) -> bool:
         with self.lock, self._connect() as connection:
@@ -121,7 +121,8 @@ class FirestoreDocumentStore:
         query = self.client.collection(collection)
         for key, value in (filters or {}).items():
             query = query.where(filter=FieldFilter(key, "==", value))
-        return [snapshot.to_dict() for snapshot in query.limit(min(max(limit, 1), 500)).stream()]
+        items = [snapshot.to_dict() for snapshot in query.limit(min(max(limit, 1), 500)).stream()]
+        return sorted(items, key=lambda item: str(item.get("updated_at") or item.get("created_at") or item.get("fetched_at") or ""), reverse=True)
 
     def delete(self, collection: str, document_id: str) -> bool:
         reference = self.client.collection(collection).document(document_id)

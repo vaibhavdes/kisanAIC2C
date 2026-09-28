@@ -21,6 +21,11 @@ class Settings(BaseSettings):
     app_env: Literal["development", "test", "production"] = "development"
     node_id: str = "india-node"
     node_country_code: str = "IN"
+    node_label: str = "KISANAI India node"
+    node_subdivisions: str = "IN-MH,IN-PB,IN-UP"
+    public_base_url: str | None = None
+    peer_nodes: str = ""
+    expert_access_token: str | None = None
     auth_mode: Literal["local", "firebase"] = "local"
     expert_subjects: str = ""
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
@@ -34,9 +39,11 @@ class Settings(BaseSettings):
     media_max_bytes: int = 8 * 1024 * 1024
 
     google_cloud_project: str | None = None
-    vertex_location: str = "global"
+    vertex_location: str = "asia-south1"
     ai_provider: Literal["vertex", "gemini_api"] = "vertex"
-    gemini_model: str = "gemini-2.5-flash"
+    gemini_model: str = "gemini-3.5-flash"
+    gemini_fallback_model: str = "gemini-3.7-flash"
+    gemini_fallback_location: str = "global"
     gemini_api_key: str | None = None
     ai_enabled: bool = True
 
@@ -69,6 +76,14 @@ class Settings(BaseSettings):
     @property
     def expert_subject_set(self) -> set[str]:
         return {item.strip() for item in self.expert_subjects.split(",") if item.strip()}
+
+    @property
+    def peer_node_list(self) -> list[str]:
+        return [item.strip().rstrip("/") for item in self.peer_nodes.split(",") if item.strip()]
+
+    @property
+    def node_subdivision_list(self) -> list[str]:
+        return [item.strip().upper() for item in self.node_subdivisions.split(",") if item.strip()]
 
     @property
     def cors_origin_list(self) -> list[str]:

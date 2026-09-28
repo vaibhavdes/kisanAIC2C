@@ -6,7 +6,7 @@ import re
 from typing import Any, Literal
 from uuid import uuid4
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 def utcnow() -> datetime:
@@ -101,7 +101,7 @@ class FarmCreate(BaseModel):
     country_code: str = Field(default="IN", min_length=2, max_length=2)
     state_code: str = Field(min_length=2, max_length=20)
     state_name: str = Field(min_length=2, max_length=120)
-    district: str = Field(min_length=2, max_length=120)
+    district: str = Field(min_length=1, max_length=120)
     village: str | None = Field(default=None, max_length=120)
     pincode: str | None = Field(default=None, max_length=10)
     boundary_coordinates: list[list[float]] = Field(default_factory=list)
@@ -114,7 +114,6 @@ class FarmCreate(BaseModel):
     previous_crop: str | None = Field(default=None, max_length=80)
     sowing_date: date | None = None
     crop_status: Literal["planning", "planted", "harvested"] = "planning"
-    creator_ip: str | None = None
 
     @field_validator("country_code", "state_code")
     @classmethod
@@ -128,7 +127,6 @@ class Farm(FarmCreate):
     node_id: str
     area_ha: float
     version: int = 1
-    creator_ip: str | None = None
     is_mine: bool | None = None
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
@@ -142,6 +140,20 @@ class SoilValues(BaseModel):
     nitrogen_kg_ha: float | None = Field(default=None, ge=0, le=10000)
     phosphorus_kg_ha: float | None = Field(default=None, ge=0, le=10000)
     potassium_kg_ha: float | None = Field(default=None, ge=0, le=10000)
+    sulphur_ppm: float | None = Field(default=None, ge=0, le=1000)
+    zinc_ppm: float | None = Field(default=None, ge=0, le=500)
+    iron_ppm: float | None = Field(default=None, ge=0, le=1000)
+    copper_ppm: float | None = Field(default=None, ge=0, le=500)
+    manganese_ppm: float | None = Field(default=None, ge=0, le=1000)
+    boron_ppm: float | None = Field(default=None, ge=0, le=100)
+
+
+class SoilRating(BaseModel):
+    parameter: str
+    value: float
+    unit: str
+    rating: Literal["low", "medium", "high", "acidic", "neutral", "alkaline", "strongly_alkaline", "normal", "saline", "deficient", "sufficient"]
+    note: str | None = None
 
 
 class SoilExtraction(BaseModel):
@@ -149,7 +161,10 @@ class SoilExtraction(BaseModel):
     sample_date: date | None = None
     lab_name: str | None = None
     raw_text: str | None = None
+    card_recommendations: list[str] = Field(default_factory=list)
+    plain_explanation: str | None = None
     uncertain_fields: list[str] = Field(default_factory=list)
+    ratings: list[SoilRating] = Field(default_factory=list)
     source: str
     model: str
 
@@ -165,6 +180,7 @@ class SoilTestCreate(BaseModel):
     lab_name: str | None = Field(default=None, max_length=160)
     source: Literal["manual", "soil_card_confirmed"] = "manual"
     extraction_id: str | None = None
+    card_recommendations: list[str] = Field(default_factory=list)
     confirmed: bool = True
 
     @field_validator("sample_date", mode="before")
@@ -178,7 +194,42 @@ class SoilTest(SoilTestCreate):
     farm_id: str
     owner_subject: str
     node_id: str
+    ratings: list[SoilRating] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=utcnow)
+
+
+class ClimateMonth(BaseModel):
+    month: int = Field(ge=1, le=12)
+    tmin_c: float
+    tmax_c: float
+    tmean_c: float
+    precip_mm: float
+    pet_mm: float | None = None
+
+
+class SoilEstimate(BaseModel):
+    ph: float | None = None
+    organic_carbon_percent: float | None = None
+    clay_percent: float | None = None
+    sand_percent: float | None = None
+    total_nitrogen_g_kg: float | None = None
+    texture_class: Literal["heavy", "medium", "light"] | None = None
+    depth: str = "0-30 cm"
+    source: str
+
+
+class LandProfile(BaseModel):
+    farm_id: str
+    node_id: str
+    latitude: float
+    longitude: float
+    climate: list[ClimateMonth]
+    climate_source: str
+    climate_period: str
+    soil: SoilEstimate | None = None
+    land_cover: dict[str, Any] | None = None
+    quality_flags: list[str] = Field(default_factory=list)
+    fetched_at: datetime = Field(default_factory=utcnow)
 
 
 class EvidenceValue(BaseModel):
@@ -200,103 +251,120 @@ class EvidenceSnapshot(BaseModel):
     valid_until: datetime | None = None
     spatial_scope: str
     values: list[EvidenceValue] = Field(default_factory=list)
+    data: dict[str, Any] | None = None
     quality_flags: list[str] = Field(default_factory=list)
     source_reference: str
 
 
 class SatelliteZone(BaseModel):
-    """A distinct classified zone within the farm parcel (GeoPard layout)."""
+    """One class of a fixed-threshold index map with its measured share of the field."""
     id: int
     color: str
     label: str
     min_val: float
     max_val: float
-    median_val: float
     area_acres: float
     percentage: float
 
-    @computed_field
-    @property
-    def zone_id(self) -> int:
-        return self.id
-
-    @computed_field
-    @property
-    def color_hex(self) -> str:
-        return self.color
-
-    @computed_field
-    @property
-    def val_min(self) -> float:
-        return self.min_val
-
-    @computed_field
-    @property
-    def val_max(self) -> float:
-        return self.max_val
-
-    @computed_field
-    @property
-    def share_percent(self) -> float:
-        return self.percentage
-
 
 class SatelliteMapResult(BaseModel):
-    """Result of a satellite map thumbnail request with GeoPard zonal breakdown."""
+    """Index map of the plotted field with measured zone areas and a neighbourhood comparison."""
     farm_id: str
     index: str  # NDVI, NDWI, NDMI
-    meaning: str  # human label: "Crop growth map", etc.
-    map_url: str | None = None  # Earth Engine thumbnail URL
-    fallback_map_url: str | None = None  # Google Maps Static API URL (always available)
-    image_api_path: str | None = None  # Local authenticated proxy: /api/v1/farms/{id}/satellite/image?index=NDVI
+    meaning: str
+    image_api_path: str | None = None  # authenticated proxy: /api/v1/farms/{id}/satellite/image?index=NDVI
     start_date: str
     end_date: str
-    scene_date: str | None = None  # Exact observation date e.g. "07 Sep 2026, 05:33 UTC"
+    scene_date: str | None = None
+    scene_count: int | None = None
     sensor: str = "Sentinel-2 MSI Level-2A"
     cloud_coverage_percent: float | None = None
     resolution_m: int = 10
-    field_status_narrative: str | None = None
+    geometry: Literal["farm_polygon", "point_buffer"] = "point_buffer"
+    field_median: float | None = None
+    neighbour_cropland_median: float | None = None
+    neighbour_percentile: float | None = None
+    field_status: str | None = None
     source: str
-    legend: dict[str, str]  # {"red": "weak growth", "green": "healthy growth"}
+    legend: list[dict[str, Any]] = Field(default_factory=list)
     zones: list[SatelliteZone] = Field(default_factory=list)
-    data_mode: str  # "live", "fixture", "missing"
-    acquisition_note: str | None = None
+    data_mode: Literal["live", "missing"]
+    note: str | None = None
 
 
 class AdvisoryRequest(BaseModel):
     goal: Literal["crop_plan", "manage_current_crop"]
-    season: Literal["kharif", "rabi", "summer"] | None = None
     locale: str = "en-IN"
-    budget_level: Literal["low", "medium", "flexible"] = "low"
-    labor_access: Literal["limited", "family", "hired"] = "family"
-    equipment_access: list[str] = Field(default_factory=list)
+    farmer_question: str | None = Field(default=None, max_length=1000)
 
 
-class ScoreDimension(BaseModel):
-    name: str
+FactorStatus = Literal["good", "fair", "limiting", "blocking", "info"]
+DataKind = Literal["measured", "farmer", "estimated", "forecast", "satellite", "regional", "catalog", "ai"]
+
+
+class DecisionFactor(BaseModel):
+    """One explainable input to a crop decision. `params` feed localized UI templates."""
+    id: str
+    status: FactorStatus
     score: float | None = Field(default=None, ge=0, le=1)
-    explanation: str
+    source: DataKind
+    params: dict[str, Any] = Field(default_factory=dict)
+    message: str
 
 
-class CropDecisionFactor(BaseModel):
-    factor_id: str  # "season", "water", "soil", "weather", "rotation", "regional_fit", "regenerative_practice"
-    factor_name: str
-    status: Literal["optimal", "compatible", "constrained", "rejected"]
-    data_used: str
-    reasoning: str
-    remedy: str | None = None
+class SowingWindow(BaseModel):
+    season: str | None = None
+    label: str | None = None
+    start: date
+    end: date
+    status: Literal["open", "upcoming", "later"]
+    days_until_start: int
+    irrigation_required: bool = False
+    source: Literal["regional_pack", "climate_model"]
 
 
-class CropPracticeOption(BaseModel):
+class PracticeRef(BaseModel):
+    id: str
+    name: str
+
+
+class CropOption(BaseModel):
     crop: str
-    crop_name: str = ""
-    practice_ids: list[str] = Field(default_factory=list)
+    crop_name: str
+    scientific_name: str | None = None
+    group: str | None = None
     eligible: bool
-    rejection_reasons: list[str] = Field(default_factory=list)
-    dimensions: list[ScoreDimension] = Field(default_factory=list)
-    evidence_coverage: float = Field(default=1.0, ge=0, le=1)
+    suitability: float = Field(ge=0, le=1)
+    regenerative_score: float = Field(ge=0, le=1)
     rank_score: float | None = Field(default=None, ge=0, le=1)
-    factors: list[CropDecisionFactor] = Field(default_factory=list)
+    sowing: SowingWindow | None = None
+    water_need_mm: float | None = None
+    water_available_mm: float | None = None
+    irrigation_gap_mm: float | None = None
+    factors: list[DecisionFactor] = Field(default_factory=list)
+    rejection_codes: list[str] = Field(default_factory=list)
+    rejection_reasons: list[str] = Field(default_factory=list)
+    practices: list[PracticeRef] = Field(default_factory=list)
+    evidence_coverage: float = Field(default=0, ge=0, le=1)
+
+
+class DataSource(BaseModel):
+    id: str
+    name: str
+    kind: DataKind
+    status: Literal["live", "cached", "estimated", "unavailable", "not_provided"]
+    detail: str | None = None
+    as_of: str | None = None
+
+
+class PackRef(BaseModel):
+    pack_id: str
+    pack_version: int
+    name: str
+    subdivision_code: str
+    review_status: str
+    origin: Literal["bundled", "imported"]
+    origin_node: str | None = None
 
 
 class CropRecommendationResult(BaseModel):
@@ -304,16 +372,19 @@ class CropRecommendationResult(BaseModel):
     farm_name: str
     district: str
     state_name: str
-    season: str
+    country_code: str
+    subdivision_code: str | None = None
     locale: str
-    water_access: str
-    soil_type: str
-    previous_crop: str | None = None
-    rainfall_7d_forecast_mm: float | None = None
-    data_sources_used: list[dict[str, str]] = Field(default_factory=list)
-    recommendations: list[CropPracticeOption] = Field(default_factory=list)
-    unsuitable_crops: list[CropPracticeOption] = Field(default_factory=list)
-    regional_notes: str | None = None
+    generated_on: date
+    horizon_days: int
+    knowledge_mode: Literal["regional_pack", "global_baseline"]
+    pack: PackRef | None = None
+    context: dict[str, Any] = Field(default_factory=dict)
+    data_sources: list[DataSource] = Field(default_factory=list)
+    sow_now: list[CropOption] = Field(default_factory=list)
+    upcoming: list[CropOption] = Field(default_factory=list)
+    not_suitable: list[CropOption] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
 
 
 class AdvisoryAction(BaseModel):
@@ -325,6 +396,9 @@ class AdvisoryAction(BaseModel):
     caution: str | None = None
     evidence_ids: list[str] = Field(default_factory=list)
     status: Literal["proposed", "accepted", "completed", "declined"] = "proposed"
+    outcome: Literal["worked", "partly", "did_not_work"] | None = None
+    observation: str | None = None
+    completed_at: datetime | None = None
 
 
 class Advisory(BaseModel):
@@ -335,7 +409,7 @@ class Advisory(BaseModel):
     goal: str
     locale: str
     summary: str
-    options: list[CropPracticeOption]
+    options: list[CropOption]
     actions: list[AdvisoryAction]
     evidence_ids: list[str]
     uncertainty_reasons: list[str] = Field(default_factory=list)
@@ -348,6 +422,7 @@ class Advisory(BaseModel):
 
 class ActionUpdate(BaseModel):
     status: Literal["accepted", "completed", "declined"]
+    outcome: Literal["worked", "partly", "did_not_work"] | None = None
     observation: str | None = Field(default=None, max_length=2000)
 
 
@@ -377,12 +452,21 @@ class Diagnosis(BaseModel):
     node_id: str
     media_id: str
     crop: str
+    detected_crop: str | None = None
+    district: str | None = None
+    subdivision_code: str | None = None
     image_quality: Literal["good", "usable", "poor", "not_crop"]
+    category: Literal["disease", "pest", "nutrient", "abiotic", "healthy", "unclear"] = "unclear"
+    suspected_condition: str | None = None
+    confidence: Literal["low", "medium", "high"] = "low"
+    severity: Literal["none", "mild", "moderate", "severe", "unknown"] = "unknown"
     visible_findings: list[str]
     plausible_causes: list[str]
     uncertainty_reasons: list[str]
     safe_next_steps: list[str]
+    prevention: list[str] = Field(default_factory=list)
     needs_expert_review: bool
+    weather_context: dict[str, Any] | None = None
     model_provider: str
     model: str
     created_at: datetime = Field(default_factory=utcnow)
@@ -421,6 +505,7 @@ class PracticeCreate(BaseModel):
     contraindications: list[str]
     source_urls: list[str]
     license: Literal["CC0-1.0", "CC-BY-4.0"]
+    practice_code: str | None = Field(default=None, max_length=60, description="Link to the regenerative practice catalog id")
 
 
 class Practice(PracticeCreate):
@@ -444,6 +529,8 @@ class ExchangeImport(BaseModel):
     node_id: str
     imported_by: str
     digest: str
+    bundle_type: Literal["practice", "agronomy_pack"] = "practice"
+    source_url: str | None = None
     bundle: dict[str, Any]
     compatibility_findings: list[str]
     local_review_status: Literal["pending", "approved", "rejected"] = "pending"

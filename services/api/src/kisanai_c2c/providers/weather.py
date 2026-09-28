@@ -14,6 +14,9 @@ class WeatherUnavailable(RuntimeError):
     pass
 
 
+_HTTP = requests.Session()  # reuse TLS connections across forecast requests
+
+
 class WeatherProvider:
     def __init__(self, settings: Settings | None = None):
         self.settings = settings or get_settings()
@@ -22,7 +25,7 @@ class WeatherProvider:
         snapshots: list[EvidenceSnapshot] = []
         imd_error: str | None = None
 
-        if self.settings.imd_enabled:
+        if self.settings.imd_enabled and farm.country_code == "IN":
             attempts = self.settings.imd_retry_attempts + 1
             for attempt in range(attempts):
                 try:
@@ -236,23 +239,29 @@ class WeatherProvider:
             ]
         return []
 
+    DAILY_VARS = ("precipitation_sum", "precipitation_probability_max", "temperature_2m_max", "temperature_2m_min",
+                  "et0_fao_evapotranspiration", "wind_speed_10m_max", "relative_humidity_2m_mean")
+    HOURLY_VARS = ("temperature_2m", "relative_humidity_2m", "precipitation", "precipitation_probability",
+                   "wind_speed_10m", "soil_moisture_3_to_9cm")
+
     def _fetch_open_meteo(self, farm: Farm, fallback_from: str | None = None) -> EvidenceSnapshot:
         params = {
             "latitude": farm.location.latitude,
             "longitude": farm.location.longitude,
             "current": "temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m",
-            "daily": "precipitation_sum,precipitation_probability_max,temperature_2m_max,temperature_2m_min,et0_fao_evapotranspiration",
+            "daily": ",".join(self.DAILY_VARS),
+            "hourly": ",".join(self.HOURLY_VARS),
             "forecast_days": 7,
             "timezone": "auto",
         }
-        response = requests.get(self.settings.open_meteo_base_url, params=params, timeout=12)
+        response = _HTTP.get(self.settings.open_meteo_base_url, params=params, timeout=15)
         response.raise_for_status()
         data = response.json()
         daily = data.get("daily") or {}
         dates = daily.get("time") or []
         if not dates:
             raise WeatherUnavailable("Open-Meteo returned no daily forecast")
-        
+
         values: list[EvidenceValue] = []
         for index, value in enumerate(daily.get("precipitation_sum") or []):
             values.append(EvidenceValue(name=f"rainfall_{dates[index]}", value=value, unit="mm/day"))
@@ -267,11 +276,24 @@ class WeatherProvider:
                 EvidenceValue(name="current_wind_speed", value=current.get("wind_speed_10m"), unit="km/h"),
             ]
         )
+        hourly = data.get("hourly") or {}
+        structured = {
+            "timezone": data.get("timezone"),
+            "current": {key: current.get(key) for key in ("time", "temperature_2m", "relative_humidity_2m", "precipitation", "wind_speed_10m")},
+            "daily": [
+                {"date": day, **{var: (daily.get(var) or [None] * len(dates))[idx] for var in self.DAILY_VARS}}
+                for idx, day in enumerate(dates)
+            ],
+            "hourly": [
+                {"time": moment, **{var: (hourly.get(var) or [None] * len(hourly.get("time", [])))[idx] for var in self.HOURLY_VARS}}
+                for idx, moment in enumerate(hourly.get("time") or [])
+            ],
+        }
         now = datetime.now(UTC)
-        flags = ["forecast_fallback_not_official_warning"]
+        flags = ["model_forecast_not_official_warning"]
         if fallback_from:
             flags.append(f"imd_unavailable:{fallback_from[:120]}")
-            
+
         return EvidenceSnapshot(
             farm_id=farm.id,
             node_id=farm.node_id,
@@ -282,6 +304,7 @@ class WeatherProvider:
             valid_until=now + timedelta(hours=3),
             spatial_scope=f"point:{farm.location.latitude:.4f},{farm.location.longitude:.4f}",
             values=values,
+            data=structured,
             quality_flags=flags,
             source_reference="https://open-meteo.com/",
         )

@@ -1,3 +1,5 @@
+import hmac
+import re
 from functools import lru_cache
 
 from fastapi import Depends, Header, HTTPException, status
@@ -13,9 +15,13 @@ def _google_request() -> google_requests.Request:
     return google_requests.Request()
 
 
+DEVICE_SUBJECT = re.compile(r"^dev-[a-z0-9-]{8,64}$")
+
+
 def current_actor(
     authorization: str | None = Header(default=None),
     x_actor_id: str | None = Header(default=None),
+    x_expert_token: str | None = Header(default=None),
     x_actor_role: str | None = Header(default=None),
     x_actor_locale: str | None = Header(default=None),
     settings: Settings = Depends(get_settings),
@@ -23,16 +29,23 @@ def current_actor(
     if settings.auth_mode == "local":
         if settings.app_env == "production":
             raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Local authentication is disabled")
-        subject = (x_actor_id or "local-farmer").strip()
-        requested = {part.strip() for part in (x_actor_role or "farmer").split(",") if part.strip()}
-        try:
-            roles = {Role(role) for role in requested}
-        except ValueError as exc:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid X-Actor-Role") from exc
+        # Farmers are identified by an anonymous per-device id generated in the browser.
+        subject = (x_actor_id or "local-farmer").strip().lower()
+        if subject != "local-farmer" and not DEVICE_SUBJECT.match(subject):
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid device id")
+        roles = {Role.farmer}
+        if settings.expert_access_token:
+            if x_expert_token:
+                if not hmac.compare_digest(x_expert_token, settings.expert_access_token):
+                    raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid expert access code")
+                roles.add(Role.expert)
+        elif x_actor_role and "expert" in x_actor_role:
+            # No access code configured: local development only.
+            roles.add(Role.expert)
         return Actor(
             subject=subject,
             node_id=settings.node_id,
-            roles=roles or {Role.farmer},
+            roles=roles,
             locale=x_actor_locale or settings.default_locale,
         )
 
