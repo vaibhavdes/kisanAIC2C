@@ -1,0 +1,932 @@
+{
+  "schema_version": "1.0.0",
+  "pack_id": "pack_in_maharashtra",
+  "pack_version": 1,
+  "region": {
+    "country_code": "IN",
+    "subdivision_code": "IN-MH",
+    "name": "Maharashtra",
+    "agro_climatic_zones": [
+      "Western Plateau and Hills Region (Planning Commission zone 9)"
+    ]
+  },
+  "license": "CC-BY-4.0",
+  "review": {
+    "status": "curated_pending_review",
+    "reviewer": null,
+    "reviewed_at": null,
+    "note": "Sowing windows curated from Maharashtra SAU packages of practices; awaiting state expert review."
+  },
+  "sources": [
+    {
+      "title": "Vasantrao Naik Marathwada Krishi Vidyapeeth, Parbhani - Package of Practices",
+      "url": "https://vnmkv.ac.in/"
+    },
+    {
+      "title": "Dr. Panjabrao Deshmukh Krishi Vidyapeeth, Akola - Package of Practices",
+      "url": "https://www.pdkv.ac.in/"
+    },
+    {
+      "title": "Mahatma Phule Krishi Vidyapeeth, Rahuri - Package of Practices",
+      "url": "https://mpkv.ac.in/"
+    },
+    {
+      "title": "IMD district rainfall normals (1991-2020)",
+      "url": "https://mausam.imd.gov.in/"
+    },
+    {
+      "title": "CGWB Dynamic Ground Water Resources of India",
+      "url": "https://cgwb.gov.in/"
+    }
+  ],
+  "seasons": [
+    {
+      "id": "kharif",
+      "months": [
+        6,
+        7,
+        8,
+        9,
+        10
+      ]
+    },
+    {
+      "id": "rabi",
+      "months": [
+        10,
+        11,
+        12,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "id": "zaid",
+      "months": [
+        3,
+        4,
+        5,
+        6
+      ]
+    }
+  ],
+  "groundwater": {
+    "category": "safe",
+    "scope": "district",
+    "note": "State average is safe but Marathwada and western Maharashtra have semi-critical to over-exploited districts; district values override.",
+    "source": "CGWB Dynamic Ground Water Resources of India"
+  },
+  "crops": [
+    {
+      "crop_id": "soybean",
+      "scientific_name": "Glycine max",
+      "sowing_windows": [
+        {
+          "season": "kharif",
+          "start": "06-15",
+          "end": "07-15",
+          "irrigation_required": false
+        }
+      ],
+      "note": "Sow after 75-100 mm cumulative monsoon rain."
+    },
+    {
+      "crop_id": "cotton",
+      "scientific_name": "Gossypium hirsutum",
+      "sowing_windows": [
+        {
+          "season": "kharif",
+          "start": "06-15",
+          "end": "07-10",
+          "irrigation_required": false
+        },
+        {
+          "season": "kharif",
+          "start": "05-20",
+          "end": "06-10",
+          "irrigation_required": true,
+          "label": "pre-monsoon irrigated"
+        }
+      ]
+    },
+    {
+      "crop_id": "pigeon_pea",
+      "scientific_name": "Cajanus cajan",
+      "sowing_windows": [
+        {
+          "season": "kharif",
+          "start": "06-15",
+          "end": "07-15",
+          "irrigation_required": false
+        }
+      ]
+    },
+    {
+      "crop_id": "sorghum",
+      "scientific_name": "Sorghum bicolor",
+      "sowing_windows": [
+        {
+          "season": "kharif",
+          "start": "06-15",
+          "end": "07-10",
+          "irrigation_required": false
+        },
+        {
+          "season": "rabi",
+          "start": "09-15",
+          "end": "10-15",
+          "irrigation_required": false,
+          "label": "rabi on residual moisture"
+        }
+      ]
+    },
+    {
+      "crop_id": "pearl_millet",
+      "scientific_name": "Pennisetum glaucum",
+      "sowing_windows": [
+        {
+          "season": "kharif",
+          "start": "06-15",
+          "end": "07-15",
+          "irrigation_required": false
+        }
+      ]
+    },
+    {
+      "crop_id": "maize",
+      "scientific_name": "Zea mays",
+      "sowing_windows": [
+        {
+          "season": "kharif",
+          "start": "06-15",
+          "end": "07-15",
+          "irrigation_required": false
+        },
+        {
+          "season": "rabi",
+          "start": "10-15",
+          "end": "11-15",
+          "irrigation_required": true
+        }
+      ]
+    },
+    {
+      "crop_id": "green_gram",
+      "scientific_name": "Vigna radiata",
+      "sowing_windows": [
+        {
+          "season": "kharif",
+          "start": "06-15",
+          "end": "07-10",
+          "irrigation_required": false
+        }
+      ]
+    },
+    {
+      "crop_id": "black_gram",
+      "scientific_name": "Vigna mungo",
+      "sowing_windows": [
+        {
+          "season": "kharif",
+          "start": "06-15",
+          "end": "07-10",
+          "irrigation_required": false
+        }
+      ]
+    },
+    {
+      "crop_id": "cowpea",
+      "scientific_name": "Vigna unguiculata",
+      "sowing_windows": [
+        {
+          "season": "kharif",
+          "start": "06-15",
+          "end": "07-15",
+          "irrigation_required": false
+        }
+      ]
+    },
+    {
+      "crop_id": "groundnut",
+      "scientific_name": "Arachis hypogaea",
+      "sowing_windows": [
+        {
+          "season": "kharif",
+          "start": "06-15",
+          "end": "07-15",
+          "irrigation_required": false
+        },
+        {
+          "season": "zaid",
+          "start": "01-15",
+          "end": "02-15",
+          "irrigation_required": true,
+          "label": "summer irrigated"
+        }
+      ]
+    },
+    {
+      "crop_id": "sesame",
+      "scientific_name": "Sesamum indicum",
+      "sowing_windows": [
+        {
+          "season": "kharif",
+          "start": "06-15",
+          "end": "07-15",
+          "irrigation_required": false
+        }
+      ]
+    },
+    {
+      "crop_id": "finger_millet",
+      "scientific_name": "Eleusine coracana ssp. coracana",
+      "sowing_windows": [
+        {
+          "season": "kharif",
+          "start": "06-15",
+          "end": "07-15",
+          "irrigation_required": false
+        }
+      ],
+      "note": "Mainly Konkan and western ghat districts."
+    },
+    {
+      "crop_id": "rice",
+      "scientific_name": "Oryza sativa",
+      "sowing_windows": [
+        {
+          "season": "kharif",
+          "start": "06-15",
+          "end": "07-31",
+          "irrigation_required": false
+        }
+      ],
+      "note": "Rainfed transplanted rice in Konkan and eastern Vidarbha."
+    },
+    {
+      "crop_id": "sunflower",
+      "scientific_name": "Helianthus annuus",
+      "sowing_windows": [
+        {
+          "season": "kharif",
+          "start": "06-15",
+          "end": "07-15",
+          "irrigation_required": false
+        },
+        {
+          "season": "rabi",
+          "start": "10-01",
+          "end": "10-31",
+          "irrigation_required": false
+        }
+      ]
+    },
+    {
+      "crop_id": "chickpea",
+      "scientific_name": "Cicer arietinum",
+      "sowing_windows": [
+        {
+          "season": "rabi",
+          "start": "09-25",
+          "end": "10-20",
+          "irrigation_required": false,
+          "label": "rainfed on residual moisture"
+        },
+        {
+          "season": "rabi",
+          "start": "10-15",
+          "end": "11-15",
+          "irrigation_required": true
+        }
+      ]
+    },
+    {
+      "crop_id": "safflower",
+      "scientific_name": "Carthamus tinctorius",
+      "sowing_windows": [
+        {
+          "season": "rabi",
+          "start": "09-20",
+          "end": "10-20",
+          "irrigation_required": false,
+          "label": "rainfed on residual moisture"
+        }
+      ]
+    },
+    {
+      "crop_id": "wheat",
+      "scientific_name": "Triticum aestivum",
+      "sowing_windows": [
+        {
+          "season": "rabi",
+          "start": "11-01",
+          "end": "11-30",
+          "irrigation_required": true,
+          "label": "timely irrigated"
+        },
+        {
+          "season": "rabi",
+          "start": "12-01",
+          "end": "12-15",
+          "irrigation_required": true,
+          "label": "late sown"
+        }
+      ]
+    },
+    {
+      "crop_id": "onion",
+      "scientific_name": "Allium cepa",
+      "sowing_windows": [
+        {
+          "season": "kharif",
+          "start": "06-15",
+          "end": "07-31",
+          "irrigation_required": false,
+          "label": "kharif transplanting"
+        },
+        {
+          "season": "rabi",
+          "start": "11-15",
+          "end": "01-15",
+          "irrigation_required": true,
+          "label": "rabi transplanting"
+        }
+      ]
+    },
+    {
+      "crop_id": "sugarcane",
+      "scientific_name": "Saccharum officinarum",
+      "sowing_windows": [
+        {
+          "season": "kharif",
+          "start": "07-01",
+          "end": "08-15",
+          "irrigation_required": true,
+          "label": "adsali"
+        },
+        {
+          "season": "rabi",
+          "start": "10-01",
+          "end": "11-15",
+          "irrigation_required": true,
+          "label": "pre-seasonal"
+        },
+        {
+          "season": "zaid",
+          "start": "01-01",
+          "end": "02-28",
+          "irrigation_required": true,
+          "label": "suru"
+        }
+      ]
+    },
+    {
+      "crop_id": "dhaincha",
+      "scientific_name": "Sesbania bispinosa",
+      "sowing_windows": [
+        {
+          "season": "zaid",
+          "start": "05-25",
+          "end": "06-30",
+          "irrigation_required": false,
+          "label": "green manure before kharif"
+        }
+      ]
+    },
+    {
+      "crop_id": "sunn_hemp",
+      "scientific_name": "Crotalaria juncea",
+      "sowing_windows": [
+        {
+          "season": "zaid",
+          "start": "05-25",
+          "end": "06-30",
+          "irrigation_required": false,
+          "label": "green manure before kharif"
+        }
+      ]
+    }
+  ],
+  "districts": [
+    {
+      "name": "Yavatmal",
+      "aliases": [],
+      "subdivision": "Vidarbha",
+      "agro_climatic_zone": "Central Vidarbha Zone",
+      "normal_rainfall_mm": 911.3,
+      "monsoon_normal_mm": 801.9,
+      "predominant_soil": "black",
+      "groundwater_category": "safe",
+      "primary_crops": [
+        "cotton",
+        "soybean",
+        "pigeon_pea",
+        "sorghum",
+        "chickpea"
+      ],
+      "note": "Predominantly rainfed black cotton soil. Highly responsive to pigeon pea + cotton/soybean intercropping to replenish nitrogen and break pink bollworm cycle."
+    },
+    {
+      "name": "Amravati",
+      "aliases": [],
+      "subdivision": "Vidarbha",
+      "agro_climatic_zone": "Central Vidarbha Zone",
+      "normal_rainfall_mm": 844.2,
+      "monsoon_normal_mm": 742.9,
+      "predominant_soil": "black",
+      "groundwater_category": "safe",
+      "primary_crops": [
+        "soybean",
+        "cotton",
+        "pigeon_pea",
+        "chickpea"
+      ],
+      "note": "Heavy clay-loam black soils with high water retention. Excellent for kharif soybean followed by rabi chickpea or wheat with supplemental moisture."
+    },
+    {
+      "name": "Wardha",
+      "aliases": [],
+      "subdivision": "Vidarbha",
+      "agro_climatic_zone": "Central Vidarbha Zone",
+      "normal_rainfall_mm": 982.0,
+      "monsoon_normal_mm": 864.2,
+      "predominant_soil": "black",
+      "groundwater_category": "safe",
+      "primary_crops": [
+        "cotton",
+        "soybean",
+        "pigeon_pea",
+        "wheat"
+      ],
+      "note": "Deep black soils. High organic carbon potential under no-till or residue retention."
+    },
+    {
+      "name": "Nagpur",
+      "aliases": [],
+      "subdivision": "Vidarbha",
+      "agro_climatic_zone": "Eastern Vidarbha Zone",
+      "normal_rainfall_mm": 1045.0,
+      "monsoon_normal_mm": 919.6,
+      "predominant_soil": "black",
+      "groundwater_category": "safe",
+      "primary_crops": [
+        "soybean",
+        "cotton",
+        "pigeon_pea",
+        "rice",
+        "chickpea"
+      ],
+      "note": "Transition between black soils and red gravelly soils. Good moisture for dual-season kharif pulses and rabi legumes."
+    },
+    {
+      "name": "Akola",
+      "aliases": [],
+      "subdivision": "Vidarbha",
+      "agro_climatic_zone": "Central Vidarbha Zone",
+      "normal_rainfall_mm": 753.8,
+      "monsoon_normal_mm": 663.3,
+      "predominant_soil": "black",
+      "groundwater_category": "semi_critical",
+      "primary_crops": [
+        "cotton",
+        "soybean",
+        "pigeon_pea",
+        "sorghum"
+      ],
+      "note": "Purna river basin with saline tracts in parts. Deep vertisols require broad bed furrow (BBF) to prevent waterlogging and manage dry spells."
+    },
+    {
+      "name": "Buldhana",
+      "aliases": [],
+      "subdivision": "Vidarbha",
+      "agro_climatic_zone": "Central Vidarbha Zone",
+      "normal_rainfall_mm": 740.5,
+      "monsoon_normal_mm": 651.6,
+      "predominant_soil": "black",
+      "groundwater_category": "semi_critical",
+      "primary_crops": [
+        "soybean",
+        "cotton",
+        "maize",
+        "pigeon_pea",
+        "chickpea"
+      ],
+      "note": "Medium to deep black soils. Maize and soybean rotations thrive under moderate monsoon conditions."
+    },
+    {
+      "name": "Chandrapur",
+      "aliases": [],
+      "subdivision": "Vidarbha",
+      "agro_climatic_zone": "Eastern Vidarbha Zone",
+      "normal_rainfall_mm": 1190.0,
+      "monsoon_normal_mm": 1047.2,
+      "predominant_soil": "alluvial",
+      "groundwater_category": "safe",
+      "primary_crops": [
+        "rice",
+        "soybean",
+        "cotton",
+        "pigeon_pea"
+      ],
+      "note": "High rainfall zone. River basin soils suit irrigated and rainfed paddy as well as kharif pulses."
+    },
+    {
+      "name": "Gadchiroli",
+      "aliases": [],
+      "subdivision": "Vidarbha",
+      "agro_climatic_zone": "Eastern Vidarbha Zone",
+      "normal_rainfall_mm": 1350.0,
+      "monsoon_normal_mm": 1188.0,
+      "predominant_soil": "red",
+      "groundwater_category": "safe",
+      "primary_crops": [
+        "rice",
+        "soybean",
+        "sorghum"
+      ],
+      "note": "Forested undulating red and lateritic soils. Excellent for direct-seeded or transplanted rice and millets."
+    },
+    {
+      "name": "Chhatrapati Sambhajinagar",
+      "aliases": [
+        "Aurangabad"
+      ],
+      "subdivision": "Marathwada",
+      "agro_climatic_zone": "Marathwada Dryland Zone",
+      "normal_rainfall_mm": 670.0,
+      "monsoon_normal_mm": 589.6,
+      "predominant_soil": "black",
+      "groundwater_category": "semi_critical",
+      "primary_crops": [
+        "cotton",
+        "maize",
+        "soybean",
+        "pearl_millet",
+        "pigeon_pea"
+      ],
+      "note": "Semi-arid Deccan plateau. Pearl millet, maize, and drought-hardy pulses excel under deficit rainfall."
+    },
+    {
+      "name": "Jalna",
+      "aliases": [],
+      "subdivision": "Marathwada",
+      "agro_climatic_zone": "Marathwada Dryland Zone",
+      "normal_rainfall_mm": 688.0,
+      "monsoon_normal_mm": 605.4,
+      "predominant_soil": "black",
+      "groundwater_category": "semi_critical",
+      "primary_crops": [
+        "cotton",
+        "soybean",
+        "sorghum",
+        "pigeon_pea",
+        "maize"
+      ],
+      "note": "Medium black soils. Intercropping pigeon pea with soybean or sorghum stabilizes income against mid-season dry spells."
+    },
+    {
+      "name": "Beed",
+      "aliases": [],
+      "subdivision": "Marathwada",
+      "agro_climatic_zone": "Scarcity Zone",
+      "normal_rainfall_mm": 630.0,
+      "monsoon_normal_mm": 554.4,
+      "predominant_soil": "black",
+      "groundwater_category": "critical",
+      "primary_crops": [
+        "cotton",
+        "soybean",
+        "pearl_millet",
+        "pigeon_pea"
+      ],
+      "note": "Drought-prone zone. Low water footprint crops like pearl millet and pigeon pea have highest survival probability."
+    },
+    {
+      "name": "Latur",
+      "aliases": [],
+      "subdivision": "Marathwada",
+      "agro_climatic_zone": "Marathwada Zone",
+      "normal_rainfall_mm": 760.0,
+      "monsoon_normal_mm": 668.8,
+      "predominant_soil": "black",
+      "groundwater_category": "semi_critical",
+      "primary_crops": [
+        "soybean",
+        "pigeon_pea",
+        "chickpea",
+        "sugarcane"
+      ],
+      "note": "Major pulse and oilseed hub. Soybean-pigeon pea intercrop is the gold standard for agro-ecological resilience."
+    },
+    {
+      "name": "Dharashiv",
+      "aliases": [
+        "Osmanabad"
+      ],
+      "subdivision": "Marathwada",
+      "agro_climatic_zone": "Scarcity Zone",
+      "normal_rainfall_mm": 710.0,
+      "monsoon_normal_mm": 624.8,
+      "predominant_soil": "black",
+      "groundwater_category": "semi_critical",
+      "primary_crops": [
+        "soybean",
+        "chickpea",
+        "sorghum",
+        "pigeon_pea"
+      ],
+      "note": "Medium vertisols with low groundwater. Rabi jowar and chickpea are reliable post-kharif crops."
+    },
+    {
+      "name": "Nanded",
+      "aliases": [],
+      "subdivision": "Marathwada",
+      "agro_climatic_zone": "Marathwada Eastern Zone",
+      "normal_rainfall_mm": 895.0,
+      "monsoon_normal_mm": 787.6,
+      "predominant_soil": "black",
+      "groundwater_category": "safe",
+      "primary_crops": [
+        "cotton",
+        "soybean",
+        "pigeon_pea",
+        "sorghum"
+      ],
+      "note": "Godavari river basin. Deep fertile black soils suitable for kharif cotton/soybean and rabi pulses."
+    },
+    {
+      "name": "Parbhani",
+      "aliases": [],
+      "subdivision": "Marathwada",
+      "agro_climatic_zone": "Marathwada Zone",
+      "normal_rainfall_mm": 790.0,
+      "monsoon_normal_mm": 695.2,
+      "predominant_soil": "black",
+      "groundwater_category": "safe",
+      "primary_crops": [
+        "cotton",
+        "soybean",
+        "pigeon_pea",
+        "sorghum"
+      ],
+      "note": "Heavy black soils prone to crusting. Surface residue mulching improves infiltration."
+    },
+    {
+      "name": "Solapur",
+      "aliases": [],
+      "subdivision": "Madhya Maharashtra",
+      "agro_climatic_zone": "Scarcity Zone",
+      "normal_rainfall_mm": 561.0,
+      "monsoon_normal_mm": 493.7,
+      "predominant_soil": "black",
+      "groundwater_category": "over_exploited",
+      "primary_crops": [
+        "sorghum",
+        "pearl_millet",
+        "pigeon_pea",
+        "onion"
+      ],
+      "note": "Low and erratic rainfall. Famous for Maldandi rabi jowar. High water stress makes sugarcane hazardous under rainfed/groundwater."
+    },
+    {
+      "name": "Ahmednagar",
+      "aliases": [],
+      "subdivision": "Madhya Maharashtra",
+      "agro_climatic_zone": "Scarcity Zone",
+      "normal_rainfall_mm": 580.0,
+      "monsoon_normal_mm": 510.4,
+      "predominant_soil": "black",
+      "groundwater_category": "over_exploited",
+      "primary_crops": [
+        "pearl_millet",
+        "soybean",
+        "onion",
+        "sorghum",
+        "cotton"
+      ],
+      "note": "Varying topography from hills to plains. Drip irrigation and raised bed planting recommended for high-value onion and pulses."
+    },
+    {
+      "name": "Pune",
+      "aliases": [],
+      "subdivision": "Madhya Maharashtra",
+      "agro_climatic_zone": "Western Maharashtra Transition Zone",
+      "normal_rainfall_mm": 690.0,
+      "monsoon_normal_mm": 607.2,
+      "predominant_soil": "loam",
+      "groundwater_category": "semi_critical",
+      "primary_crops": [
+        "soybean",
+        "maize",
+        "onion",
+        "wheat",
+        "sugarcane"
+      ],
+      "note": "Transition from heavy rainfall ghats to eastern dry plains. High diversity of vegetable and cereal rotations."
+    },
+    {
+      "name": "Nashik",
+      "aliases": [],
+      "subdivision": "Madhya Maharashtra",
+      "agro_climatic_zone": "Western Maharashtra Transition Zone",
+      "normal_rainfall_mm": 750.0,
+      "monsoon_normal_mm": 660.0,
+      "predominant_soil": "black",
+      "groundwater_category": "semi_critical",
+      "primary_crops": [
+        "onion",
+        "maize",
+        "soybean",
+        "wheat"
+      ],
+      "note": "Leading onion producer in India. Requires balanced NPK and sulfur; rotations with legumes improve disease resistance against purple blotch."
+    },
+    {
+      "name": "Kolhapur",
+      "aliases": [],
+      "subdivision": "Madhya Maharashtra",
+      "agro_climatic_zone": "Sub-Montane Zone",
+      "normal_rainfall_mm": 1772.0,
+      "monsoon_normal_mm": 1559.4,
+      "predominant_soil": "clay",
+      "groundwater_category": "safe",
+      "primary_crops": [
+        "sugarcane",
+        "rice",
+        "soybean",
+        "groundnut"
+      ],
+      "note": "High rainfall and fertile Panchganga alluvial soils. Heavy feeder crops thrive under assured canal/river irrigation."
+    },
+    {
+      "name": "Satara",
+      "aliases": [],
+      "subdivision": "Madhya Maharashtra",
+      "agro_climatic_zone": "Transition Zone",
+      "normal_rainfall_mm": 850.0,
+      "monsoon_normal_mm": 748.0,
+      "predominant_soil": "black",
+      "groundwater_category": "safe",
+      "primary_crops": [
+        "soybean",
+        "sorghum",
+        "groundnut",
+        "wheat",
+        "sugarcane"
+      ],
+      "note": "Diverse agro-ecology. Groundnut and soybean in kharif followed by wheat or chickpea."
+    },
+    {
+      "name": "Sangli",
+      "aliases": [],
+      "subdivision": "Madhya Maharashtra",
+      "agro_climatic_zone": "Transition / Scarcity Zone",
+      "normal_rainfall_mm": 600.0,
+      "monsoon_normal_mm": 528.0,
+      "predominant_soil": "black",
+      "groundwater_category": "semi_critical",
+      "primary_crops": [
+        "soybean",
+        "maize",
+        "sorghum",
+        "sugarcane"
+      ],
+      "note": "Krishna basin. Eastern talukas face drought where sorghum and millets excel; western talukas support irrigated crops."
+    },
+    {
+      "name": "Jalgaon",
+      "aliases": [],
+      "subdivision": "Madhya Maharashtra",
+      "agro_climatic_zone": "Khandesh Black Soil Zone",
+      "normal_rainfall_mm": 740.0,
+      "monsoon_normal_mm": 651.2,
+      "predominant_soil": "black",
+      "groundwater_category": "semi_critical",
+      "primary_crops": [
+        "cotton",
+        "maize",
+        "soybean"
+      ],
+      "note": "Tapi valley deep alluvial vertisols. High cotton and maize acreage. Broad bed furrow conserves moisture for dry spells."
+    },
+    {
+      "name": "Dhule",
+      "aliases": [],
+      "subdivision": "Madhya Maharashtra",
+      "agro_climatic_zone": "Khandesh Scarcity Zone",
+      "normal_rainfall_mm": 620.0,
+      "monsoon_normal_mm": 545.6,
+      "predominant_soil": "black",
+      "groundwater_category": "semi_critical",
+      "primary_crops": [
+        "cotton",
+        "pearl_millet",
+        "maize",
+        "sorghum"
+      ],
+      "note": "Light to medium soils. Bajra and drought-hardy pulses are primary kharif crops."
+    },
+    {
+      "name": "Nandurbar",
+      "aliases": [],
+      "subdivision": "Madhya Maharashtra",
+      "agro_climatic_zone": "Khandesh Tribal Hill Zone",
+      "normal_rainfall_mm": 820.0,
+      "monsoon_normal_mm": 721.6,
+      "predominant_soil": "red",
+      "groundwater_category": "safe",
+      "primary_crops": [
+        "maize",
+        "soybean",
+        "cotton",
+        "sorghum"
+      ],
+      "note": "Satpuda hill tract. Red and coarse shallow soils; responsive to organic matter and bio-fertilizers."
+    },
+    {
+      "name": "Ratnagiri",
+      "aliases": [],
+      "subdivision": "Konkan",
+      "agro_climatic_zone": "South Konkan Coastal Zone",
+      "normal_rainfall_mm": 3100.0,
+      "monsoon_normal_mm": 2728.0,
+      "predominant_soil": "red",
+      "groundwater_category": "safe",
+      "primary_crops": [
+        "rice",
+        "pearl_millet",
+        "groundnut"
+      ],
+      "note": "High rainfall coastal laterite soils. Acidic pH (5.0-6.2). Rice is the undisputed kharif staple."
+    },
+    {
+      "name": "Sindhudurg",
+      "aliases": [],
+      "subdivision": "Konkan",
+      "agro_climatic_zone": "South Konkan Coastal Zone",
+      "normal_rainfall_mm": 3250.0,
+      "monsoon_normal_mm": 2860.0,
+      "predominant_soil": "red",
+      "groundwater_category": "safe",
+      "primary_crops": [
+        "rice",
+        "groundnut"
+      ],
+      "note": "Extreme rainfall coastal strip. Terraced rice and post-rice rabi groundnut with residual moisture."
+    },
+    {
+      "name": "Raigad",
+      "aliases": [],
+      "subdivision": "Konkan",
+      "agro_climatic_zone": "North Konkan Coastal Zone",
+      "normal_rainfall_mm": 2900.0,
+      "monsoon_normal_mm": 2552.0,
+      "predominant_soil": "alluvial",
+      "groundwater_category": "safe",
+      "primary_crops": [
+        "rice",
+        "pigeon_pea"
+      ],
+      "note": "Coastal alluvial plains. Rice-pulse rotation provides restorative nitrogen."
+    },
+    {
+      "name": "Thane",
+      "aliases": [],
+      "subdivision": "Konkan",
+      "agro_climatic_zone": "North Konkan Coastal Zone",
+      "normal_rainfall_mm": 2400.0,
+      "monsoon_normal_mm": 2112.0,
+      "predominant_soil": "alluvial",
+      "groundwater_category": "safe",
+      "primary_crops": [
+        "rice",
+        "pearl_millet"
+      ],
+      "note": "Coastal zone with high monsoon intensity. Suitable for flood-tolerant and traditional aromatic paddy."
+    },
+    {
+      "name": "Palghar",
+      "aliases": [],
+      "subdivision": "Konkan",
+      "agro_climatic_zone": "North Konkan Coastal Zone",
+      "normal_rainfall_mm": 2250.0,
+      "monsoon_normal_mm": 1980.0,
+      "predominant_soil": "red",
+      "groundwater_category": "safe",
+      "primary_crops": [
+        "rice",
+        "chickpea"
+      ],
+      "note": "Tribal coastal hill tract. Traditional upland paddy and finger millet rotations."
+    }
+  ],
+  "priority_practices": [
+    "broad-bed-furrow",
+    "intercropping-pulses",
+    "residue-retention",
+    "rainfall-timed-sowing",
+    "drip-irrigation"
+  ],
+  "regulations": []
+}

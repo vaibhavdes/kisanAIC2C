@@ -1,0 +1,43 @@
+{
+  "version": "1.0.0",
+  "sources": [
+    {"name": "FAO Conservation Agriculture principles", "url": "https://www.fao.org/conservation-agriculture/en/"},
+    {"name": "ICAR-CRIDA rainfed agriculture technologies", "url": "https://www.icar-crida.res.in/"},
+    {"name": "ICRISAT broad bed and furrow system", "url": "https://www.icrisat.org/"},
+    {"name": "IRRI alternate wetting and drying", "url": "https://www.irri.org/"}
+  ],
+  "practices": [
+    {"id": "legume-rotation", "names": {"en": "Legume rotation", "hi": "दलहनी फसल चक्र", "mr": "कडधान्य फेरपालट", "te": "పప్పుధాన్య పంట మార్పిడి", "kn": "ದ್ವಿದಳ ಬೆಳೆ ಪರಿವರ್ತನೆ"},
+     "summary": "Follow a cereal or oilseed with a nitrogen-fixing pulse to rebuild soil nitrogen and break pest cycles."},
+    {"id": "intercropping-pulses", "names": {"en": "Intercrop with a pulse", "hi": "दलहन के साथ अंतरफसल", "mr": "कडधान्याचे आंतरपीक", "te": "పప్పుధాన్యాలతో అంతర పంట", "kn": "ದ್ವಿದಳದೊಂದಿಗೆ ಅಂತರ ಬೆಳೆ"},
+     "summary": "Grow rows of pigeon pea, green gram or cowpea between main-crop rows for nitrogen, cover and income insurance."},
+    {"id": "residue-retention", "names": {"en": "Keep crop residue as mulch (no burning)", "hi": "अवशेष को मल्च रखें (जलाएं नहीं)", "mr": "पिकाचे अवशेष आच्छादन (जाळू नका)", "te": "పంట అవశేషాలను మల్చ్‌గా ఉంచండి (కాల్చవద్దు)", "kn": "ಬೆಳೆ ಉಳಿಕೆಯನ್ನು ಹೊದಿಕೆಯಾಗಿ ಇಡಿ (ಸುಡಬೇಡಿ)"},
+     "summary": "Leave chopped residue on the surface to cut evaporation, feed soil life and avoid the soil and air damage of burning."},
+    {"id": "reduced-disturbance", "names": {"en": "Zero / minimum tillage", "hi": "शून्य / न्यूनतम जुताई", "mr": "शून्य / किमान मशागत", "te": "సున్నా / కనిష్ట దుక్కి", "kn": "ಶೂನ್ಯ / ಕನಿಷ್ಠ ಉಳುಮೆ"},
+     "summary": "Sow directly into the previous crop's stubble with a zero-till drill to save moisture, fuel and soil structure."},
+    {"id": "rainfall-timed-sowing", "names": {"en": "Sow after adequate rain", "hi": "पर्याप्त वर्षा के बाद बुवाई", "mr": "पुरेशा पावसानंतर पेरणी", "te": "తగినంత వర్షం తర్వాత విత్తండి", "kn": "ಸಾಕಷ್ಟು ಮಳೆಯ ನಂತರ ಬಿತ್ತನೆ"},
+     "summary": "Sow rainfed crops only when the seed zone is moist enough, to avoid failed germination and re-sowing costs."},
+    {"id": "field-scouting", "names": {"en": "Weekly field scouting (IPM)", "hi": "साप्ताहिक खेत निरीक्षण (IPM)", "mr": "साप्ताहिक शेत पाहणी (IPM)", "te": "వారానికోసారి పొలం పరిశీలన (IPM)", "kn": "ವಾರಕ್ಕೊಮ್ಮೆ ಹೊಲ ಪರಿಶೀಲನೆ (IPM)"},
+     "summary": "Walk the field weekly, use pheromone and sticky traps, and act on thresholds rather than calendar spraying."},
+    {"id": "broad-bed-furrow", "names": {"en": "Broad bed and furrow (BBF)", "hi": "चौड़ी क्यारी व नाली (BBF)", "mr": "रुंद वरंबा सरी (BBF)", "te": "వెడల్పు మడి-కాలువ (BBF)", "kn": "ಅಗಲ ಮಡಿ-ಕಾಲುವೆ (BBF)"},
+     "summary": "Raised beds with furrows on heavy black soils drain excess water in wet spells and hold moisture in dry spells."},
+    {"id": "drainage-check", "names": {"en": "Keep field drains open", "hi": "खेत की नालियां साफ रखें", "mr": "शेतातील चर मोकळे ठेवा", "te": "పొలం కాలువలు శుభ్రంగా ఉంచండి", "kn": "ಹೊಲದ ಕಾಲುವೆಗಳನ್ನು ತೆರೆದಿಡಿ"},
+     "summary": "Clear furrows and field outlets before heavy rain so roots are not waterlogged."},
+    {"id": "drip-irrigation", "names": {"en": "Drip / micro-irrigation", "hi": "ड्रिप / सूक्ष्म सिंचाई", "mr": "ठिबक / सूक्ष्म सिंचन", "te": "బిందు / సూక్ష్మ సేద్యం", "kn": "ಹನಿ / ಸೂಕ್ಷ್ಮ ನೀರಾವರಿ"},
+     "summary": "Deliver water to the root zone to cut groundwater pumping for water-hungry crops."},
+    {"id": "green-manure", "names": {"en": "Green manure (dhaincha / sunn hemp)", "hi": "हरी खाद (ढैंचा / सनई)", "mr": "हिरवळीचे खत (धैंचा / ताग)", "te": "పచ్చిరొట్ట ఎరువు (జీలుగ / జనుము)", "kn": "ಹಸಿರೆಲೆ ಗೊಬ್ಬರ (ಡಯಾಂಚ / ಸೆಣಬು)"},
+     "summary": "Grow a fast legume for 45-50 days and incorporate it before the main crop to add organic matter and nitrogen."},
+    {"id": "direct-seeded-rice", "names": {"en": "Direct-seeded rice (DSR)", "hi": "सीधी बुवाई धान (DSR)", "mr": "थेट पेरणी भात (DSR)", "te": "నేరుగా విత్తిన వరి (DSR)", "kn": "ನೇರ ಬಿತ್ತನೆ ಭತ್ತ (DSR)"},
+     "summary": "Drill rice seed instead of puddled transplanting to save irrigation water and labour."},
+    {"id": "alternate-wetting-drying", "names": {"en": "Alternate wetting and drying (AWD)", "hi": "बारी-बारी से गीला-सूखा (AWD)", "mr": "आलटून पालटून ओले-कोरडे (AWD)", "te": "ప్రత్యామ్నాయ తడి-పొడి (AWD)", "kn": "ಪರ್ಯಾಯ ತೇವ-ಒಣ (AWD)"},
+     "summary": "Let paddy water drop below the soil surface before re-irrigating, saving water and cutting methane."},
+    {"id": "rhizobium-inoculation", "names": {"en": "Rhizobium seed treatment", "hi": "राइजोबियम बीज उपचार", "mr": "रायझोबियम बीजप्रक्रिया", "te": "రైజోబియం విత్తన శుద్ధి", "kn": "ರೈಜೋಬಿಯಂ ಬೀಜೋಪಚಾರ"},
+     "summary": "Coat pulse seed with the matching Rhizobium culture to boost biological nitrogen fixation."},
+    {"id": "compost-fym", "names": {"en": "Compost / farmyard manure", "hi": "कम्पोस्ट / गोबर खाद", "mr": "कंपोस्ट / शेणखत", "te": "కంపోస్ట్ / పశువుల ఎరువు", "kn": "ಕಾಂಪೋಸ್ಟ್ / ಕೊಟ್ಟಿಗೆ ಗೊಬ್ಬರ"},
+     "summary": "Add well-decomposed compost or farmyard manure to raise organic carbon and water-holding capacity."},
+    {"id": "trash-mulching", "names": {"en": "Sugarcane trash mulching", "hi": "गन्ने की पत्तियों से मल्चिंग", "mr": "उसाच्या पाचटाचे आच्छादन", "te": "చెరకు ఆకుల మల్చింగ్", "kn": "ಕಬ್ಬಿನ ಸೋಗೆ ಹೊದಿಕೆ"},
+     "summary": "Spread detrashed cane leaves between rows instead of burning to conserve moisture and suppress weeds."},
+    {"id": "raised-bed-planting", "names": {"en": "Raised bed planting", "hi": "उठी हुई क्यारी रोपाई", "mr": "गादी वाफ्यावर लागवड", "te": "ఎత్తు మడుల నాటు", "kn": "ಎತ್ತರದ ಮಡಿ ನಾಟಿ"},
+     "summary": "Plant on raised beds for drainage and efficient furrow or drip irrigation."}
+  ]
+}

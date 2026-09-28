@@ -1,0 +1,2135 @@
+{
+  "version": "1.0.0",
+  "sources": [
+    {
+      "name": "FAO EcoCrop database",
+      "url": "https://gaez.fao.org/pages/ecocrop",
+      "distribution": "https://github.com/OpenCLIM/ecocrop (EcoCrop_DB.csv, Open Government Licence v3.0)",
+      "fields": "temperature, rainfall, pH, texture, drainage, salinity, killing temperature, crop cycle"
+    },
+    {
+      "name": "KISANAI curation",
+      "fields": "local names, typical duration (cycle_days), water class, N-fixing, residue, practice links"
+    }
+  ],
+  "crops": [
+    {
+      "id": "wheat",
+      "scientific_name": "Triticum aestivum",
+      "group": "cereal",
+      "names": {
+        "en": "Wheat",
+        "hi": "गेहूँ",
+        "mr": "गहू",
+        "te": "గోధుమ",
+        "kn": "ಗೋಧಿ",
+        "pt": "Trigo",
+        "ru": "Пшеница",
+        "zh": "小麦"
+      },
+      "aliases": [
+        "gahu",
+        "gehu",
+        "gehun",
+        "kanak"
+      ],
+      "cycle_days": 130,
+      "traits": {
+        "n_fixing": false,
+        "water_class": "medium",
+        "residue": "high"
+      },
+      "practices": [
+        "reduced-disturbance",
+        "residue-retention",
+        "rainfall-timed-sowing"
+      ],
+      "ecocrop": {
+        "topmn": 15.0,
+        "topmx": 23.0,
+        "tmin": 5.0,
+        "tmax": 27.0,
+        "ropmn": 750.0,
+        "ropmx": 900.0,
+        "rmin": 300.0,
+        "rmax": 1600.0,
+        "phopmn": 6.0,
+        "phopmx": 7.0,
+        "phmin": 5.5,
+        "phmax": 8.5,
+        "ktmp": 0.0,
+        "gmin": 90.0,
+        "gmax": 250.0,
+        "texture_optimal": [
+          "medium",
+          "organic"
+        ],
+        "texture_absolute": [
+          "heavy",
+          "medium"
+        ],
+        "drainage_optimal": "well (dry spells)",
+        "salinity_optimal": "low (<4 dS/m)",
+        "ecoport_code": "2114"
+      }
+    },
+    {
+      "id": "rice",
+      "scientific_name": "Oryza sativa",
+      "group": "cereal",
+      "names": {
+        "en": "Rice (Paddy)",
+        "hi": "धान",
+        "mr": "भात",
+        "te": "వరి",
+        "kn": "ಭತ್ತ",
+        "pt": "Arroz",
+        "ru": "Рис",
+        "zh": "水稻"
+      },
+      "aliases": [
+        "paddy",
+        "dhan",
+        "bhat",
+        "chawal"
+      ],
+      "cycle_days": 120,
+      "traits": {
+        "n_fixing": false,
+        "water_class": "high",
+        "residue": "high"
+      },
+      "practices": [
+        "direct-seeded-rice",
+        "alternate-wetting-drying",
+        "green-manure",
+        "residue-retention"
+      ],
+      "ecocrop": {
+        "topmn": 20.0,
+        "topmx": 30.0,
+        "tmin": 10.0,
+        "tmax": 36.0,
+        "ropmn": 1500.0,
+        "ropmx": 2000.0,
+        "rmin": 1000.0,
+        "rmax": 4000.0,
+        "phopmn": 5.5,
+        "phopmx": 7.0,
+        "phmin": 4.5,
+        "phmax": 9.0,
+        "ktmp": null,
+        "gmin": 80.0,
+        "gmax": 180.0,
+        "texture_optimal": [
+          "wide"
+        ],
+        "texture_absolute": [
+          "wide"
+        ],
+        "drainage_optimal": "poorly (saturated >50% of year)",
+        "salinity_optimal": "low (<4 dS/m)",
+        "ecoport_code": "1574"
+      }
+    },
+    {
+      "id": "maize",
+      "scientific_name": "Zea mays",
+      "group": "cereal",
+      "names": {
+        "en": "Maize",
+        "hi": "मक्का",
+        "mr": "मका",
+        "te": "మొక్కజొన్న",
+        "kn": "ಮೆಕ್ಕೆಜೋಳ",
+        "pt": "Milho",
+        "ru": "Кукуруза",
+        "zh": "玉米"
+      },
+      "aliases": [
+        "corn",
+        "maka",
+        "makka",
+        "makai",
+        "bhutta"
+      ],
+      "cycle_days": 110,
+      "traits": {
+        "n_fixing": false,
+        "water_class": "medium",
+        "residue": "high"
+      },
+      "practices": [
+        "legume-rotation",
+        "intercropping-pulses",
+        "residue-retention",
+        "field-scouting"
+      ],
+      "ecocrop": {
+        "topmn": 18.0,
+        "topmx": 33.0,
+        "tmin": 10.0,
+        "tmax": 47.0,
+        "ropmn": 600.0,
+        "ropmx": 1200.0,
+        "rmin": 400.0,
+        "rmax": 1800.0,
+        "phopmn": 5.0,
+        "phopmx": 7.0,
+        "phmin": 4.5,
+        "phmax": 8.5,
+        "ktmp": null,
+        "gmin": 65.0,
+        "gmax": 365.0,
+        "texture_optimal": [],
+        "texture_absolute": [],
+        "drainage_optimal": null,
+        "salinity_optimal": "low (<4 dS/m)",
+        "ecoport_code": "2175"
+      }
+    },
+    {
+      "id": "sorghum",
+      "scientific_name": "Sorghum bicolor",
+      "group": "millet",
+      "names": {
+        "en": "Sorghum (Jowar)",
+        "hi": "ज्वार",
+        "mr": "ज्वारी",
+        "te": "జొన్న",
+        "kn": "ಜೋಳ",
+        "pt": "Sorgo",
+        "ru": "Сорго",
+        "zh": "高粱"
+      },
+      "aliases": [
+        "jowar",
+        "jwari",
+        "jola"
+      ],
+      "cycle_days": 110,
+      "traits": {
+        "n_fixing": false,
+        "water_class": "low",
+        "residue": "high"
+      },
+      "practices": [
+        "intercropping-pulses",
+        "residue-retention",
+        "rainfall-timed-sowing"
+      ],
+      "ecocrop": {
+        "topmn": 22.0,
+        "topmx": 35.0,
+        "tmin": 8.0,
+        "tmax": 40.0,
+        "ropmn": 400.0,
+        "ropmx": 600.0,
+        "rmin": 300.0,
+        "rmax": 700.0,
+        "phopmn": 5.5,
+        "phopmx": 7.5,
+        "phmin": 5.0,
+        "phmax": 8.0,
+        "ktmp": null,
+        "gmin": 90.0,
+        "gmax": 300.0,
+        "texture_optimal": [
+          "heavy",
+          "medium"
+        ],
+        "texture_absolute": [
+          "wide"
+        ],
+        "drainage_optimal": "well (dry spells)",
+        "salinity_optimal": "low (<4 dS/m)",
+        "ecoport_code": "48747"
+      }
+    },
+    {
+      "id": "pearl_millet",
+      "scientific_name": "Pennisetum glaucum",
+      "group": "millet",
+      "names": {
+        "en": "Pearl Millet (Bajra)",
+        "hi": "बाजरा",
+        "mr": "बाजरी",
+        "te": "సజ్జ",
+        "kn": "ಸಜ್ಜೆ",
+        "pt": "Milheto",
+        "ru": "Жемчужное просо",
+        "zh": "珍珠粟"
+      },
+      "aliases": [
+        "bajra",
+        "bajri",
+        "millet",
+        "sajje"
+      ],
+      "cycle_days": 85,
+      "traits": {
+        "n_fixing": false,
+        "water_class": "low",
+        "residue": "medium"
+      },
+      "practices": [
+        "intercropping-pulses",
+        "residue-retention",
+        "rainfall-timed-sowing"
+      ],
+      "ecocrop": {
+        "topmn": 25.0,
+        "topmx": 35.0,
+        "tmin": 12.0,
+        "tmax": 40.0,
+        "ropmn": 400.0,
+        "ropmx": 900.0,
+        "rmin": 200.0,
+        "rmax": 1700.0,
+        "phopmn": 5.0,
+        "phopmx": 6.5,
+        "phmin": 4.5,
+        "phmax": 8.3,
+        "ktmp": 0.0,
+        "gmin": 60.0,
+        "gmax": 120.0,
+        "texture_optimal": [
+          "medium",
+          "light"
+        ],
+        "texture_absolute": [
+          "medium",
+          "light"
+        ],
+        "drainage_optimal": "well (dry spells)",
+        "salinity_optimal": "low (<4 dS/m)",
+        "ecoport_code": "8418"
+      }
+    },
+    {
+      "id": "finger_millet",
+      "scientific_name": "Eleusine coracana ssp. coracana",
+      "group": "millet",
+      "names": {
+        "en": "Finger Millet (Ragi)",
+        "hi": "रागी",
+        "mr": "नाचणी",
+        "te": "రాగి",
+        "kn": "ರಾಗಿ",
+        "pt": "Painço-de-dedo",
+        "ru": "Дагусса",
+        "zh": "龙爪稷"
+      },
+      "aliases": [
+        "ragi",
+        "nachni",
+        "nagli",
+        "mandua"
+      ],
+      "cycle_days": 110,
+      "traits": {
+        "n_fixing": false,
+        "water_class": "low",
+        "residue": "medium"
+      },
+      "practices": [
+        "intercropping-pulses",
+        "compost-fym",
+        "rainfall-timed-sowing"
+      ],
+      "ecocrop": {
+        "topmn": 18.0,
+        "topmx": 30.0,
+        "tmin": 8.0,
+        "tmax": 35.0,
+        "ropmn": 500.0,
+        "ropmx": 1100.0,
+        "rmin": 300.0,
+        "rmax": 4300.0,
+        "phopmn": 6.0,
+        "phopmx": 7.0,
+        "phmin": 5.5,
+        "phmax": 8.2,
+        "ktmp": null,
+        "gmin": 75.0,
+        "gmax": 180.0,
+        "texture_optimal": [
+          "medium"
+        ],
+        "texture_absolute": [
+          "heavy",
+          "medium",
+          "light"
+        ],
+        "drainage_optimal": "well (dry spells)",
+        "salinity_optimal": "low (<4 dS/m)",
+        "ecoport_code": "5657"
+      }
+    },
+    {
+      "id": "foxtail_millet",
+      "scientific_name": "Setaria italica",
+      "group": "millet",
+      "names": {
+        "en": "Foxtail Millet",
+        "hi": "कंगनी",
+        "mr": "राळा",
+        "te": "కొర్ర",
+        "kn": "ನವಣೆ",
+        "pt": "Painço-italiano",
+        "ru": "Чумиза",
+        "zh": "谷子"
+      },
+      "aliases": [
+        "kangni",
+        "rala",
+        "korra",
+        "navane"
+      ],
+      "cycle_days": 90,
+      "traits": {
+        "n_fixing": false,
+        "water_class": "low",
+        "residue": "medium"
+      },
+      "practices": [
+        "intercropping-pulses",
+        "rainfall-timed-sowing"
+      ],
+      "ecocrop": {
+        "topmn": 16.0,
+        "topmx": 26.0,
+        "tmin": 5.0,
+        "tmax": 35.0,
+        "ropmn": 500.0,
+        "ropmx": 700.0,
+        "rmin": 300.0,
+        "rmax": 4000.0,
+        "phopmn": 6.0,
+        "phopmx": 6.8,
+        "phmin": 5.5,
+        "phmax": 8.3,
+        "ktmp": null,
+        "gmin": 60.0,
+        "gmax": 120.0,
+        "texture_optimal": [
+          "medium",
+          "light"
+        ],
+        "texture_absolute": [
+          "heavy",
+          "medium",
+          "light"
+        ],
+        "drainage_optimal": "well (dry spells)",
+        "salinity_optimal": "low (<4 dS/m)",
+        "ecoport_code": "9732"
+      }
+    },
+    {
+      "id": "barley",
+      "scientific_name": "Hordeum vulgare",
+      "group": "cereal",
+      "names": {
+        "en": "Barley",
+        "hi": "जौ",
+        "mr": "सातू",
+        "te": "బార్లీ",
+        "kn": "ಬಾರ್ಲಿ",
+        "pt": "Cevada",
+        "ru": "Ячмень",
+        "zh": "大麦"
+      },
+      "aliases": [
+        "jau",
+        "jav",
+        "satu"
+      ],
+      "cycle_days": 120,
+      "traits": {
+        "n_fixing": false,
+        "water_class": "low",
+        "residue": "high"
+      },
+      "practices": [
+        "reduced-disturbance",
+        "residue-retention"
+      ],
+      "ecocrop": {
+        "topmn": 15.0,
+        "topmx": 20.0,
+        "tmin": 2.0,
+        "tmax": 40.0,
+        "ropmn": 500.0,
+        "ropmx": 1000.0,
+        "rmin": 200.0,
+        "rmax": 2000.0,
+        "phopmn": 6.5,
+        "phopmx": 7.5,
+        "phmin": 6.0,
+        "phmax": 8.0,
+        "ktmp": 0.0,
+        "gmin": 90.0,
+        "gmax": 240.0,
+        "texture_optimal": [
+          "medium"
+        ],
+        "texture_absolute": [
+          "heavy",
+          "medium",
+          "light"
+        ],
+        "drainage_optimal": "well (dry spells)",
+        "salinity_optimal": "low (<4 dS/m)",
+        "ecoport_code": "1232"
+      }
+    },
+    {
+      "id": "oats",
+      "scientific_name": "Avena sativa",
+      "group": "fodder",
+      "names": {
+        "en": "Oats",
+        "hi": "जई",
+        "mr": "ओट",
+        "te": "ఓట్స్",
+        "kn": "ಓಟ್ಸ್",
+        "pt": "Aveia",
+        "ru": "Овёс",
+        "zh": "燕麦"
+      },
+      "aliases": [
+        "jai",
+        "oat"
+      ],
+      "cycle_days": 120,
+      "traits": {
+        "n_fixing": false,
+        "water_class": "medium",
+        "residue": "high"
+      },
+      "practices": [
+        "residue-retention",
+        "reduced-disturbance"
+      ],
+      "ecocrop": {
+        "topmn": 16.0,
+        "topmx": 20.0,
+        "tmin": 5.0,
+        "tmax": 30.0,
+        "ropmn": 600.0,
+        "ropmx": 1000.0,
+        "rmin": 250.0,
+        "rmax": 1500.0,
+        "phopmn": 5.0,
+        "phopmx": 6.0,
+        "phmin": 4.5,
+        "phmax": 7.5,
+        "ktmp": -1.0,
+        "gmin": 110.0,
+        "gmax": 270.0,
+        "texture_optimal": [
+          "heavy",
+          "medium",
+          "light"
+        ],
+        "texture_absolute": [
+          "heavy",
+          "medium",
+          "light"
+        ],
+        "drainage_optimal": "well (dry spells)",
+        "salinity_optimal": "low (<4 dS/m)",
+        "ecoport_code": "481"
+      }
+    },
+    {
+      "id": "teff",
+      "scientific_name": "Eragrostis tef",
+      "group": "cereal",
+      "names": {
+        "en": "Teff",
+        "hi": "टेफ",
+        "mr": "टेफ",
+        "te": "టెఫ్",
+        "kn": "ಟೆಫ್",
+        "pt": "Teff",
+        "ru": "Тэфф",
+        "zh": "苔麸"
+      },
+      "aliases": [
+        "tef"
+      ],
+      "cycle_days": 100,
+      "traits": {
+        "n_fixing": false,
+        "water_class": "low",
+        "residue": "medium"
+      },
+      "practices": [
+        "reduced-disturbance",
+        "rainfall-timed-sowing"
+      ],
+      "ecocrop": {
+        "topmn": 22.0,
+        "topmx": 28.0,
+        "tmin": 2.0,
+        "tmax": 30.0,
+        "ropmn": 600.0,
+        "ropmx": 1200.0,
+        "rmin": 300.0,
+        "rmax": 2500.0,
+        "phopmn": 5.5,
+        "phopmx": 6.5,
+        "phmin": 5.0,
+        "phmax": 8.2,
+        "ktmp": null,
+        "gmin": 65.0,
+        "gmax": 150.0,
+        "texture_optimal": [
+          "medium",
+          "light"
+        ],
+        "texture_absolute": [
+          "heavy",
+          "medium",
+          "light"
+        ],
+        "drainage_optimal": "well (dry spells)",
+        "salinity_optimal": "low (<4 dS/m)",
+        "ecoport_code": "5746"
+      }
+    },
+    {
+      "id": "chickpea",
+      "scientific_name": "Cicer arietinum",
+      "group": "pulse",
+      "names": {
+        "en": "Chickpea (Gram)",
+        "hi": "चना",
+        "mr": "हरभरा",
+        "te": "శనగ",
+        "kn": "ಕಡಲೆ",
+        "pt": "Grão-de-bico",
+        "ru": "Нут",
+        "zh": "鹰嘴豆"
+      },
+      "aliases": [
+        "gram",
+        "chana",
+        "harbara",
+        "bengal_gram"
+      ],
+      "cycle_days": 110,
+      "traits": {
+        "n_fixing": true,
+        "water_class": "low",
+        "residue": "low"
+      },
+      "practices": [
+        "rhizobium-inoculation",
+        "reduced-disturbance",
+        "field-scouting"
+      ],
+      "ecocrop": {
+        "topmn": 15.0,
+        "topmx": 29.0,
+        "tmin": 7.0,
+        "tmax": 35.0,
+        "ropmn": 600.0,
+        "ropmx": 1000.0,
+        "rmin": 300.0,
+        "rmax": 1800.0,
+        "phopmn": 6.0,
+        "phopmx": 8.5,
+        "phmin": 4.7,
+        "phmax": 9.5,
+        "ktmp": 0.0,
+        "gmin": 90.0,
+        "gmax": 180.0,
+        "texture_optimal": [
+          "heavy",
+          "medium"
+        ],
+        "texture_absolute": [
+          "heavy",
+          "medium",
+          "light"
+        ],
+        "drainage_optimal": "well (dry spells)",
+        "salinity_optimal": "low (<4 dS/m)",
+        "ecoport_code": "2479"
+      }
+    },
+    {
+      "id": "pigeon_pea",
+      "scientific_name": "Cajanus cajan",
+      "group": "pulse",
+      "names": {
+        "en": "Pigeon Pea (Tur/Arhar)",
+        "hi": "अरहर",
+        "mr": "तूर",
+        "te": "కంది",
+        "kn": "ತೊಗರಿ",
+        "pt": "Feijão-guandu",
+        "ru": "Каянус",
+        "zh": "木豆"
+      },
+      "aliases": [
+        "tur",
+        "toor",
+        "arhar",
+        "pigeonpea",
+        "togari",
+        "kandi"
+      ],
+      "cycle_days": 170,
+      "traits": {
+        "n_fixing": true,
+        "water_class": "low",
+        "residue": "high"
+      },
+      "practices": [
+        "intercropping-pulses",
+        "rhizobium-inoculation",
+        "broad-bed-furrow"
+      ],
+      "ecocrop": {
+        "topmn": 18.0,
+        "topmx": 38.0,
+        "tmin": 10.0,
+        "tmax": 45.0,
+        "ropmn": 600.0,
+        "ropmx": 1500.0,
+        "rmin": 400.0,
+        "rmax": 4000.0,
+        "phopmn": 5.0,
+        "phopmx": 7.0,
+        "phmin": 4.5,
+        "phmax": 8.4,
+        "ktmp": null,
+        "gmin": 90.0,
+        "gmax": 365.0,
+        "texture_optimal": [
+          "medium",
+          "light"
+        ],
+        "texture_absolute": [
+          "heavy",
+          "medium",
+          "light"
+        ],
+        "drainage_optimal": "well (dry spells)",
+        "salinity_optimal": "low (<4 dS/m)",
+        "ecoport_code": "576"
+      }
+    },
+    {
+      "id": "green_gram",
+      "scientific_name": "Vigna radiata",
+      "group": "pulse",
+      "names": {
+        "en": "Green Gram (Moong)",
+        "hi": "मूंग",
+        "mr": "मूग",
+        "te": "పెసర",
+        "kn": "ಹೆಸರು",
+        "pt": "Feijão-mungo",
+        "ru": "Маш",
+        "zh": "绿豆"
+      },
+      "aliases": [
+        "moong",
+        "mung",
+        "mug",
+        "mungbean",
+        "pesara"
+      ],
+      "cycle_days": 70,
+      "traits": {
+        "n_fixing": true,
+        "water_class": "low",
+        "residue": "medium"
+      },
+      "practices": [
+        "rhizobium-inoculation",
+        "legume-rotation",
+        "residue-retention"
+      ],
+      "ecocrop": {
+        "topmn": 21.0,
+        "topmx": 36.0,
+        "tmin": 8.0,
+        "tmax": 40.0,
+        "ropmn": 650.0,
+        "ropmx": 900.0,
+        "rmin": 500.0,
+        "rmax": 1250.0,
+        "phopmn": 5.5,
+        "phopmx": 6.2,
+        "phmin": 4.3,
+        "phmax": 8.3,
+        "ktmp": null,
+        "gmin": 50.0,
+        "gmax": 120.0,
+        "texture_optimal": [
+          "medium",
+          "organic"
+        ],
+        "texture_absolute": [
+          "heavy",
+          "medium",
+          "light"
+        ],
+        "drainage_optimal": "well (dry spells)",
+        "salinity_optimal": "low (<4 dS/m)",
+        "ecoport_code": "2150"
+      }
+    },
+    {
+      "id": "black_gram",
+      "scientific_name": "Vigna mungo",
+      "group": "pulse",
+      "names": {
+        "en": "Black Gram (Urad)",
+        "hi": "उड़द",
+        "mr": "उडीद",
+        "te": "మినుము",
+        "kn": "ಉದ್ದು",
+        "pt": "Feijão-urd",
+        "ru": "Урд",
+        "zh": "黑吉豆"
+      },
+      "aliases": [
+        "urad",
+        "udid",
+        "urd",
+        "minumu"
+      ],
+      "cycle_days": 80,
+      "traits": {
+        "n_fixing": true,
+        "water_class": "low",
+        "residue": "medium"
+      },
+      "practices": [
+        "rhizobium-inoculation",
+        "legume-rotation"
+      ],
+      "ecocrop": {
+        "topmn": 22.0,
+        "topmx": 35.0,
+        "tmin": 8.0,
+        "tmax": 40.0,
+        "ropmn": 650.0,
+        "ropmx": 900.0,
+        "rmin": 530.0,
+        "rmax": 2430.0,
+        "phopmn": 5.5,
+        "phopmx": 6.5,
+        "phmin": 4.5,
+        "phmax": 7.5,
+        "ktmp": null,
+        "gmin": 60.0,
+        "gmax": 130.0,
+        "texture_optimal": [
+          "heavy",
+          "medium"
+        ],
+        "texture_absolute": [
+          "heavy",
+          "medium"
+        ],
+        "drainage_optimal": "well (dry spells)",
+        "salinity_optimal": "low (<4 dS/m)",
+        "ecoport_code": "2149"
+      }
+    },
+    {
+      "id": "lentil",
+      "scientific_name": "Lens culinaris",
+      "group": "pulse",
+      "names": {
+        "en": "Lentil (Masoor)",
+        "hi": "मसूर",
+        "mr": "मसूर",
+        "te": "మసూర్",
+        "kn": "ಮಸೂರ್",
+        "pt": "Lentilha",
+        "ru": "Чечевица",
+        "zh": "小扁豆"
+      },
+      "aliases": [
+        "masoor",
+        "masur"
+      ],
+      "cycle_days": 115,
+      "traits": {
+        "n_fixing": true,
+        "water_class": "low",
+        "residue": "low"
+      },
+      "practices": [
+        "rhizobium-inoculation",
+        "reduced-disturbance"
+      ],
+      "ecocrop": {
+        "topmn": 15.0,
+        "topmx": 29.0,
+        "tmin": 5.0,
+        "tmax": 32.0,
+        "ropmn": 600.0,
+        "ropmx": 1000.0,
+        "rmin": 250.0,
+        "rmax": 2500.0,
+        "phopmn": 5.5,
+        "phopmx": 7.5,
+        "phmin": 4.5,
+        "phmax": 8.2,
+        "ktmp": null,
+        "gmin": 70.0,
+        "gmax": 240.0,
+        "texture_optimal": [
+          "heavy",
+          "medium"
+        ],
+        "texture_absolute": [
+          "heavy",
+          "medium",
+          "light"
+        ],
+        "drainage_optimal": "well (dry spells)",
+        "salinity_optimal": "low (<4 dS/m)",
+        "ecoport_code": "7209"
+      }
+    },
+    {
+      "id": "dry_bean",
+      "scientific_name": "Phaseolus vulgaris",
+      "group": "pulse",
+      "names": {
+        "en": "Common Bean (Rajma)",
+        "hi": "राजमा",
+        "mr": "राजमा",
+        "te": "రాజ్మా",
+        "kn": "ರಾಜ್ಮಾ",
+        "pt": "Feijão",
+        "ru": "Фасоль",
+        "zh": "菜豆"
+      },
+      "aliases": [
+        "rajma",
+        "kidney_bean",
+        "bean",
+        "feijao"
+      ],
+      "cycle_days": 95,
+      "traits": {
+        "n_fixing": true,
+        "water_class": "medium",
+        "residue": "low"
+      },
+      "practices": [
+        "rhizobium-inoculation",
+        "legume-rotation"
+      ],
+      "ecocrop": {
+        "topmn": 16.0,
+        "topmx": 25.0,
+        "tmin": 7.0,
+        "tmax": 32.0,
+        "ropmn": 500.0,
+        "ropmx": 2000.0,
+        "rmin": 300.0,
+        "rmax": 4300.0,
+        "phopmn": 5.5,
+        "phopmx": 7.5,
+        "phmin": 4.0,
+        "phmax": 9.0,
+        "ktmp": null,
+        "gmin": 50.0,
+        "gmax": 270.0,
+        "texture_optimal": [
+          "medium",
+          "organic"
+        ],
+        "texture_absolute": [
+          "heavy",
+          "medium",
+          "light"
+        ],
+        "drainage_optimal": "well (dry spells)",
+        "salinity_optimal": "low (<4 dS/m)",
+        "ecoport_code": "1668"
+      }
+    },
+    {
+      "id": "cowpea",
+      "scientific_name": "Vigna unguiculata",
+      "group": "pulse",
+      "names": {
+        "en": "Cowpea",
+        "hi": "लोबिया",
+        "mr": "चवळी",
+        "te": "అలసంద",
+        "kn": "ಅಲಸಂದೆ",
+        "pt": "Feijão-caupi",
+        "ru": "Вигна",
+        "zh": "豇豆"
+      },
+      "aliases": [
+        "lobia",
+        "chavali",
+        "chawli",
+        "alasande"
+      ],
+      "cycle_days": 80,
+      "traits": {
+        "n_fixing": true,
+        "water_class": "low",
+        "residue": "medium"
+      },
+      "practices": [
+        "rhizobium-inoculation",
+        "legume-rotation",
+        "residue-retention"
+      ],
+      "ecocrop": {
+        "topmn": 25.0,
+        "topmx": 35.0,
+        "tmin": 15.0,
+        "tmax": 40.0,
+        "ropmn": 500.0,
+        "ropmx": 1500.0,
+        "rmin": 300.0,
+        "rmax": 4100.0,
+        "phopmn": 5.5,
+        "phopmx": 7.5,
+        "phmin": 4.0,
+        "phmax": 8.8,
+        "ktmp": -1.0,
+        "gmin": 30.0,
+        "gmax": 240.0,
+        "texture_optimal": [
+          "medium",
+          "light"
+        ],
+        "texture_absolute": [
+          "heavy",
+          "medium",
+          "light",
+          "wide"
+        ],
+        "drainage_optimal": "well (dry spells)",
+        "salinity_optimal": "low (<4 dS/m)",
+        "ecoport_code": "2153"
+      }
+    },
+    {
+      "id": "field_pea",
+      "scientific_name": "Pisum sativum",
+      "group": "pulse",
+      "names": {
+        "en": "Field Pea (Matar)",
+        "hi": "मटर",
+        "mr": "वाटाणा",
+        "te": "బఠాణీ",
+        "kn": "ಬಟಾಣಿ",
+        "pt": "Ervilha",
+        "ru": "Горох",
+        "zh": "豌豆"
+      },
+      "aliases": [
+        "pea",
+        "matar",
+        "vatana"
+      ],
+      "cycle_days": 100,
+      "traits": {
+        "n_fixing": true,
+        "water_class": "low",
+        "residue": "low"
+      },
+      "practices": [
+        "rhizobium-inoculation",
+        "reduced-disturbance"
+      ],
+      "ecocrop": {
+        "topmn": 10.0,
+        "topmx": 24.0,
+        "tmin": 4.0,
+        "tmax": 30.0,
+        "ropmn": 800.0,
+        "ropmx": 1200.0,
+        "rmin": 350.0,
+        "rmax": 2500.0,
+        "phopmn": 5.5,
+        "phopmx": 7.0,
+        "phmin": 4.5,
+        "phmax": 8.3,
+        "ktmp": 0.0,
+        "gmin": 60.0,
+        "gmax": 140.0,
+        "texture_optimal": [
+          "heavy",
+          "medium",
+          "light"
+        ],
+        "texture_absolute": [
+          "heavy",
+          "medium",
+          "light"
+        ],
+        "drainage_optimal": "well (dry spells)",
+        "salinity_optimal": "low (<4 dS/m)",
+        "ecoport_code": "1721"
+      }
+    },
+    {
+      "id": "cluster_bean",
+      "scientific_name": "Cyamopsis tetragonoloba",
+      "group": "pulse",
+      "names": {
+        "en": "Cluster Bean (Guar)",
+        "hi": "ग्वार",
+        "mr": "गवार",
+        "te": "గోరుచిక్కుడు",
+        "kn": "ಗೋರಿಕಾಯಿ",
+        "pt": "Guar",
+        "ru": "Гуар",
+        "zh": "瓜尔豆"
+      },
+      "aliases": [
+        "guar",
+        "gavar"
+      ],
+      "cycle_days": 100,
+      "traits": {
+        "n_fixing": true,
+        "water_class": "low",
+        "residue": "medium"
+      },
+      "practices": [
+        "rhizobium-inoculation",
+        "legume-rotation"
+      ],
+      "ecocrop": {
+        "topmn": 25.0,
+        "topmx": 35.0,
+        "tmin": 10.0,
+        "tmax": 45.0,
+        "ropmn": 500.0,
+        "ropmx": 800.0,
+        "rmin": 400.0,
+        "rmax": 2700.0,
+        "phopmn": 7.5,
+        "phopmx": 8.0,
+        "phmin": 5.5,
+        "phmax": 8.5,
+        "ktmp": null,
+        "gmin": 90.0,
+        "gmax": 160.0,
+        "texture_optimal": [
+          "medium",
+          "light"
+        ],
+        "texture_absolute": [
+          "heavy",
+          "medium",
+          "light"
+        ],
+        "drainage_optimal": "well (dry spells)",
+        "salinity_optimal": "low (<4 dS/m)",
+        "ecoport_code": "830"
+      }
+    },
+    {
+      "id": "soybean",
+      "scientific_name": "Glycine max",
+      "group": "oilseed",
+      "names": {
+        "en": "Soybean",
+        "hi": "सोयाबीन",
+        "mr": "सोयाबीन",
+        "te": "సోయాబీన్",
+        "kn": "ಸೋಯಾಬೀನ್",
+        "pt": "Soja",
+        "ru": "Соя",
+        "zh": "大豆"
+      },
+      "aliases": [
+        "soyabean",
+        "soya",
+        "soja"
+      ],
+      "cycle_days": 100,
+      "traits": {
+        "n_fixing": true,
+        "water_class": "medium",
+        "residue": "medium"
+      },
+      "practices": [
+        "broad-bed-furrow",
+        "rhizobium-inoculation",
+        "intercropping-pulses"
+      ],
+      "ecocrop": {
+        "topmn": 20.0,
+        "topmx": 33.0,
+        "tmin": 10.0,
+        "tmax": 38.0,
+        "ropmn": 600.0,
+        "ropmx": 1500.0,
+        "rmin": 450.0,
+        "rmax": 1800.0,
+        "phopmn": 5.5,
+        "phopmx": 6.5,
+        "phmin": 4.5,
+        "phmax": 8.4,
+        "ktmp": null,
+        "gmin": 75.0,
+        "gmax": 180.0,
+        "texture_optimal": [
+          "medium",
+          "organic"
+        ],
+        "texture_absolute": [
+          "heavy",
+          "medium",
+          "light"
+        ],
+        "drainage_optimal": "well (dry spells)",
+        "salinity_optimal": "low (<4 dS/m)",
+        "ecoport_code": "1150"
+      }
+    },
+    {
+      "id": "groundnut",
+      "scientific_name": "Arachis hypogaea",
+      "group": "oilseed",
+      "names": {
+        "en": "Groundnut",
+        "hi": "मूंगफली",
+        "mr": "भुईमूग",
+        "te": "వేరుశనగ",
+        "kn": "ಕಡಲೆಕಾಯಿ",
+        "pt": "Amendoim",
+        "ru": "Арахис",
+        "zh": "花生"
+      },
+      "aliases": [
+        "peanut",
+        "bhuimug",
+        "mungfali",
+        "moongphali"
+      ],
+      "cycle_days": 115,
+      "traits": {
+        "n_fixing": true,
+        "water_class": "medium",
+        "residue": "medium"
+      },
+      "practices": [
+        "rhizobium-inoculation",
+        "residue-retention",
+        "drainage-check"
+      ],
+      "ecocrop": {
+        "topmn": 22.0,
+        "topmx": 32.0,
+        "tmin": 10.0,
+        "tmax": 45.0,
+        "ropmn": 600.0,
+        "ropmx": 1500.0,
+        "rmin": 400.0,
+        "rmax": 4000.0,
+        "phopmn": 5.5,
+        "phopmx": 6.5,
+        "phmin": 4.5,
+        "phmax": 8.5,
+        "ktmp": null,
+        "gmin": 90.0,
+        "gmax": 150.0,
+        "texture_optimal": [
+          "medium"
+        ],
+        "texture_absolute": [
+          "heavy",
+          "medium",
+          "light",
+          "organic"
+        ],
+        "drainage_optimal": "well (dry spells)",
+        "salinity_optimal": "low (<4 dS/m)",
+        "ecoport_code": "2199"
+      }
+    },
+    {
+      "id": "mustard",
+      "scientific_name": "Brassica juncea",
+      "group": "oilseed",
+      "names": {
+        "en": "Indian Mustard (Rai)",
+        "hi": "सरसों",
+        "mr": "मोहरी",
+        "te": "ఆవాలు",
+        "kn": "ಸಾಸಿವೆ",
+        "pt": "Mostarda",
+        "ru": "Горчица сарептская",
+        "zh": "芥菜型油菜"
+      },
+      "aliases": [
+        "sarson",
+        "rai",
+        "raya",
+        "mohri"
+      ],
+      "cycle_days": 125,
+      "traits": {
+        "n_fixing": false,
+        "water_class": "low",
+        "residue": "medium"
+      },
+      "practices": [
+        "reduced-disturbance",
+        "field-scouting"
+      ],
+      "ecocrop": {
+        "topmn": 15.0,
+        "topmx": 28.0,
+        "tmin": 7.0,
+        "tmax": 40.0,
+        "ropmn": 700.0,
+        "ropmx": 2400.0,
+        "rmin": 500.0,
+        "rmax": 4200.0,
+        "phopmn": 5.5,
+        "phopmx": 6.5,
+        "phmin": 5.0,
+        "phmax": 8.0,
+        "ktmp": 0.0,
+        "gmin": 50.0,
+        "gmax": 100.0,
+        "texture_optimal": [
+          "medium",
+          "organic"
+        ],
+        "texture_absolute": [
+          "heavy",
+          "medium",
+          "light"
+        ],
+        "drainage_optimal": "well (dry spells)",
+        "salinity_optimal": "low (<4 dS/m)",
+        "ecoport_code": "548"
+      }
+    },
+    {
+      "id": "rapeseed_canola",
+      "scientific_name": "Brassica napus",
+      "group": "oilseed",
+      "names": {
+        "en": "Rapeseed / Canola",
+        "hi": "गोभी सरसों",
+        "mr": "कॅनोला",
+        "te": "కనోలా",
+        "kn": "ಕ್ಯಾನೋಲಾ",
+        "pt": "Canola",
+        "ru": "Рапс",
+        "zh": "甘蓝型油菜"
+      },
+      "aliases": [
+        "canola",
+        "rapeseed",
+        "gobhi_sarson"
+      ],
+      "cycle_days": 150,
+      "traits": {
+        "n_fixing": false,
+        "water_class": "medium",
+        "residue": "medium"
+      },
+      "practices": [
+        "reduced-disturbance",
+        "residue-retention"
+      ],
+      "ecocrop": {
+        "topmn": 15.0,
+        "topmx": 25.0,
+        "tmin": 5.0,
+        "tmax": 41.0,
+        "ropmn": 500.0,
+        "ropmx": 1000.0,
+        "rmin": 400.0,
+        "rmax": 2800.0,
+        "phopmn": 6.5,
+        "phopmx": 7.6,
+        "phmin": 5.5,
+        "phmax": 8.0,
+        "ktmp": -6.0,
+        "gmin": 85.0,
+        "gmax": 340.0,
+        "texture_optimal": [
+          "medium",
+          "light"
+        ],
+        "texture_absolute": [
+          "heavy",
+          "medium",
+          "light"
+        ],
+        "drainage_optimal": "well (dry spells)",
+        "salinity_optimal": "low (<4 dS/m)",
+        "ecoport_code": "549"
+      }
+    },
+    {
+      "id": "sunflower",
+      "scientific_name": "Helianthus annuus",
+      "group": "oilseed",
+      "names": {
+        "en": "Sunflower",
+        "hi": "सूरजमुखी",
+        "mr": "सूर्यफूल",
+        "te": "పొద్దుతిరుగుడు",
+        "kn": "ಸೂರ್ಯಕಾಂತಿ",
+        "pt": "Girassol",
+        "ru": "Подсолнечник",
+        "zh": "向日葵"
+      },
+      "aliases": [
+        "surajmukhi",
+        "suryaphool"
+      ],
+      "cycle_days": 100,
+      "traits": {
+        "n_fixing": false,
+        "water_class": "medium",
+        "residue": "medium"
+      },
+      "practices": [
+        "legume-rotation",
+        "residue-retention"
+      ],
+      "ecocrop": {
+        "topmn": 17.0,
+        "topmx": 34.0,
+        "tmin": 5.0,
+        "tmax": 45.0,
+        "ropmn": 600.0,
+        "ropmx": 1000.0,
+        "rmin": 300.0,
+        "rmax": 1600.0,
+        "phopmn": 6.0,
+        "phopmx": 7.5,
+        "phmin": 5.5,
+        "phmax": 8.0,
+        "ktmp": 0.0,
+        "gmin": 70.0,
+        "gmax": 200.0,
+        "texture_optimal": [
+          "medium",
+          "light"
+        ],
+        "texture_absolute": [
+          "heavy",
+          "medium",
+          "light"
+        ],
+        "drainage_optimal": "well (dry spells)",
+        "salinity_optimal": "low (<4 dS/m)",
+        "ecoport_code": "1191"
+      }
+    },
+    {
+      "id": "sesame",
+      "scientific_name": "Sesamum indicum",
+      "group": "oilseed",
+      "names": {
+        "en": "Sesame (Til)",
+        "hi": "तिल",
+        "mr": "तीळ",
+        "te": "నువ్వులు",
+        "kn": "ಎಳ್ಳು",
+        "pt": "Gergelim",
+        "ru": "Кунжут",
+        "zh": "芝麻"
+      },
+      "aliases": [
+        "til",
+        "teel",
+        "gingelly"
+      ],
+      "cycle_days": 90,
+      "traits": {
+        "n_fixing": false,
+        "water_class": "low",
+        "residue": "low"
+      },
+      "practices": [
+        "intercropping-pulses",
+        "drainage-check"
+      ],
+      "ecocrop": {
+        "topmn": 20.0,
+        "topmx": 30.0,
+        "tmin": 10.0,
+        "tmax": 40.0,
+        "ropmn": 500.0,
+        "ropmx": 1000.0,
+        "rmin": 300.0,
+        "rmax": 1500.0,
+        "phopmn": 5.5,
+        "phopmx": 7.5,
+        "phmin": 4.5,
+        "phmax": 8.0,
+        "ktmp": null,
+        "gmin": 40.0,
+        "gmax": 180.0,
+        "texture_optimal": [
+          "medium"
+        ],
+        "texture_absolute": [
+          "heavy",
+          "medium",
+          "light"
+        ],
+        "drainage_optimal": "well (dry spells)",
+        "salinity_optimal": "low (<4 dS/m)",
+        "ecoport_code": "1937"
+      }
+    },
+    {
+      "id": "safflower",
+      "scientific_name": "Carthamus tinctorius",
+      "group": "oilseed",
+      "names": {
+        "en": "Safflower",
+        "hi": "कुसुम",
+        "mr": "करडई",
+        "te": "కుసుమ",
+        "kn": "ಕುಸುಬೆ",
+        "pt": "Cártamo",
+        "ru": "Сафлор",
+        "zh": "红花"
+      },
+      "aliases": [
+        "kardai",
+        "kusum"
+      ],
+      "cycle_days": 130,
+      "traits": {
+        "n_fixing": false,
+        "water_class": "low",
+        "residue": "medium"
+      },
+      "practices": [
+        "reduced-disturbance",
+        "rainfall-timed-sowing"
+      ],
+      "ecocrop": {
+        "topmn": 20.0,
+        "topmx": 32.0,
+        "tmin": 5.0,
+        "tmax": 45.0,
+        "ropmn": 600.0,
+        "ropmx": 1000.0,
+        "rmin": 300.0,
+        "rmax": 1400.0,
+        "phopmn": 6.5,
+        "phopmx": 7.5,
+        "phmin": 5.0,
+        "phmax": 8.0,
+        "ktmp": -2.0,
+        "gmin": 120.0,
+        "gmax": 245.0,
+        "texture_optimal": [
+          "medium",
+          "light"
+        ],
+        "texture_absolute": [
+          "heavy",
+          "medium",
+          "light"
+        ],
+        "drainage_optimal": "well (dry spells)",
+        "salinity_optimal": "low (<4 dS/m)",
+        "ecoport_code": "2514"
+      }
+    },
+    {
+      "id": "cotton",
+      "scientific_name": "Gossypium hirsutum",
+      "group": "fibre",
+      "names": {
+        "en": "Cotton",
+        "hi": "कपास",
+        "mr": "कापूस",
+        "te": "పత్తి",
+        "kn": "ಹತ್ತಿ",
+        "pt": "Algodão",
+        "ru": "Хлопчатник",
+        "zh": "棉花"
+      },
+      "aliases": [
+        "kapas",
+        "kapus",
+        "narma"
+      ],
+      "cycle_days": 170,
+      "traits": {
+        "n_fixing": false,
+        "water_class": "medium",
+        "residue": "medium"
+      },
+      "practices": [
+        "intercropping-pulses",
+        "field-scouting",
+        "broad-bed-furrow"
+      ],
+      "ecocrop": {
+        "topmn": 22.0,
+        "topmx": 36.0,
+        "tmin": 15.0,
+        "tmax": 42.0,
+        "ropmn": 750.0,
+        "ropmx": 1200.0,
+        "rmin": 450.0,
+        "rmax": 1500.0,
+        "phopmn": 6.0,
+        "phopmx": 7.5,
+        "phmin": 5.0,
+        "phmax": 9.5,
+        "ktmp": null,
+        "gmin": 150.0,
+        "gmax": 200.0,
+        "texture_optimal": [
+          "heavy",
+          "medium"
+        ],
+        "texture_absolute": [
+          "heavy",
+          "medium",
+          "light",
+          "organic"
+        ],
+        "drainage_optimal": "well (dry spells)",
+        "salinity_optimal": "low (<4 dS/m)",
+        "ecoport_code": "1160"
+      }
+    },
+    {
+      "id": "sugarcane",
+      "scientific_name": "Saccharum officinarum",
+      "group": "sugar",
+      "names": {
+        "en": "Sugarcane",
+        "hi": "गन्ना",
+        "mr": "ऊस",
+        "te": "చెరకు",
+        "kn": "ಕಬ್ಬು",
+        "pt": "Cana-de-açúcar",
+        "ru": "Сахарный тростник",
+        "zh": "甘蔗"
+      },
+      "aliases": [
+        "oos",
+        "us",
+        "ganna",
+        "ikh",
+        "kabbu"
+      ],
+      "cycle_days": 330,
+      "traits": {
+        "n_fixing": false,
+        "water_class": "high",
+        "residue": "high"
+      },
+      "practices": [
+        "trash-mulching",
+        "drip-irrigation",
+        "intercropping-pulses"
+      ],
+      "ecocrop": {
+        "topmn": 24.0,
+        "topmx": 37.0,
+        "tmin": 15.0,
+        "tmax": 41.0,
+        "ropmn": 1500.0,
+        "ropmx": 2000.0,
+        "rmin": 1000.0,
+        "rmax": 5000.0,
+        "phopmn": 5.0,
+        "phopmx": 8.0,
+        "phmin": 4.5,
+        "phmax": 9.0,
+        "ktmp": 0.0,
+        "gmin": 210.0,
+        "gmax": 365.0,
+        "texture_optimal": [],
+        "texture_absolute": [],
+        "drainage_optimal": null,
+        "salinity_optimal": "low (<4 dS/m)",
+        "ecoport_code": "1884"
+      }
+    },
+    {
+      "id": "potato",
+      "scientific_name": "Solanum tuberosum",
+      "group": "tuber",
+      "names": {
+        "en": "Potato",
+        "hi": "आलू",
+        "mr": "बटाटा",
+        "te": "బంగాళదుంప",
+        "kn": "ಆಲೂಗಡ್ಡೆ",
+        "pt": "Batata",
+        "ru": "Картофель",
+        "zh": "马铃薯"
+      },
+      "aliases": [
+        "aloo",
+        "alu",
+        "batata"
+      ],
+      "cycle_days": 100,
+      "traits": {
+        "n_fixing": false,
+        "water_class": "medium",
+        "residue": "low"
+      },
+      "practices": [
+        "compost-fym",
+        "field-scouting",
+        "drip-irrigation"
+      ],
+      "ecocrop": {
+        "topmn": 15.0,
+        "topmx": 25.0,
+        "tmin": 7.0,
+        "tmax": 30.0,
+        "ropmn": 500.0,
+        "ropmx": 800.0,
+        "rmin": 250.0,
+        "rmax": 2000.0,
+        "phopmn": 5.0,
+        "phopmx": 6.2,
+        "phmin": 4.2,
+        "phmax": 8.5,
+        "ktmp": 0.0,
+        "gmin": 90.0,
+        "gmax": 160.0,
+        "texture_optimal": [
+          "medium",
+          "organic"
+        ],
+        "texture_absolute": [
+          "heavy",
+          "medium",
+          "light"
+        ],
+        "drainage_optimal": "well (dry spells)",
+        "salinity_optimal": "low (<4 dS/m)",
+        "ecoport_code": "1971"
+      }
+    },
+    {
+      "id": "cassava",
+      "scientific_name": "Manihot esculenta",
+      "group": "tuber",
+      "names": {
+        "en": "Cassava (Tapioca)",
+        "hi": "कसावा",
+        "mr": "कसावा",
+        "te": "కర్రపెండలం",
+        "kn": "ಮರಗೆಣಸು",
+        "pt": "Mandioca",
+        "ru": "Маниок",
+        "zh": "木薯"
+      },
+      "aliases": [
+        "tapioca",
+        "mandioca",
+        "manioc"
+      ],
+      "cycle_days": 300,
+      "traits": {
+        "n_fixing": false,
+        "water_class": "low",
+        "residue": "medium"
+      },
+      "practices": [
+        "intercropping-pulses",
+        "residue-retention"
+      ],
+      "ecocrop": {
+        "topmn": 20.0,
+        "topmx": 29.0,
+        "tmin": 10.0,
+        "tmax": 35.0,
+        "ropmn": 1000.0,
+        "ropmx": 1500.0,
+        "rmin": 500.0,
+        "rmax": 5000.0,
+        "phopmn": 5.5,
+        "phopmx": 8.0,
+        "phmin": 4.0,
+        "phmax": 9.0,
+        "ktmp": 0.0,
+        "gmin": 180.0,
+        "gmax": 365.0,
+        "texture_optimal": [
+          "medium",
+          "light"
+        ],
+        "texture_absolute": [
+          "heavy",
+          "medium",
+          "light",
+          "organic"
+        ],
+        "drainage_optimal": "well (dry spells)",
+        "salinity_optimal": "low (<4 dS/m)",
+        "ecoport_code": "1420"
+      }
+    },
+    {
+      "id": "sweet_potato",
+      "scientific_name": "Ipomoea batatas",
+      "group": "tuber",
+      "names": {
+        "en": "Sweet Potato",
+        "hi": "शकरकंद",
+        "mr": "रताळे",
+        "te": "చిలగడదుంప",
+        "kn": "ಸಿಹಿ ಗೆಣಸು",
+        "pt": "Batata-doce",
+        "ru": "Батат",
+        "zh": "甘薯"
+      },
+      "aliases": [
+        "shakarkand",
+        "ratale"
+      ],
+      "cycle_days": 120,
+      "traits": {
+        "n_fixing": false,
+        "water_class": "low",
+        "residue": "medium"
+      },
+      "practices": [
+        "compost-fym",
+        "residue-retention"
+      ],
+      "ecocrop": {
+        "topmn": 18.0,
+        "topmx": 28.0,
+        "tmin": 10.0,
+        "tmax": 38.0,
+        "ropmn": 750.0,
+        "ropmx": 2000.0,
+        "rmin": 350.0,
+        "rmax": 5000.0,
+        "phopmn": 5.0,
+        "phopmx": 7.0,
+        "phmin": 4.0,
+        "phmax": 8.7,
+        "ktmp": 5.0,
+        "gmin": 80.0,
+        "gmax": 170.0,
+        "texture_optimal": [],
+        "texture_absolute": [],
+        "drainage_optimal": null,
+        "salinity_optimal": "low (<4 dS/m)",
+        "ecoport_code": "1265"
+      }
+    },
+    {
+      "id": "onion",
+      "scientific_name": "Allium cepa",
+      "group": "vegetable",
+      "names": {
+        "en": "Onion",
+        "hi": "प्याज",
+        "mr": "कांदा",
+        "te": "ఉల్లిపాయ",
+        "kn": "ಈರುಳ್ಳಿ",
+        "pt": "Cebola",
+        "ru": "Лук репчатый",
+        "zh": "洋葱"
+      },
+      "aliases": [
+        "kanda",
+        "pyaj",
+        "pyaz"
+      ],
+      "cycle_days": 130,
+      "traits": {
+        "n_fixing": false,
+        "water_class": "medium",
+        "residue": "low"
+      },
+      "practices": [
+        "raised-bed-planting",
+        "drip-irrigation",
+        "field-scouting"
+      ],
+      "ecocrop": {
+        "topmn": 12.0,
+        "topmx": 25.0,
+        "tmin": 4.0,
+        "tmax": 30.0,
+        "ropmn": 350.0,
+        "ropmx": 600.0,
+        "rmin": 300.0,
+        "rmax": 2800.0,
+        "phopmn": 6.0,
+        "phopmx": 7.0,
+        "phmin": 4.3,
+        "phmax": 8.3,
+        "ktmp": null,
+        "gmin": 85.0,
+        "gmax": 175.0,
+        "texture_optimal": [
+          "medium",
+          "organic"
+        ],
+        "texture_absolute": [
+          "wide",
+          "organic"
+        ],
+        "drainage_optimal": "well (dry spells)",
+        "salinity_optimal": "low (<4 dS/m)",
+        "ecoport_code": "364"
+      }
+    },
+    {
+      "id": "tomato",
+      "scientific_name": "Lycopersicon esculentum",
+      "group": "vegetable",
+      "names": {
+        "en": "Tomato",
+        "hi": "टमाटर",
+        "mr": "टोमॅटो",
+        "te": "టమాటా",
+        "kn": "ಟೊಮೆಟೊ",
+        "pt": "Tomate",
+        "ru": "Томат",
+        "zh": "番茄"
+      },
+      "aliases": [
+        "tamatar"
+      ],
+      "cycle_days": 120,
+      "traits": {
+        "n_fixing": false,
+        "water_class": "medium",
+        "residue": "low"
+      },
+      "practices": [
+        "raised-bed-planting",
+        "drip-irrigation",
+        "field-scouting"
+      ],
+      "ecocrop": {
+        "topmn": 20.0,
+        "topmx": 27.0,
+        "tmin": 7.0,
+        "tmax": 35.0,
+        "ropmn": 600.0,
+        "ropmx": 1300.0,
+        "rmin": 400.0,
+        "rmax": 1800.0,
+        "phopmn": 5.5,
+        "phopmx": 6.8,
+        "phmin": 5.0,
+        "phmax": 7.5,
+        "ktmp": null,
+        "gmin": 70.0,
+        "gmax": 150.0,
+        "texture_optimal": [
+          "medium",
+          "organic"
+        ],
+        "texture_absolute": [
+          "heavy",
+          "medium",
+          "light"
+        ],
+        "drainage_optimal": "well (dry spells)",
+        "salinity_optimal": "low (<4 dS/m)",
+        "ecoport_code": "1379"
+      }
+    },
+    {
+      "id": "berseem",
+      "scientific_name": "Trifolium alexandrinum",
+      "group": "fodder",
+      "names": {
+        "en": "Berseem (Egyptian Clover)",
+        "hi": "बरसीम",
+        "mr": "बरसीम",
+        "te": "బర్సీమ్",
+        "kn": "ಬರ್ಸೀಮ್",
+        "pt": "Trevo-de-alexandria",
+        "ru": "Клевер александрийский",
+        "zh": "埃及三叶草"
+      },
+      "aliases": [
+        "egyptian_clover"
+      ],
+      "cycle_days": 180,
+      "traits": {
+        "n_fixing": true,
+        "water_class": "medium",
+        "residue": "medium"
+      },
+      "practices": [
+        "legume-rotation",
+        "reduced-disturbance"
+      ],
+      "ecocrop": {
+        "topmn": 16.0,
+        "topmx": 27.0,
+        "tmin": 3.0,
+        "tmax": 35.0,
+        "ropmn": 450.0,
+        "ropmx": 900.0,
+        "rmin": 300.0,
+        "rmax": 1700.0,
+        "phopmn": 6.5,
+        "phopmx": 7.0,
+        "phmin": 4.9,
+        "phmax": 7.5,
+        "ktmp": -2.0,
+        "gmin": 90.0,
+        "gmax": 270.0,
+        "texture_optimal": [
+          "heavy",
+          "medium"
+        ],
+        "texture_absolute": [
+          "heavy",
+          "medium",
+          "light"
+        ],
+        "drainage_optimal": "well (dry spells)",
+        "salinity_optimal": "low (<4 dS/m)",
+        "ecoport_code": "10522"
+      }
+    },
+    {
+      "id": "dhaincha",
+      "scientific_name": "Sesbania bispinosa",
+      "group": "green_manure",
+      "names": {
+        "en": "Dhaincha (Green Manure)",
+        "hi": "ढैंचा",
+        "mr": "धैंचा",
+        "te": "జీలుగ",
+        "kn": "ಡಯಾಂಚ",
+        "pt": "Sesbânia",
+        "ru": "Сесбания",
+        "zh": "田菁"
+      },
+      "aliases": [
+        "sesbania",
+        "dhaincha"
+      ],
+      "cycle_days": 50,
+      "traits": {
+        "n_fixing": true,
+        "water_class": "low",
+        "residue": "high"
+      },
+      "practices": [
+        "green-manure"
+      ],
+      "ecocrop": {
+        "topmn": 18.0,
+        "topmx": 30.0,
+        "tmin": 10.0,
+        "tmax": 34.0,
+        "ropmn": 700.0,
+        "ropmx": 1200.0,
+        "rmin": 500.0,
+        "rmax": 2900.0,
+        "phopmn": 5.5,
+        "phopmx": 7.0,
+        "phmin": 4.3,
+        "phmax": 9.9,
+        "ktmp": null,
+        "gmin": 60.0,
+        "gmax": 170.0,
+        "texture_optimal": [
+          "heavy",
+          "medium"
+        ],
+        "texture_absolute": [
+          "heavy",
+          "medium",
+          "light"
+        ],
+        "drainage_optimal": "poorly (saturated >50% of year), well (dry spells)",
+        "salinity_optimal": "low (<4 dS/m)",
+        "ecoport_code": "9712"
+      }
+    },
+    {
+      "id": "sunn_hemp",
+      "scientific_name": "Crotalaria juncea",
+      "group": "green_manure",
+      "names": {
+        "en": "Sunn Hemp (Green Manure)",
+        "hi": "सनई",
+        "mr": "ताग",
+        "te": "జనుము",
+        "kn": "ಸೆಣಬು",
+        "pt": "Crotalária",
+        "ru": "Кроталярия",
+        "zh": "菽麻"
+      },
+      "aliases": [
+        "sanai",
+        "sunhemp",
+        "taag"
+      ],
+      "cycle_days": 50,
+      "traits": {
+        "n_fixing": true,
+        "water_class": "low",
+        "residue": "high"
+      },
+      "practices": [
+        "green-manure"
+      ],
+      "ecocrop": {
+        "topmn": 20.0,
+        "topmx": 30.0,
+        "tmin": 4.0,
+        "tmax": 40.0,
+        "ropmn": 500.0,
+        "ropmx": 1500.0,
+        "rmin": 200.0,
+        "rmax": 4300.0,
+        "phopmn": 6.0,
+        "phopmx": 7.0,
+        "phmin": 5.0,
+        "phmax": 8.4,
+        "ktmp": -1.0,
+        "gmin": 60.0,
+        "gmax": 160.0,
+        "texture_optimal": [
+          "medium"
+        ],
+        "texture_absolute": [
+          "medium",
+          "light"
+        ],
+        "drainage_optimal": "well (dry spells)",
+        "salinity_optimal": "low (<4 dS/m)",
+        "ecoport_code": "801"
+      }
+    }
+  ]
+}

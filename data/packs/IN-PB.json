@@ -1,0 +1,348 @@
+{
+  "schema_version": "1.0.0",
+  "pack_id": "pack_in_punjab",
+  "pack_version": 1,
+  "region": {
+    "country_code": "IN",
+    "subdivision_code": "IN-PB",
+    "name": "Punjab",
+    "agro_climatic_zones": [
+      "Trans-Gangetic Plains Region (Planning Commission zone 6)"
+    ]
+  },
+  "license": "CC-BY-4.0",
+  "review": {
+    "status": "curated_pending_review",
+    "reviewer": null,
+    "reviewed_at": null,
+    "note": "Sowing windows curated from PAU Package of Practices; awaiting state expert review."
+  },
+  "sources": [
+    {
+      "title": "Punjab Agricultural University - Package of Practices for Crops of Punjab (Kharif and Rabi)",
+      "url": "https://www.pau.edu/"
+    },
+    {
+      "title": "The Punjab Preservation of Subsoil Water Act, 2009",
+      "url": "https://agri.punjab.gov.in/"
+    },
+    {
+      "title": "CGWB Dynamic Ground Water Resources of India",
+      "url": "https://cgwb.gov.in/"
+    }
+  ],
+  "seasons": [
+    {
+      "id": "kharif",
+      "months": [
+        6,
+        7,
+        8,
+        9,
+        10
+      ]
+    },
+    {
+      "id": "rabi",
+      "months": [
+        10,
+        11,
+        12,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "id": "zaid",
+      "months": [
+        3,
+        4,
+        5,
+        6
+      ]
+    }
+  ],
+  "groundwater": {
+    "category": "over_exploited",
+    "scope": "state",
+    "note": "Punjab extracts more groundwater than is recharged state-wide; most blocks are over-exploited. Water-intensive crops should use DSR, AWD or be diversified.",
+    "source": "CGWB Dynamic Ground Water Resources of India"
+  },
+  "crops": [
+    {
+      "crop_id": "wheat",
+      "scientific_name": "Triticum aestivum",
+      "sowing_windows": [
+        {
+          "season": "rabi",
+          "start": "10-25",
+          "end": "11-15",
+          "irrigation_required": true,
+          "label": "timely"
+        },
+        {
+          "season": "rabi",
+          "start": "11-16",
+          "end": "12-15",
+          "irrigation_required": true,
+          "label": "late sown"
+        }
+      ]
+    },
+    {
+      "crop_id": "rice",
+      "scientific_name": "Oryza sativa",
+      "sowing_windows": [
+        {
+          "season": "kharif",
+          "start": "06-15",
+          "end": "07-10",
+          "irrigation_required": true,
+          "label": "transplanting"
+        }
+      ],
+      "note": "Direct-seeded rice can be sown 1-15 June."
+    },
+    {
+      "crop_id": "maize",
+      "scientific_name": "Zea mays",
+      "sowing_windows": [
+        {
+          "season": "kharif",
+          "start": "06-01",
+          "end": "06-30",
+          "irrigation_required": true
+        }
+      ]
+    },
+    {
+      "crop_id": "cotton",
+      "scientific_name": "Gossypium hirsutum",
+      "sowing_windows": [
+        {
+          "season": "kharif",
+          "start": "04-15",
+          "end": "05-15",
+          "irrigation_required": true
+        }
+      ]
+    },
+    {
+      "crop_id": "pigeon_pea",
+      "scientific_name": "Cajanus cajan",
+      "sowing_windows": [
+        {
+          "season": "kharif",
+          "start": "05-20",
+          "end": "06-15",
+          "irrigation_required": true
+        }
+      ]
+    },
+    {
+      "crop_id": "green_gram",
+      "scientific_name": "Vigna radiata",
+      "sowing_windows": [
+        {
+          "season": "zaid",
+          "start": "03-20",
+          "end": "04-10",
+          "irrigation_required": true,
+          "label": "summer moong"
+        },
+        {
+          "season": "kharif",
+          "start": "07-01",
+          "end": "07-20",
+          "irrigation_required": false
+        }
+      ]
+    },
+    {
+      "crop_id": "black_gram",
+      "scientific_name": "Vigna mungo",
+      "sowing_windows": [
+        {
+          "season": "kharif",
+          "start": "07-01",
+          "end": "07-20",
+          "irrigation_required": false
+        }
+      ]
+    },
+    {
+      "crop_id": "mustard",
+      "scientific_name": "Brassica juncea",
+      "sowing_windows": [
+        {
+          "season": "rabi",
+          "start": "10-10",
+          "end": "10-31",
+          "irrigation_required": true
+        }
+      ]
+    },
+    {
+      "crop_id": "rapeseed_canola",
+      "scientific_name": "Brassica napus",
+      "sowing_windows": [
+        {
+          "season": "rabi",
+          "start": "10-10",
+          "end": "10-31",
+          "irrigation_required": true,
+          "label": "gobhi sarson"
+        }
+      ]
+    },
+    {
+      "crop_id": "chickpea",
+      "scientific_name": "Cicer arietinum",
+      "sowing_windows": [
+        {
+          "season": "rabi",
+          "start": "10-10",
+          "end": "10-31",
+          "irrigation_required": false
+        }
+      ]
+    },
+    {
+      "crop_id": "lentil",
+      "scientific_name": "Lens culinaris",
+      "sowing_windows": [
+        {
+          "season": "rabi",
+          "start": "10-25",
+          "end": "11-15",
+          "irrigation_required": false
+        }
+      ]
+    },
+    {
+      "crop_id": "field_pea",
+      "scientific_name": "Pisum sativum",
+      "sowing_windows": [
+        {
+          "season": "rabi",
+          "start": "10-15",
+          "end": "11-15",
+          "irrigation_required": true
+        }
+      ]
+    },
+    {
+      "crop_id": "barley",
+      "scientific_name": "Hordeum vulgare",
+      "sowing_windows": [
+        {
+          "season": "rabi",
+          "start": "10-15",
+          "end": "11-15",
+          "irrigation_required": true
+        }
+      ]
+    },
+    {
+      "crop_id": "potato",
+      "scientific_name": "Solanum tuberosum",
+      "sowing_windows": [
+        {
+          "season": "rabi",
+          "start": "09-25",
+          "end": "10-31",
+          "irrigation_required": true
+        }
+      ]
+    },
+    {
+      "crop_id": "sugarcane",
+      "scientific_name": "Saccharum officinarum",
+      "sowing_windows": [
+        {
+          "season": "rabi",
+          "start": "09-20",
+          "end": "10-20",
+          "irrigation_required": true,
+          "label": "autumn"
+        },
+        {
+          "season": "zaid",
+          "start": "02-15",
+          "end": "03-31",
+          "irrigation_required": true,
+          "label": "spring"
+        }
+      ]
+    },
+    {
+      "crop_id": "sunflower",
+      "scientific_name": "Helianthus annuus",
+      "sowing_windows": [
+        {
+          "season": "zaid",
+          "start": "01-15",
+          "end": "02-15",
+          "irrigation_required": true,
+          "label": "spring"
+        }
+      ]
+    },
+    {
+      "crop_id": "berseem",
+      "scientific_name": "Trifolium alexandrinum",
+      "sowing_windows": [
+        {
+          "season": "rabi",
+          "start": "09-25",
+          "end": "10-15",
+          "irrigation_required": true
+        }
+      ]
+    },
+    {
+      "crop_id": "oats",
+      "scientific_name": "Avena sativa",
+      "sowing_windows": [
+        {
+          "season": "rabi",
+          "start": "10-10",
+          "end": "11-15",
+          "irrigation_required": true,
+          "label": "fodder"
+        }
+      ]
+    },
+    {
+      "crop_id": "dhaincha",
+      "scientific_name": "Sesbania bispinosa",
+      "sowing_windows": [
+        {
+          "season": "zaid",
+          "start": "04-20",
+          "end": "05-31",
+          "irrigation_required": true,
+          "label": "green manure before paddy"
+        }
+      ]
+    }
+  ],
+  "districts": [],
+  "priority_practices": [
+    "direct-seeded-rice",
+    "alternate-wetting-drying",
+    "residue-retention",
+    "reduced-disturbance",
+    "green-manure",
+    "legume-rotation"
+  ],
+  "regulations": [
+    {
+      "crop_id": "rice",
+      "earliest_sowing": "06-15",
+      "text": "Paddy transplanting is not permitted before the date notified each year under the Punjab Preservation of Subsoil Water Act, 2009 (mid-June in recent years).",
+      "source": "The Punjab Preservation of Subsoil Water Act, 2009"
+    }
+  ]
+}
