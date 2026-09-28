@@ -1,8 +1,8 @@
 # ---- Stage 1: Build React frontend ----
 FROM node:20-alpine AS web-builder
 WORKDIR /app/web
-COPY apps/web/package.json ./
-RUN npm install --legacy-peer-deps
+COPY apps/web/package.json apps/web/package-lock.json ./
+RUN npm ci --legacy-peer-deps
 COPY apps/web/ ./
 RUN npm run build
 
@@ -17,6 +17,8 @@ RUN pip install --no-cache-dir uv
 COPY services/api/pyproject.toml ./
 COPY services/api/src ./src
 COPY contracts ./contracts
+# Crop catalog, regenerative practices and state agronomy packs used by the recommendation engine
+COPY data ./data
 
 # Install dependencies
 RUN uv pip install --system --no-cache -e .
