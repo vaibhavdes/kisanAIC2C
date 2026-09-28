@@ -152,7 +152,7 @@ class SoilRating(BaseModel):
     parameter: str
     value: float
     unit: str
-    rating: Literal["low", "medium", "high", "acidic", "neutral", "alkaline", "strongly_alkaline", "normal", "saline", "deficient", "sufficient"]
+    rating: Literal["low", "medium", "high", "acidic", "slightly_acidic", "neutral", "alkaline", "strongly_alkaline", "normal", "saline", "deficient", "sufficient"]
     note: str | None = None
 
 
@@ -458,6 +458,7 @@ class Diagnosis(BaseModel):
     image_quality: Literal["good", "usable", "poor", "not_crop"]
     category: Literal["disease", "pest", "nutrient", "abiotic", "healthy", "unclear"] = "unclear"
     suspected_condition: str | None = None
+    condition_en: str | None = None
     confidence: Literal["low", "medium", "high"] = "low"
     severity: Literal["none", "mild", "moderate", "severe", "unknown"] = "unknown"
     visible_findings: list[str]

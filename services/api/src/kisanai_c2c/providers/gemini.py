@@ -53,6 +53,7 @@ class DiagnosisOutput(BaseModel):
     image_quality: Literal["good", "usable", "poor", "not_crop"]
     category: Literal["disease", "pest", "nutrient", "abiotic", "healthy", "unclear"]
     suspected_condition: str | None = None
+    condition_en: str | None = None
     confidence: Literal["low", "medium", "high"]
     severity: Literal["none", "mild", "moderate", "severe", "unknown"]
     visible_findings: list[str]
@@ -216,6 +217,7 @@ Recent weather-based risk indicators for the farm (context only, not proof): {js
 Rules:
 - This is screening, not a laboratory diagnosis. Separate what is visible (visible_findings) from possible causes (plausible_causes).
 - suspected_condition: the single most likely named problem, or null if unclear. confidence reflects how sure you are from this photo only.
+- condition_en: the same problem's common English name (always English, e.g. "Septoria brown spot"), or null. Used to pool reports across languages.
 - safe_next_steps: 2-4 low-risk checks or cultural/biological measures the farmer can do now. No pesticide product names or doses.
 - prevention: 1-3 steps to prevent recurrence next season.
 - needs_expert_review = true if image quality is poor, the crop is not identifiable, confidence is low, severity is severe,

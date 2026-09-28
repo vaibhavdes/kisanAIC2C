@@ -198,3 +198,15 @@ def test_practice_review_toggle(service: AppService, expert: Actor):
     assert practice.review_status == "draft"
     with pytest.raises(ValueError):
         service.export_practice(expert, "practice_residue_mulching")
+
+
+def test_seeded_practices_match_the_node_states():
+    punjab = AppService(MemoryStore(), MemoryMediaStore(), make_settings(node_id="node-pb", node_subdivisions="IN-PB"))
+    punjab.seed_default_practices_if_empty()
+    codes = {p["practice_code"] for p in punjab.store.list("practices", filters={"node_id": "node-pb"}, limit=10)}
+    assert codes == {"residue-retention"}
+
+
+def test_soil_health_card_ph_classes():
+    from kisanai_c2c.soil import ph_rating
+    assert [ph_rating(v) for v in (5.5, 6.2, 6.8, 8.0, 9.0)] == ["acidic", "slightly_acidic", "neutral", "alkaline", "strongly_alkaline"]

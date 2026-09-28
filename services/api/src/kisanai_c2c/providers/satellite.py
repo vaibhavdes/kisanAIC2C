@@ -267,7 +267,13 @@ class SatelliteProvider:
         outline = ee.Image().byte().paint(featureCollection=ee.FeatureCollection([ee.Feature(geometry)]), color=1, width=2)
         preview = classified.visualize(min=0, max=len(classes) - 1, palette=palette).blend(outline.visualize(palette=["#ffffff"]))
         url = preview.getThumbURL({"region": geometry.buffer(60).bounds(), "dimensions": 640, "format": "png"})
-        response = requests.get(url, timeout=20)
-        if response.status_code != 200:
-            raise SatelliteUnavailable("Earth Engine thumbnail request failed")
-        return response.content, response.headers.get("content-type", "image/png")
+        for attempt in range(2):
+            try:
+                response = requests.get(url, timeout=25)
+            except requests.RequestException as exc:
+                if attempt:
+                    raise SatelliteUnavailable("Earth Engine thumbnail request failed") from exc
+                continue
+            if response.status_code == 200:
+                return response.content, response.headers.get("content-type", "image/png")
+        raise SatelliteUnavailable("Earth Engine thumbnail request failed")

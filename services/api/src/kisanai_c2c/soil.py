@@ -27,8 +27,11 @@ MICRO_CRITICAL = {
 
 
 def ph_rating(ph: float) -> str:
+    # Soil Health Card classes: <6.0 acidic, 6.0-6.5 slightly acidic, 6.5-7.5 neutral.
     if ph < 6.0:
         return "acidic"
+    if ph < 6.5:
+        return "slightly_acidic"
     if ph <= 7.5:
         return "neutral"
     if ph <= 8.5:

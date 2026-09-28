@@ -471,10 +471,15 @@ class AppService:
         self.store.put("expert_cases", case_id, updated.model_dump(mode="json"))
         return updated
 
-    def farmer_cases(self, actor: Actor, farm_id: str) -> list[ExpertCase]:
+    def farmer_cases(self, actor: Actor, farm_id: str) -> list[dict[str, Any]]:
         self.farm(actor, farm_id)
-        return [ExpertCase.model_validate(item) for item in
-                self.store.list("expert_cases", filters={"farm_id": farm_id, "owner_subject": actor.subject}, limit=100)]
+        out = []
+        for item in self.store.list("expert_cases", filters={"farm_id": farm_id, "owner_subject": actor.subject}, limit=100):
+            case = ExpertCase.model_validate(item)
+            diagnosis = self.store.get("diagnoses", case.diagnosis_id) or {}
+            out.append(case.model_dump(mode="json") | {"suspected_condition": diagnosis.get("suspected_condition"),
+                                                       "crop": diagnosis.get("crop")})
+        return out
 
     # ------------------------------------------------------------------ practices
     def create_practice(self, actor: Actor, payload: PracticeCreate) -> Practice:
@@ -683,7 +688,7 @@ class AppService:
         diag_groups = Counter((d.get("district") or "unknown",
                                crop_name(d.get("crop") or "", "en-IN") if d.get("crop") not in (None, "auto-detect") else "Unspecified",
                                d.get("category") or "unclear") for d in recent)
-        conditions = Counter((d.get("suspected_condition") or "unclear").strip().lower() for d in recent if d.get("category") not in (None, "healthy"))
+        conditions = Counter((d.get("condition_en") or d.get("suspected_condition") or "unclear").strip().lower() for d in recent if d.get("category") not in (None, "healthy"))
         practice_rows = []
         for pid, counts in self.practice_outcomes(node).items():
             if not pid:
@@ -718,7 +723,7 @@ class AppService:
 
     # ------------------------------------------------------------------ seed data
     def seed_default_practices_if_empty(self) -> None:
-        """Seed three reviewed regenerative practices so a new node's library is not empty."""
+        """Seed reviewed regenerative practices relevant to this node's states so its library is not empty."""
         if self.store.list("practices", filters={"node_id": self.settings.node_id}, limit=1):
             return
         now = datetime.now(UTC)
@@ -753,7 +758,10 @@ class AppService:
                  contraindications=["Very thick wet mulch on poorly drained soil can encourage seedling rot."],
                  source_urls=["https://www.fao.org/conservation-agriculture/en/"], reviewed_by="seed:fao-conservation-agriculture"),
         ]
+        served = {code.split("-", 1)[-1] for code in self.settings.node_subdivision_list}
         for item in defaults:
+            if served and not served & set(item["state_codes"]):
+                continue
             practice = Practice(**item, country_codes=["IN"], license="CC-BY-4.0", node_id=self.settings.node_id, created_by="system-seed",
                                 review_status="reviewed", reviewed_at=now)
             self.store.put("practices", practice.id, practice.model_dump(mode="json"))
