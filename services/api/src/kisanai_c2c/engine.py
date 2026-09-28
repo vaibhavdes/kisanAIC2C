@@ -318,7 +318,10 @@ class RecommendationEngine:
             factors.append(DecisionFactor(id="water", status="info", source="catalog", params={}, message="Climate normals unavailable."))
             return None, {}
         kc = CROP_FACTOR.get(crop["group"], 0.8) * (1.25 if crop["id"] == "rice" else 1.0)
-        pet_total = sum((self.climate[m].pet_mm or self.climate[m].tmean_c * 5) * w for m, w in months if m in self.climate)
+        if any(self.climate[m].pet_mm is None for m, _ in months if m in self.climate):
+            factors.append(DecisionFactor(id="water", status="info", source="catalog", params={}, message="Evapotranspiration normals unavailable."))
+            return None, {}
+        pet_total = sum(self.climate[m].pet_mm * w for m, w in months if m in self.climate)
         need = pet_total * kc + (RICE_EXTRA_MM if crop["id"] == "rice" else 0.0)
         rain = sum(self.climate[m].precip_mm * w for m, w in months if m in self.climate)
         # Stored moisture: surplus of the two months before sowing, capped by soil storage.
@@ -498,6 +501,8 @@ class RecommendationEngine:
             "district_normal_rain_mm": (self.district or {}).get("normal_rainfall_mm"),
             "district_note": (self.district or {}).get("note"),
             "land_cover": (self.land.land_cover or {}).get("label") if self.land else None,
+            "field_ndvi": self.satellite.get("ndvi"), "field_ndmi": self.satellite.get("ndmi"),
+            "satellite_observed_at": self.satellite.get("observed_at"),
         }
 
     def _sources(self) -> list[DataSource]:

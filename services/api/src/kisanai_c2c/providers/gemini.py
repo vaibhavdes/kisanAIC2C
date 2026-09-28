@@ -190,15 +190,14 @@ Crop options (best first): {json.dumps(options, ensure_ascii=False, default=str)
 Operation windows and risks from the 7-day forecast: {json.dumps(operations, ensure_ascii=False, default=str)}
 """
         output, model = self._generate([prompt], schema=PlanOutput)
-        fallback_pid = next(iter(allowed_practices), "field-scouting")
+        # Keep only steps tied to a practice the engine allowed; anything else is ungrounded and dropped.
         actions = [
             AdvisoryAction(
-                practice_id=item.practice_id if item.practice_id in allowed_practices else fallback_pid,
-                instruction=item.instruction, timing=item.timing, why=item.why, caution=item.caution,
-                evidence_ids=evidence_ids[:3],
+                practice_id=item.practice_id, instruction=item.instruction, timing=item.timing, why=item.why,
+                caution=item.caution, evidence_ids=evidence_ids[:3],
             )
-            for item in output.actions[:6]
-        ]
+            for item in output.actions if item.practice_id in allowed_practices
+        ][:6]
         if not actions:
             raise GeminiUnavailable("Gemini returned a plan without actions")
         return PlanResult(summary=output.summary, actions=actions, uncertainty_reasons=output.uncertainty_reasons[:3], model_used=model)

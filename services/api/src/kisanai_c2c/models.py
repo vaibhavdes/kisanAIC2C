@@ -6,7 +6,7 @@ import re
 from typing import Any, Literal
 from uuid import uuid4
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 
 def utcnow() -> datetime:
@@ -74,7 +74,6 @@ class Actor(BaseModel):
     node_id: str
     roles: set[Role] = Field(default_factory=lambda: {Role.farmer})
     locale: str = "en-IN"
-    email: str | None = None
 
 
 class Location(BaseModel):
@@ -212,9 +211,9 @@ class SoilEstimate(BaseModel):
     organic_carbon_percent: float | None = None
     clay_percent: float | None = None
     sand_percent: float | None = None
-    total_nitrogen_g_kg: float | None = None
     texture_class: Literal["heavy", "medium", "light"] | None = None
     depth: str = "0-30 cm"
+    radius_m: int | None = None  # averaging radius around the field centre
     source: str
 
 
@@ -229,6 +228,7 @@ class LandProfile(BaseModel):
     soil: SoilEstimate | None = None
     land_cover: dict[str, Any] | None = None
     quality_flags: list[str] = Field(default_factory=list)
+    method_version: int = 1  # bumped when the sampling method changes so cached profiles are rebuilt
     fetched_at: datetime = Field(default_factory=utcnow)
 
 
@@ -563,22 +563,6 @@ class HealthResponse(BaseModel):
     version: str
     node_id: str
     dependencies: dict[str, str] = Field(default_factory=dict)
-
-
-class ErrorDetail(BaseModel):
-    code: str
-    message: str
-    retryable: bool = False
-    request_id: str | None = None
-    fields: dict[str, str] | None = None
-
-
-class ErrorEnvelope(BaseModel):
-    error: ErrorDetail
-
-
-class Document(BaseModel):
-    model_config = ConfigDict(extra="allow")
 
 
 class FarmChatRequest(BaseModel):

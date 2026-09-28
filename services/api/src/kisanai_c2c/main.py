@@ -314,6 +314,11 @@ def peers(actor: Actor = Depends(expert), svc: AppService = Depends(service)):
     return {"node_id": settings.node_id, "peers": svc.peers()}
 
 
+@app.get("/api/v1/expert/network/signals")
+def peer_signals(actor: Actor = Depends(expert), svc: AppService = Depends(service)):
+    return {"signals": svc.peer_signals()}
+
+
 class PeerImport(BaseModel):
     peer_url: str = Field(min_length=8, max_length=300)
     kind: str = Field(pattern="^(packs|practices)$")

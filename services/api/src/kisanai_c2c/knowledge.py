@@ -29,14 +29,14 @@ def crop_catalog() -> dict[str, dict[str, Any]]:
 
 
 @lru_cache
-def catalog_sources() -> list[dict[str, str]]:
-    return _read(DATA_DIR / "crops" / "global_crop_catalog.json")["sources"]
-
-
-@lru_cache
 def practice_catalog() -> dict[str, dict[str, Any]]:
     data = _read(DATA_DIR / "practices" / "regenerative_practices.json")
     return {item["id"]: item for item in data["practices"]}
+
+
+def practice_library() -> list[dict[str, Any]]:
+    """Detailed practice write-ups (steps, contraindications, sources) that seed a node's practice library."""
+    return _read(DATA_DIR / "practices" / "practice_library.json")["practices"]
 
 
 @lru_cache

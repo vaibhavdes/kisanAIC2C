@@ -5,9 +5,8 @@ Sowing windows are curated from the published state agricultural university / st
 department Packages of Practices listed in each pack's `sources`. Packs are marked
 `curated_pending_review` until a state expert reviews them in the app.
 
-The Maharashtra district profiles reuse the sourced fields of
-data/agri_baselines/maharashtra_district_agri_profiles.json (IMD normals, CGWB groundwater
-status, principal crops); per-district N/P/K placeholders are intentionally not carried over.
+Groundwater is recorded at state level from the CGWB Dynamic Ground Water Resources
+assessment. District-level values are added only when they come from a cited source.
 
 Usage:
     python3 services/api/scripts/build_agronomy_packs.py
@@ -31,7 +30,6 @@ INDIA_SEASONS = [
     {"id": "zaid", "months": [3, 4, 5, 6]},
 ]
 
-GW_MAP = {"safe": "safe", "semi-critical": "semi_critical", "critical": "critical", "over-exploited": "over_exploited"}
 
 
 def window(season: str, start: str, end: str, irrigated: bool = False, label: str | None = None) -> dict:
@@ -46,29 +44,6 @@ def crop(crop_id: str, windows: list[dict], note: str | None = None) -> dict:
     if note:
         item["note"] = note
     return item
-
-
-def maharashtra_districts() -> list[dict]:
-    raw = json.loads((ROOT / "data" / "agri_baselines" / "maharashtra_district_agri_profiles.json").read_text())
-    aliases = {"chhatrapati sambhajinagar": ["Aurangabad"], "dharashiv": ["Osmanabad"]}
-    skip = {"aurangabad", "osmanabad"}
-    out = []
-    for key, value in raw.items():
-        if key in skip:
-            continue
-        out.append({
-            "name": value["district"],
-            "aliases": aliases.get(key, []),
-            "subdivision": value["subdivision"],
-            "agro_climatic_zone": value["agro_climatic_zone"],
-            "normal_rainfall_mm": value["normal_rainfall_mm"],
-            "monsoon_normal_mm": value["monsoon_normal_mm"],
-            "predominant_soil": value["predominant_soil"],
-            "groundwater_category": GW_MAP.get(value["groundwater_status"], "unknown"),
-            "primary_crops": value["primary_crops"],
-            "note": value["agronomic_notes"],
-        })
-    return out
 
 
 MAHARASHTRA = {
@@ -89,7 +64,7 @@ MAHARASHTRA = {
     ],
     "seasons": INDIA_SEASONS,
     "groundwater": {"category": "safe", "scope": "district",
-                    "note": "State average is safe but Marathwada and western Maharashtra have semi-critical to over-exploited districts; district values override.",
+                    "note": "State average is safe, but several Marathwada and western Maharashtra blocks are semi-critical or over-exploited; check the local CGWB block category.",
                     "source": "CGWB Dynamic Ground Water Resources of India"},
     "crops": [
         crop("soybean", [window("kharif", "06-15", "07-15")], "Sow after 75-100 mm cumulative monsoon rain."),
@@ -115,7 +90,7 @@ MAHARASHTRA = {
         crop("dhaincha", [window("zaid", "05-25", "06-30", label="green manure before kharif")]),
         crop("sunn_hemp", [window("zaid", "05-25", "06-30", label="green manure before kharif")]),
     ],
-    "districts": maharashtra_districts(),
+    "districts": [],
     "priority_practices": ["broad-bed-furrow", "intercropping-pulses", "residue-retention", "rainfall-timed-sowing", "drip-irrigation"],
     "regulations": [],
 }

@@ -14,7 +14,6 @@ from __future__ import annotations
 import math
 from concurrent.futures import ThreadPoolExecutor
 from collections import defaultdict
-from datetime import UTC, datetime
 from typing import Any
 
 import requests
@@ -27,7 +26,10 @@ WORLDCOVER_LABELS = {
     60: "bare_sparse", 70: "snow_ice", 80: "water", 90: "wetland", 95: "mangroves", 100: "moss_lichen",
 }
 DEPTH_WEIGHTS = {"0-5cm": 5, "5-15cm": 10, "15-30cm": 15}
-SOIL_LAYERS = ("phh2o", "soc", "clay", "sand", "nitrogen")
+SOIL_LAYERS = ("phh2o", "soc", "clay", "sand")
+
+
+LAND_PROFILE_METHOD = 2  # 2: SoilGrids sampled around the field centre (300 m, widening to 1.5 km)
 
 
 class LandProfileUnavailable(RuntimeError):
@@ -72,7 +74,7 @@ class LandProfileProvider:
             farm_id=farm.id, node_id=farm.node_id,
             latitude=farm.location.latitude, longitude=farm.location.longitude,
             climate=months, climate_source=climate_source, climate_period=climate_period,
-            soil=soil, land_cover=cover, quality_flags=flags,
+            soil=soil, land_cover=cover, quality_flags=flags, method_version=LAND_PROFILE_METHOD,
         )
 
     def _climate(self, farm: Farm) -> tuple[list[ClimateMonth], str, str]:
@@ -109,11 +111,15 @@ class LandProfileProvider:
             soil_img = weighted if soil_img is None else soil_img.addBands(weighted)
         worldcover = ee.ImageCollection("ESA/WorldCover/v200").first()
         result = ee.Dictionary({
-            "soil": soil_img.reduceRegion(ee.Reducer.mean(), geometry, 250, maxPixels=1e7),
+            # SoilGrids pixels are 250 m, larger than most smallholder fields: sample around the field centre,
+            # widening to 1.5 km only where the nearest pixels are masked (e.g. built-up or water).
+            "soil": soil_img.reduceRegion(ee.Reducer.mean(), centroid.buffer(300), 250, maxPixels=1e7),
+            "soil_wide": soil_img.reduceRegion(ee.Reducer.mean(), centroid.buffer(1500), 250, maxPixels=1e7),
             "cover": worldcover.reduceRegion(ee.Reducer.mode(), geometry, 10, maxPixels=1e8),
             "cropland": worldcover.eq(40).reduceRegion(ee.Reducer.mean(), centroid.buffer(2000), 30, maxPixels=1e8),
         }).getInfo()
-        soil = self._soilgrids_estimate(result.get("soil") or {})
+        soil = self._soilgrids_estimate(result.get("soil") or {}, radius_m=300) \
+            or self._soilgrids_estimate(result.get("soil_wide") or {}, radius_m=1500)
         cover_code = (result.get("cover") or {}).get("Map")
         cropland = (result.get("cropland") or {}).get("Map")
         cover = None
@@ -147,7 +153,7 @@ class LandProfileProvider:
         return sorted(months, key=lambda m: m.month)
 
     @staticmethod
-    def _soilgrids_estimate(values: dict[str, Any]) -> SoilEstimate | None:
+    def _soilgrids_estimate(values: dict[str, Any], radius_m: int) -> SoilEstimate | None:
         if values.get("phh2o") is None and values.get("soc") is None:
             return None
 
@@ -162,9 +168,9 @@ class LandProfileProvider:
             organic_carbon_percent=scaled("soc", 0.01),
             clay_percent=clay,
             sand_percent=sand,
-            total_nitrogen_g_kg=scaled("nitrogen", 0.01),
             texture_class=texture_class(clay, sand),
             depth="0-30 cm",
+            radius_m=radius_m,
             source="ISRIC SoilGrids 2.0 (250 m)",
         )
 
@@ -204,17 +210,10 @@ class LandProfileProvider:
             tmin_c, tmax_c = sum(tmins) / len(tmins), sum(tmaxs) / len(tmaxs)
             months.append(ClimateMonth(
                 month=month, tmin_c=round(tmin_c, 1), tmax_c=round(tmax_c, 1), tmean_c=round((tmin_c + tmax_c) / 2, 1),
-                precip_mm=round(sum(precip) / len(precip), 1), pet_mm=round(sum(pet) / len(pet), 1) if pet else None,
+                precip_mm=round(sum(precip) / len(precip), 1),
+                pet_mm=round(sum(pet) / len(pet), 1) if pet and any(pet) else round(hargreaves_monthly_pet(farm.location.latitude, month, tmin_c, tmax_c), 1),
             ))
         return months
-
-
-def annual_precip(profile: LandProfile) -> float:
-    return round(sum(month.precip_mm for month in profile.climate), 1)
-
-
-def profile_age_days(profile: LandProfile) -> float:
-    return (datetime.now(UTC) - profile.fetched_at).total_seconds() / 86400
 
 
 def hargreaves_monthly_pet(latitude: float, month: int, tmin: float, tmax: float) -> float:

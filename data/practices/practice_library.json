@@ -1,0 +1,120 @@
+{
+  "version": 1,
+  "note": "Team-written summaries of the cited public guidance. Loaded as drafts; a node's expert reviews them before they are published.",
+  "practices": [
+    {
+      "id": "practice_bbf_drainage",
+      "practice_code": "broad-bed-furrow",
+      "title": "Broad Bed and Furrow (BBF) on black soils",
+      "summary": "Raised beds about 1.2-1.5 m wide separated by furrows drain excess water in wet spells and conserve moisture in dry spells on heavy Vertisols.",
+      "state_codes": [
+        "MH",
+        "TG",
+        "KA",
+        "MP"
+      ],
+      "crops": [
+        "soybean",
+        "cotton",
+        "pigeon_pea",
+        "chickpea"
+      ],
+      "seasons": [
+        "kharif",
+        "rabi"
+      ],
+      "water_contexts": [
+        "rainfed",
+        "supplemental_irrigation"
+      ],
+      "steps": [
+        "Form beds with a BBF planter or ridger before sowing, with furrows along a gentle slope.",
+        "Sow 2-4 crop rows on each bed; keep furrows unplanted.",
+        "Keep furrow outlets open so excess rain drains to a grassed waterway or farm pond."
+      ],
+      "contraindications": [
+        "Needs contour bunding on slopes steeper than about 1.5%.",
+        "Of little benefit on light sandy soils."
+      ],
+      "source_urls": [
+        "https://www.icrisat.org/"
+      ]
+    },
+    {
+      "id": "practice_cotton_tur_intercrop",
+      "practice_code": "intercropping-pulses",
+      "title": "Cotton with pigeon pea strip intercropping",
+      "summary": "Rows of pigeon pea between cotton strips add biological nitrogen, diversify income and break pest build-up in rainfed cotton.",
+      "state_codes": [
+        "MH",
+        "TG",
+        "GJ",
+        "KA"
+      ],
+      "crops": [
+        "cotton",
+        "pigeon_pea"
+      ],
+      "seasons": [
+        "kharif"
+      ],
+      "water_contexts": [
+        "rainfed",
+        "supplemental_irrigation"
+      ],
+      "steps": [
+        "Sow cotton and pigeon pea together at monsoon onset in a 6:1 or 8:2 row ratio.",
+        "Keep recommended spacing for each crop so pigeon pea does not shade cotton.",
+        "Harvest cotton in pickings; harvest pigeon pea after cotton."
+      ],
+      "contraindications": [
+        "Avoid indeterminate climbing pulse varieties that smother cotton."
+      ],
+      "source_urls": [
+        "https://cicr.org.in/"
+      ]
+    },
+    {
+      "id": "practice_residue_mulching",
+      "practice_code": "residue-retention",
+      "title": "Crop residue mulching instead of burning",
+      "summary": "Keeping chopped residue on the soil surface cuts evaporation, protects soil from rain impact and feeds soil life; burning destroys organic matter and pollutes the air.",
+      "state_codes": [
+        "MH",
+        "PB",
+        "HR",
+        "UP",
+        "MP",
+        "KA"
+      ],
+      "crops": [
+        "sorghum",
+        "pearl_millet",
+        "chickpea",
+        "wheat",
+        "maize",
+        "rice"
+      ],
+      "seasons": [
+        "kharif",
+        "rabi"
+      ],
+      "water_contexts": [
+        "rainfed",
+        "supplemental_irrigation",
+        "irrigated"
+      ],
+      "steps": [
+        "Chop and spread the previous crop's residue evenly.",
+        "Sow the next crop with a zero-till or Happy Seeder drill through the residue.",
+        "Do not burn residue."
+      ],
+      "contraindications": [
+        "Very thick wet mulch on poorly drained soil can encourage seedling rot."
+      ],
+      "source_urls": [
+        "https://www.fao.org/conservation-agriculture/en/"
+      ]
+    }
+  ]
+}

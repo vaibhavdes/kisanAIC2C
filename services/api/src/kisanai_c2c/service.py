@@ -12,7 +12,7 @@ import requests
 from jsonschema import Draft202012Validator, FormatChecker
 
 from .engine import RecommendationEngine, top_options
-from .knowledge import bundled_packs, crop_catalog, crop_name, normalize_crop, practice_catalog, subdivision_code
+from .knowledge import bundled_packs, crop_catalog, crop_name, normalize_crop, practice_catalog, practice_library, subdivision_code
 from .media import MediaStore, get_media_store
 from .models import (
     ActionUpdate,
@@ -44,7 +44,7 @@ from .models import (
 )
 from .operations import operational_indicators
 from .providers.gemini import GeminiProvider
-from .providers.land import LandProfileProvider, LandProfileUnavailable
+from .providers.land import LAND_PROFILE_METHOD, LandProfileProvider, LandProfileUnavailable
 from .providers.satellite import SatelliteProvider, SatelliteUnavailable
 from .providers.weather import WeatherProvider
 from .settings import PROJECT_ROOT, Settings, get_settings
@@ -197,7 +197,7 @@ class AppService:
         if cached:
             profile = LandProfile.model_validate(cached)
             same_place = abs(profile.latitude - farm.location.latitude) < 1e-4 and abs(profile.longitude - farm.location.longitude) < 1e-4
-            if same_place:
+            if same_place and profile.method_version == LAND_PROFILE_METHOD:
                 return profile
         try:
             profile = LandProfileProvider(self.settings).fetch(farm)
@@ -649,6 +649,22 @@ class AppService:
                 out.append({"url": url, "status": "unreachable", "error": str(exc)[:160]})
         return out
 
+    def peer_signals(self) -> list[dict[str, Any]]:
+        """District crop-health signals published by allowlisted peers (already k-anonymous at the source)."""
+        out = []
+        for url in self.settings.peer_node_list:
+            try:
+                response = requests.get(f"{url}/api/v1/network/signals", timeout=8)
+                response.raise_for_status()
+                data = response.json()
+                for item in data.get("signals", [])[:200]:
+                    if int(item.get("reports") or 0) >= MIN_GROUP_SIZE:
+                        out.append({"node_id": data.get("node_id"), "window_days": data.get("window_days"),
+                                    **{key: item.get(key) for key in ("subdivision_code", "district", "crop", "category", "reports")}})
+            except Exception:  # noqa: BLE001 - an offline peer simply contributes no signals
+                continue
+        return sorted(out, key=lambda item: -int(item["reports"]))
+
     def import_from_peer(self, actor: Actor, peer_url: str, kind: str, item_id: str) -> ExchangeImport:
         peer = peer_url.rstrip("/")
         if peer not in self.settings.peer_node_list:
@@ -723,45 +739,13 @@ class AppService:
 
     # ------------------------------------------------------------------ seed data
     def seed_default_practices_if_empty(self) -> None:
-        """Seed reviewed regenerative practices relevant to this node's states so its library is not empty."""
+        """Load the knowledge-base practices for this node's states as drafts for local expert review."""
         if self.store.list("practices", filters={"node_id": self.settings.node_id}, limit=1):
             return
-        now = datetime.now(UTC)
-        defaults = [
-            dict(id="practice_bbf_drainage", practice_code="broad-bed-furrow",
-                 title="Broad Bed and Furrow (BBF) on black soils",
-                 summary="Raised beds about 1.2-1.5 m wide separated by furrows drain excess water in wet spells and conserve moisture in dry spells on heavy Vertisols.",
-                 state_codes=["MH", "TG", "KA", "MP"], crops=["soybean", "cotton", "pigeon_pea", "chickpea"], seasons=["kharif", "rabi"],
-                 water_contexts=["rainfed", "supplemental_irrigation"],
-                 steps=["Form beds with a BBF planter or ridger before sowing, with furrows along a gentle slope.",
-                        "Sow 2-4 crop rows on each bed; keep furrows unplanted.",
-                        "Keep furrow outlets open so excess rain drains to a grassed waterway or farm pond."],
-                 contraindications=["Needs contour bunding on slopes steeper than about 1.5%.", "Of little benefit on light sandy soils."],
-                 source_urls=["https://www.icrisat.org/"], reviewed_by="seed:icrisat-published-guidance"),
-            dict(id="practice_cotton_tur_intercrop", practice_code="intercropping-pulses",
-                 title="Cotton with pigeon pea strip intercropping",
-                 summary="Rows of pigeon pea between cotton strips add biological nitrogen, diversify income and break pest build-up in rainfed cotton.",
-                 state_codes=["MH", "TG", "GJ", "KA"], crops=["cotton", "pigeon_pea"], seasons=["kharif"],
-                 water_contexts=["rainfed", "supplemental_irrigation"],
-                 steps=["Sow cotton and pigeon pea together at monsoon onset in a 6:1 or 8:2 row ratio.",
-                        "Keep recommended spacing for each crop so pigeon pea does not shade cotton.",
-                        "Harvest cotton in pickings; harvest pigeon pea after cotton."],
-                 contraindications=["Avoid indeterminate climbing pulse varieties that smother cotton."],
-                 source_urls=["https://cicr.org.in/"], reviewed_by="seed:icar-cicr-published-guidance"),
-            dict(id="practice_residue_mulching", practice_code="residue-retention",
-                 title="Crop residue mulching instead of burning",
-                 summary="Keeping chopped residue on the soil surface cuts evaporation, protects soil from rain impact and feeds soil life; burning destroys organic matter and pollutes the air.",
-                 state_codes=["MH", "PB", "HR", "UP", "MP", "KA"], crops=["sorghum", "pearl_millet", "chickpea", "wheat", "maize", "rice"],
-                 seasons=["kharif", "rabi"], water_contexts=["rainfed", "supplemental_irrigation", "irrigated"],
-                 steps=["Chop and spread the previous crop's residue evenly.", "Sow the next crop with a zero-till or Happy Seeder drill through the residue.",
-                        "Do not burn residue."],
-                 contraindications=["Very thick wet mulch on poorly drained soil can encourage seedling rot."],
-                 source_urls=["https://www.fao.org/conservation-agriculture/en/"], reviewed_by="seed:fao-conservation-agriculture"),
-        ]
         served = {code.split("-", 1)[-1] for code in self.settings.node_subdivision_list}
-        for item in defaults:
+        for item in practice_library():
             if served and not served & set(item["state_codes"]):
                 continue
-            practice = Practice(**item, country_codes=["IN"], license="CC-BY-4.0", node_id=self.settings.node_id, created_by="system-seed",
-                                review_status="reviewed", reviewed_at=now)
+            practice = Practice(**item, country_codes=["IN"], license="CC-BY-4.0", node_id=self.settings.node_id,
+                                created_by="knowledge-base", review_status="draft")
             self.store.put("practices", practice.id, practice.model_dump(mode="json"))

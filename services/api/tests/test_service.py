@@ -48,14 +48,14 @@ def test_unknown_farm_id_is_not_recreated(service: AppService, farmer: Actor):
 
 def test_expert_role_requires_access_code():
     settings = make_settings(expert_access_token="secret-code")
-    actor = current_actor(None, "dev-abcdef12", None, "expert", None, settings)
+    actor = current_actor("dev-abcdef12", None, "expert", None, settings)
     assert Role.expert not in actor.roles  # the role header alone is ignored
-    actor = current_actor(None, "dev-abcdef12", "secret-code", None, None, settings)
+    actor = current_actor("dev-abcdef12", "secret-code", None, None, settings)
     assert Role.expert in actor.roles
     with pytest.raises(HTTPException):
-        current_actor(None, "dev-abcdef12", "wrong", None, None, settings)
+        current_actor("dev-abcdef12", "wrong", None, None, settings)
     with pytest.raises(HTTPException):
-        current_actor(None, "not-a-device", None, None, None, settings)
+        current_actor("not-a-device", None, None, None, settings)
 
 
 # --- soil ------------------------------------------------------------------------------------------
@@ -109,6 +109,10 @@ def test_advisory_passes_engine_options_to_gemini(service: AppService, farmer: A
 def test_seeded_practices_export_and_import_between_nodes(expert: Actor):
     node_a = AppService(store=MemoryStore(), media_store=MemoryMediaStore(), settings=make_settings(node_id="node-mh"))
     node_a.seed_default_practices_if_empty()
+    with pytest.raises(ValueError):
+        node_a.export_practice(expert, "practice_bbf_drainage")  # knowledge-base drafts need local review first
+    node_a.review_practice(expert, "practice_bbf_drainage", PracticeReview(approve=True, note="Checked"))
+    assert "practice_bbf_drainage" in [p["bundle_id"] for p in node_a.node_manifest()["practices"]]
     bundle = node_a.export_practice(expert, "practice_bbf_drainage")
     assert bundle["practice_code"] == "broad-bed-furrow" and "field_evidence" not in bundle
 
@@ -170,6 +174,7 @@ def _advisory_with_outcomes(service: AppService, actor: Actor, farm_id: str, out
 
 def test_field_evidence_is_shared_only_above_group_threshold(service: AppService, farmer: Actor, expert: Actor):
     service.seed_default_practices_if_empty()
+    service.review_practice(expert, "practice_bbf_drainage", PracticeReview(approve=True, note="Checked"))
     farm = service.create_farm(farmer, _payload())
     _advisory_with_outcomes(service, farmer, farm.id, ["worked"] * (MIN_GROUP_SIZE - 1))
     assert "field_evidence" not in service.export_practice(expert, "practice_bbf_drainage")
@@ -220,6 +225,27 @@ def test_production_needs_durable_storage_and_an_expert_code():
     with pytest.raises(ValueError, match="firestore"):
         make_settings(app_env="production", expert_access_token="code", google_cloud_project="p")
     settings = make_settings(**durable, expert_access_token="code")
-    farmer = current_actor(None, "dev-abcdef12", None, "expert", None, settings)
+    farmer = current_actor("dev-abcdef12", None, "expert", None, settings)
     assert Role.expert not in farmer.roles
-    assert Role.expert in current_actor(None, "dev-abcdef12", "code", None, None, settings).roles
+    assert Role.expert in current_actor("dev-abcdef12", "code", None, None, settings).roles
+
+
+def test_peer_signals_come_only_from_allowlisted_peers_and_respect_k(monkeypatch):
+    import kisanai_c2c.service as service_module
+
+    calls = []
+
+    class Reply:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"node_id": "node-pb", "window_days": 30, "signals": [
+                {"subdivision_code": "IN-PB", "district": "Ludhiana", "crop": "wheat", "category": "disease", "reports": 7},
+                {"subdivision_code": "IN-PB", "district": "Patiala", "crop": "rice", "category": "pest", "reports": 2}]}
+
+    monkeypatch.setattr(service_module.requests, "get", lambda url, timeout: calls.append(url) or Reply())
+    svc = AppService(MemoryStore(), MemoryMediaStore(), make_settings(peer_nodes="https://pb.example"))
+    signals = svc.peer_signals()
+    assert calls == ["https://pb.example/api/v1/network/signals"]
+    assert [(s["district"], s["reports"]) for s in signals] == [("Ludhiana", 7)]

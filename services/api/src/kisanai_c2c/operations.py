@@ -58,10 +58,10 @@ def imd_warnings(evidence: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def _hour_ok_for_spray(hour: dict[str, Any]) -> bool:
-    wind = hour.get("wind_speed_10m")
-    prob = hour.get("precipitation_probability") or 0
-    rain = hour.get("precipitation") or 0
-    return wind is not None and wind < SPRAY_MAX_WIND_KMH and prob < SPRAY_MAX_RAIN_PROB and rain < 0.2
+    wind, prob, rain = hour.get("wind_speed_10m"), hour.get("precipitation_probability"), hour.get("precipitation")
+    if wind is None or prob is None or rain is None:
+        return False  # a missing forecast value is unknown, never assumed dry and calm
+    return wind < SPRAY_MAX_WIND_KMH and prob < SPRAY_MAX_RAIN_PROB and rain < 0.2
 
 
 def _spray_window(hourly: list[dict[str, Any]], now: datetime) -> dict[str, Any] | None:
@@ -77,7 +77,8 @@ def _spray_window(hourly: list[dict[str, Any]], now: datetime) -> dict[str, Any]
                 break
             block.append(follow)
         after = upcoming[idx + len(block): idx + len(block) + 6]
-        dry_after = all((h.get("precipitation") or 0) < 0.5 and (h.get("precipitation_probability") or 0) < 50 for h in after)
+        dry_after = len(after) == 6 and all(h.get("precipitation") is not None and h["precipitation"] < 0.5
+                                            and h.get("precipitation_probability") is not None and h["precipitation_probability"] < 50 for h in after)
         if len(block) >= 2 and dry_after:
             return {
                 "start": block[0]["time"],

@@ -26,8 +26,6 @@ class Settings(BaseSettings):
     public_base_url: str | None = None
     peer_nodes: str = ""
     expert_access_token: str | None = None
-    auth_mode: Literal["local", "firebase"] = "local"
-    expert_subjects: str = ""
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 
     store_provider: Literal["sqlite", "firestore"] = "sqlite"
@@ -74,10 +72,6 @@ class Settings(BaseSettings):
     )
 
     @property
-    def expert_subject_set(self) -> set[str]:
-        return {item.strip() for item in self.expert_subjects.split(",") if item.strip()}
-
-    @property
     def peer_node_list(self) -> list[str]:
         return [item.strip().rstrip("/") for item in self.peer_nodes.split(",") if item.strip()]
 
@@ -92,7 +86,7 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def validate_production(self):
         if self.app_env == "production":
-            if self.auth_mode == "local" and not self.expert_access_token:
+            if not self.expert_access_token:
                 raise ValueError("EXPERT_ACCESS_TOKEN is required in production")
             if self.store_provider != "firestore":
                 raise ValueError("STORE_PROVIDER=firestore is required in production")
