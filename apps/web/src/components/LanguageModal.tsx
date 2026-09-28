@@ -1,54 +1,23 @@
 import React from "react";
 import { Languages } from "lucide-react";
-import { Locale, TranslationDictionary } from "../types";
+import { Locale, LOCALES, T } from "../types";
+import { LANGUAGE_LABELS } from "./Header";
 
-interface LanguageModalProps {
-  t: TranslationDictionary;
-  locale: Locale;
-  selectLanguage: (locale: Locale) => void;
-}
-
-export const LanguageModal: React.FC<LanguageModalProps> = ({
-  t,
-  locale,
-  selectLanguage
-}) => {
-  const languages = [
-    { code: "en-IN", name: "English", native: "English", region: "All-India & Global" },
-    { code: "hi-IN", name: "Hindi", native: "हिन्दी", region: "उत्तर एवं मध्य भारत" },
-    { code: "mr-IN", name: "Marathi", native: "मराठी", region: "महाराष्ट्र" },
-    { code: "te-IN", name: "Telugu", native: "తెలుగు", region: "తెలంగాణ & ఆంధ్రప్రదేశ్" },
-    { code: "kn-IN", name: "Kannada", native: "ಕನ್ನಡ", region: "ಕರ್ನಾಟಕ" }
-  ];
-
+export function LanguageModal({ t, locale, choose }: { t: T; locale: Locale; choose: (l: Locale) => void }) {
   return (
-    <div className="lang-modal-overlay">
-      <div className="lang-modal-card">
-        <div className="lang-modal-header">
-          <Languages size={28} color="var(--green-700)" />
-          <div>
-            <h3>{t.select_lang_title || "Choose Your Language"}</h3>
-            <p>
-              {t.select_lang_sub ||
-                "Select your preferred language for advice, weather alerts & voice guidance."}
-            </p>
-          </div>
-        </div>
-        <div className="lang-modal-grid">
-          {languages.map((l) => (
-            <button
-              key={l.code}
-              type="button"
-              className={`lang-card-btn ${locale === l.code ? "selected" : ""}`}
-              onClick={() => selectLanguage(l.code as Locale)}
-            >
-              <div className="lang-card-native">{l.native}</div>
-              <div className="lang-card-name">{l.name}</div>
-              <div className="lang-card-region">{l.region}</div>
+    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="lang-title">
+      <div className="modal-card">
+        <Languages size={28} />
+        <h2 id="lang-title">{t("choose_language")}</h2>
+        <p>{t("choose_language_desc")}</p>
+        <div className="lang-grid">
+          {LOCALES.map((code) => (
+            <button key={code} className={`lang-option ${code === locale ? "active" : ""}`} onClick={() => choose(code)}>
+              {LANGUAGE_LABELS[code]}
             </button>
           ))}
         </div>
       </div>
     </div>
   );
-};
+}

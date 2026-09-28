@@ -1,89 +1,32 @@
 import React from "react";
-import { Json, TranslationDictionary, View } from "../types";
+import { Json, T, View } from "../types";
 
-interface PipelineStepperProps {
-  t: TranslationDictionary;
-  view: View;
-  setView: (v: View) => void;
-  farm?: Json;
-}
+const STEPS: Array<{ view: View; key: string }> = [
+  { view: "farm", key: "step_farm" },
+  { view: "weather", key: "step_weather" },
+  { view: "soil", key: "step_soil" },
+  { view: "crops", key: "step_crops" },
+  { view: "advice", key: "step_plan" },
+];
 
-export const PipelineStepper: React.FC<PipelineStepperProps> = ({
-  t,
-  view,
-  setView,
-  farm
-}) => {
-  const stepOrder: View[] = ["farm", "weather", "soil", "crops", "advice"];
-  const effectiveIndex = view === "diagnose" ? 5 : stepOrder.indexOf(view);
-
+export function PipelineStepper({ t, view, setView, farm }: { t: T; view: View; setView: (v: View) => void; farm?: Json }) {
+  const current = STEPS.findIndex((step) => step.view === view);
   return (
-    <div className="pipeline-stepper-bar">
-      <button
-        className={`step-node ${view === "farm" ? "active" : farm ? "done" : ""}`}
-        onClick={() => setView("farm")}
-      >
-        <span className="step-num">1</span>
-        <span>{t.step_farm || "1. Field Plot"}</span>
-      </button>
-      <div className={`step-connector ${farm ? "active" : ""}`} />
-
-      <button
-        className={`step-node ${
-          view === "weather" ? "active" : farm && effectiveIndex > 1 ? "done" : ""
-        }`}
-        disabled={!farm}
-        onClick={() => setView("weather")}
-      >
-        <span className="step-num">2</span>
-        <span>{t.step_weather || "2. Local Weather"}</span>
-      </button>
-      <div
-        className={`step-connector ${
-          farm && effectiveIndex > 1 ? "active" : ""
-        }`}
-      />
-
-      <button
-        className={`step-node ${
-          view === "soil" ? "active" : farm && effectiveIndex > 2 ? "done" : ""
-        }`}
-        disabled={!farm}
-        onClick={() => setView("soil")}
-      >
-        <span className="step-num">3</span>
-        <span>{t.step_soil || "3. Soil Health"}</span>
-      </button>
-      <div
-        className={`step-connector ${
-          farm && effectiveIndex > 2 ? "active" : ""
-        }`}
-      />
-
-      <button
-        className={`step-node ${
-          view === "crops" ? "active" : farm && effectiveIndex > 3 ? "done" : ""
-        }`}
-        disabled={!farm}
-        onClick={() => setView("crops")}
-      >
-        <span className="step-num">4</span>
-        <span>{t.step_crops || "4. Crop Recs"}</span>
-      </button>
-      <div
-        className={`step-connector ${
-          farm && effectiveIndex > 3 ? "active" : ""
-        }`}
-      />
-
-      <button
-        className={`step-node ${view === "advice" ? "active" : farm && effectiveIndex >= 5 ? "done" : ""}`}
-        disabled={!farm}
-        onClick={() => setView("advice")}
-      >
-        <span className="step-num">5</span>
-        <span>{t.step_advice || "5. Field Plan"}</span>
-      </button>
-    </div>
+    <nav className="pipeline-stepper-bar" aria-label={t("steps")}>
+      {STEPS.map((step, idx) => (
+        <React.Fragment key={step.view}>
+          {idx > 0 && <div className={`step-connector ${farm && idx <= current ? "active" : ""}`} />}
+          <button
+            className={`step-node ${view === step.view ? "active" : farm && idx < current ? "done" : ""}`}
+            disabled={!farm && step.view !== "farm"}
+            onClick={() => setView(step.view)}
+            aria-current={view === step.view ? "step" : undefined}
+          >
+            <span className="step-num">{idx + 1}</span>
+            <span>{t(step.key)}</span>
+          </button>
+        </React.Fragment>
+      ))}
+    </nav>
   );
-};
+}

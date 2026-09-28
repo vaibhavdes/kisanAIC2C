@@ -1,270 +1,152 @@
-import React, { useState, FormEvent } from "react";
-import { Microscope, Info, RefreshCw, ArrowRight, Upload } from "lucide-react";
-import { api, upload } from "../api";
-import { View, Locale, Json } from "../types";
+import React, { FormEvent, useState } from "react";
+import { Camera, Microscope, UserCheck, Volume2 } from "lucide-react";
+import { api, speakText, upload } from "../api";
+import { useResource } from "../hooks";
+import { Json, Locale, T, View } from "../types";
+import { ErrorNote, formatDate, Loading, SourceBadge, StageHeader, StatusPill } from "../components/ui";
 
-export interface DiagnoseViewProps {
-  t: Record<string, string>;
+interface Props {
+  t: T;
   locale: Locale;
   farm?: Json;
   go: (v: View) => void;
 }
 
-export function DiagnoseView({ t, locale, farm, go }: DiagnoseViewProps) {
-  const [result, setResult] = useState<Json | null>(null);
+const STAGES = ["seedling", "vegetative", "flowering", "fruiting", "maturity"];
+const SEVERITY_STATUS: Record<string, string> = { none: "good", mild: "fair", moderate: "limiting", severe: "blocking", unknown: "info" };
+const CONFIDENCE_STATUS: Record<string, string> = { high: "good", medium: "fair", low: "limiting" };
+
+export function DiagnoseView({ t, locale, farm }: Props) {
+  const catalog = useResource<Json>(farm ? `/api/v1/catalog/crops?locale=${locale}&country_code=${farm.country_code}&state_code=${farm.state_code}` : `/api/v1/catalog/crops?locale=${locale}`);
+  const cases = useResource<Json[]>(farm ? `/api/v1/farms/${farm.id}/cases` : null);
+  const [crop, setCrop] = useState<string>(farm?.crop_status === "planted" ? farm.current_crop || "" : "");
+  const [stage, setStage] = useState("");
+  const [notes, setNotes] = useState("");
+  const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
-  const [selectedCrop, setSelectedCrop] = useState(farm?.current_crop || "");
-  const [symptomChips, setSymptomChips] = useState<string[]>([]);
-  const [customSymptom, setCustomSymptom] = useState("");
-  const [analyzing, setAnalyzing] = useState(false);
+  const [result, setResult] = useState<Json | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
 
-  const symptomsList = [
-    "🟡 Yellowing Leaves",
-    "🟤 Brown Blight Spots",
-    "⚪ Powdery Coating",
-    "🐛 Stem Borer Damage",
-    "🍂 Plant Wilting",
-    "🔄 Leaf Curling"
-  ];
-
-  const toggleSymptom = (item: string) => {
-    setSymptomChips(prev =>
-      prev.includes(item) ? prev.filter(x => x !== item) : [...prev, item]
-    );
+  const pick = (f: File | undefined) => {
+    if (!f) return;
+    setFile(f);
+    setPreview(URL.createObjectURL(f));
+    setResult(null);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setPreview(URL.createObjectURL(file));
-    }
-  };
-
-  const submit = async (e: FormEvent<HTMLFormElement>) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
-    const d = new FormData(e.currentTarget);
-    const file = d.get("file") as File;
-    if (!file || file.size === 0) return;
-
-    const fullSymptoms = [...symptomChips, customSymptom].filter(Boolean).join(", ");
-    setAnalyzing(true);
-
+    if (!file) {
+      setError(t("photo_required"));
+      return;
+    }
+    setBusy(true);
+    setError("");
     try {
       const media = await upload(file, "crop_diagnosis");
-      const stageVal = (d.get("stage") as string) || "";
-      const endpoint = farm?.id ? `/api/v1/farms/${farm.id}/diagnoses` : `/api/v1/diagnoses`;
-      const res = await api<Json>(endpoint, {
-        method: "POST",
-        body: JSON.stringify({
-          media_id: media.id,
-          crop: selectedCrop || "auto-detect",
-          crop_stage: stageVal || null,
-          symptoms: fullSymptoms || null,
-          locale
-        })
-      });
+      const path = farm ? `/api/v1/farms/${farm.id}/diagnoses` : "/api/v1/diagnoses";
+      const res = await api<Json>(path, { method: "POST", body: JSON.stringify({ media_id: media.id, crop: crop || "auto-detect", crop_stage: stage || null, symptoms: notes || null, locale }) });
       setResult(res);
+      cases.reload();
     } catch (err) {
-      alert((err as Error).message);
+      setError((err as Error).message);
     } finally {
-      setAnalyzing(false);
+      setBusy(false);
     }
   };
+
+  const d = result?.diagnosis;
+  const readAloud = d ? [d.suspected_condition, ...(d.visible_findings || []), ...(d.safe_next_steps || [])].filter(Boolean).join(". ") : "";
 
   return (
     <section className="panel narrow">
-      <div className="section-title">
-        <Microscope />
-        <div>
-          <small>INSTANT AI PLANT DOCTOR · {farm?.name || "ANY FIELD OR GARDEN"}</small>
-          <h2>{t.diagnose || "Plant Doctor"}</h2>
-        </div>
-      </div>
-
-      <div className="explainer-banner">
-        <div className="explainer-icon"><Info size={20} /></div>
-        <div className="explainer-content">
-          <h4>{t.diagnose_explainer_title || "Visual Crop Doctor"}</h4>
-          <p>{t.diagnose_explainer_desc || "Powered by Gemini Multimodal AI. Inspects leaf symptoms, diagnoses likely issues, provides low-risk organic remedies, and escalates uncertain cases to real extension experts."}</p>
-        </div>
-      </div>
-
-      <form onSubmit={submit}>
-        <div className="form-section">
-          <label className="field">
-            <span>{t.affected_crop_title || "Affected Crop (Optional)"}</span>
-            <select
-              value={selectedCrop}
-              onChange={e => setSelectedCrop(e.target.value)}
-              style={{ fontSize: "14px", fontWeight: selectedCrop ? 600 : 400 }}
-            >
-              <option value="">{t.auto_detect_crop_opt || "-- Auto-detect crop from photo (Gemini Vision) --"}</option>
-              <option value="cotton">Cotton (कापूस / कपास)</option>
-              <option value="soybean">Soybean (सोयाबीन)</option>
-              <option value="sorghum">Sorghum (ज्वारी / ज्वार)</option>
-              <option value="pigeon_pea">Pigeon Pea / Tur (तूर / अरहर)</option>
-              <option value="chickpea">Chickpea / Harbara (हरभरा / चना)</option>
-              <option value="rice">Rice / Paddy (भात / धान)</option>
-              <option value="wheat">Wheat (गहू / गेहूं)</option>
-              <option value="maize">Maize (मका / मक्का)</option>
-              <option value="groundnut">Groundnut (भुईमूग / मूंगफली)</option>
-              <option value="onion">Onion (कांदा / प्याज)</option>
-              <option value="sugarcane">Sugarcane (ऊस / गन्ना)</option>
-            </select>
-          </label>
-        </div>
-
-        <div className="photo-dropzone">
-          <input
-            type="file"
-            name="file"
-            accept="image/jpeg,image/png,image/webp"
-            onChange={handleFileChange}
-            required
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              opacity: 0,
-              cursor: "pointer"
-            }}
-          />
-          {preview ? (
-            <img src={preview} alt="Crop preview" className="photo-preview" />
-          ) : (
-            <div>
-              <Upload size={36} color="var(--green-700)" style={{ marginBottom: "10px" }} />
-              <div style={{ fontWeight: 700, fontSize: "15px" }}>{t.tap_photo_prompt || "Tap to upload or take photo of affected leaf"}</div>
-              <small style={{ color: "var(--muted)" }}>{t.photo_format_hint || "PNG, JPG or WebP supported"}</small>
-            </div>
+      <StageHeader icon={<Microscope />} title={t("doctor_title")} subtitle={t("doctor_sub")} />
+      <form onSubmit={submit} className="form-block">
+        <label className="photo-drop">
+          {preview ? <img src={preview} alt={t("leaf_photo")} /> : (
+            <span><Camera size={32} /><b>{t("take_photo")}</b><small>{t("photo_tips")}</small></span>
           )}
-        </div>
-
-        <div className="form-section" style={{ marginTop: "20px" }}>
+          <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" hidden onChange={(e) => pick(e.target.files?.[0])} />
+        </label>
+        <div className="form-grid">
           <label className="field">
-            <span>{t.observed_symptoms_title || "Observed Symptoms (Optional)"}</span>
-            <select
-              onChange={e => {
-                if (e.target.value) {
-                  toggleSymptom(e.target.value);
-                  e.target.value = "";
-                }
-              }}
-              style={{ fontSize: "14px" }}
-            >
-              <option value="">{t.select_symptom_opt || "-- Select symptom from list (optional) --"}</option>
-              {symptomsList.map(s => (
-                <option key={s} value={s} disabled={symptomChips.includes(s)}>
-                  {s} {symptomChips.includes(s) ? "✓ (Selected)" : ""}
-                </option>
-              ))}
+            <span>{t("crop")}</span>
+            <select value={crop} onChange={(e) => setCrop(e.target.value)}>
+              <option value="">{t("detect_from_photo")}</option>
+              {(catalog.data?.crops || []).map((c: Json) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </label>
-
-          {symptomChips.length > 0 && (
-            <div className="chip-group" style={{ marginTop: "10px" }}>
-              {symptomChips.map(s => (
-                <span
-                  key={s}
-                  className="chip active"
-                  style={{ display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer" }}
-                  onClick={() => toggleSymptom(s)}
-                  title="Click to remove"
-                >
-                  {s} <span style={{ fontWeight: 800, marginLeft: "4px" }}>×</span>
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="form-grid" style={{ marginTop: "16px" }}>
           <label className="field">
-            <span>{t.growth_stage_label || "Crop Growth Stage (Optional)"}</span>
-            <select name="stage" defaultValue="">
-              <option value="">{t.auto_detect_stage_opt || "-- Optional: Auto-detect from photo --"}</option>
-              <option value="seedling">{t.stage_seedling || "Seedling (0-20 days)"}</option>
-              <option value="vegetative">{t.stage_vegetative || "Vegetative Growth"}</option>
-              <option value="flowering">{t.stage_flowering || "Flowering / Squaring"}</option>
-              <option value="pod_filling">{t.stage_pod_filling || "Boll / Pod Filling"}</option>
-              <option value="maturity">{t.stage_maturity || "Pre-Harvest Maturity"}</option>
+            <span>{t("growth_stage")}</span>
+            <select value={stage} onChange={(e) => setStage(e.target.value)}>
+              <option value="">{t("not_sure")}</option>
+              {STAGES.map((s) => <option key={s} value={s}>{t(`stage_${s}`)}</option>)}
             </select>
           </label>
-
-          <label className="field">
-            <span>{t.additional_notes || "Additional Observations (Optional)"}</span>
-            <input
-              placeholder={t.notes_placeholder || "e.g. Started after recent heavy rain"}
-              value={customSymptom}
-              onChange={e => setCustomSymptom(e.target.value)}
-            />
-          </label>
         </div>
-
-        {analyzing && (
-          <div className="inplace-progress">
-            <div className="inplace-progress-header">
-              <b><RefreshCw className="spin" size={16} /> {t.analyzing_leaf || "Analyzing Leaf Pathology..."}</b>
-            </div>
-            <div className="inplace-progress-track">
-              <div className="inplace-progress-fill" style={{ width: "70%" }} />
-            </div>
-            <div className="inplace-step active">
-              {t.analyzing_leaf_desc || "Inspecting discoloration, pest lesions, and fungal symptoms with Gemini Vision..."}
-            </div>
-          </div>
-        )}
-
-        <button
-          type="submit"
-          className="primary"
-          disabled={analyzing}
-          style={{ width: "100%", padding: "16px", marginTop: "24px", fontSize: "16px" }}
-        >
-          <Microscope size={18} />
-          {t.upload_photo}
-          <ArrowRight size={18} />
-        </button>
+        <label className="field">
+          <span>{t("what_you_see")}</span>
+          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("what_you_see_placeholder")} maxLength={1000} rows={2} />
+        </label>
+        {error && <ErrorNote t={t} message={error} />}
+        <button className="primary big full" type="submit" disabled={busy}>{busy ? t("checking_photo") : t("check_photo")}</button>
       </form>
 
-      {/* Diagnosis Outcome Card */}
-      {result && (
-        <article className="diagnosis-card">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: "12px", color: "var(--lime-400)", fontWeight: 700 }}>
-              IMAGE QUALITY: {result.diagnosis.image_quality?.toUpperCase() || "USABLE"}
-            </span>
-            {result.expert_case && (
-              <span style={{ background: "var(--lime-500)", color: "var(--green-900)", padding: "4px 10px", borderRadius: "20px", fontSize: "12px", fontWeight: 800 }}>
-                {t.escalated_badge || "👨‍🔬 Escalated to Agronomist"}
-              </span>
-            )}
+      {busy && <Loading label={t("checking_photo_long")} />}
+
+      {d && (
+        <article className="diagnosis">
+          <div className="diag-head">
+            <div>
+              <small>{t(`category_${d.category}`)} · <SourceBadge t={t} kind="ai" /></small>
+              <h3>{d.suspected_condition || t("no_clear_problem")}</h3>
+              {d.detected_crop && <small>{t("crop")}: {d.detected_crop}</small>}
+            </div>
+            <div className="diag-pills">
+              <StatusPill status={CONFIDENCE_STATUS[d.confidence] || "info"} label={t(`confidence_${d.confidence}`)} />
+              <StatusPill status={SEVERITY_STATUS[d.severity] || "info"} label={t(`severity_${d.severity}`)} />
+              <button className="icon-btn" onClick={() => speakText(readAloud, locale).catch(() => undefined)}><Volume2 size={16} /> {t("listen")}</button>
+            </div>
           </div>
-
-          <h3>{t.visible_findings_title || "Visible Leaf Symptoms"}</h3>
-          <ul>
-            {result.diagnosis.visible_findings.map((x: string) => (
-              <li key={x}>{x}</li>
-            ))}
-          </ul>
-
-          <h3>{t.plausible_causes_title || "Plausible Causes"}</h3>
-          <ul>
-            {result.diagnosis.plausible_causes.map((x: string) => (
-              <li key={x}>{x}</li>
-            ))}
-          </ul>
-
-          <h3>{t.safe_next_steps_title || "Safe Organic Remedies & Next Steps"}</h3>
-          <ul>
-            {result.diagnosis.safe_next_steps.map((x: string) => (
-              <li key={x}>{x}</li>
-            ))}
-          </ul>
+          {d.image_quality === "poor" || d.image_quality === "not_crop" ? <div className="info-banner">{t(`quality_${d.image_quality}`)}</div> : null}
+          <DiagList title={t("seen_in_photo")} items={d.visible_findings} />
+          <DiagList title={t("possible_causes")} items={d.plausible_causes} />
+          <DiagList title={t("do_now")} items={d.safe_next_steps} strong />
+          <DiagList title={t("prevent_next_time")} items={d.prevention} />
+          {d.uncertainty_reasons?.length > 0 && <DiagList title={t("why_not_certain")} items={d.uncertainty_reasons} />}
+          {result?.expert_case ? (
+            <div className="expert-note"><UserCheck size={18} /> {t("sent_to_expert")}</div>
+          ) : (
+            <p className="small-print">{t("doctor_disclaimer")}</p>
+          )}
         </article>
       )}
+
+      {farm && (cases.data?.length || 0) > 0 && (
+        <div className="card-block">
+          <h3>{t("my_expert_cases")}</h3>
+          <ul className="case-list">
+            {(cases.data as Json[]).map((c) => (
+              <li key={c.id}>
+                <span>{formatDate(c.created_at, locale)}{c.suspected_condition ? ` · ${c.suspected_condition}` : ""}</span>
+                <StatusPill status={c.status === "resolved" ? "good" : "fair"} label={t(`case_${c.status}`)} />
+                {c.review_text ? <p><b>{t("expert_reply")}:</b> {c.review_text}</p> : <p className="muted">{t("waiting_for_expert")}</p>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </section>
+  );
+}
+
+function DiagList({ title, items, strong = false }: { title: string; items?: string[]; strong?: boolean }) {
+  if (!items?.length) return null;
+  return (
+    <div className={`diag-list ${strong ? "strong" : ""}`}>
+      <h4>{title}</h4>
+      <ul>{items.map((item) => <li key={item}>{item}</li>)}</ul>
+    </div>
   );
 }

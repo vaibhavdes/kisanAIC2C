@@ -4,8 +4,11 @@ export type View = "home" | "farm" | "weather" | "soil" | "crops" | "advice" | "
 
 export type Locale = "en-IN" | "hi-IN" | "mr-IN" | "te-IN" | "kn-IN";
 
-export interface TranslationDictionary {
-  [key: string]: string;
-}
+export const LOCALES: Locale[] = ["en-IN", "hi-IN", "mr-IN", "te-IN", "kn-IN"];
+
+export type Params = Record<string, string | number | null | undefined>;
+
+/** Translate a key with {placeholders}; falls back to English, then to the key itself. */
+export type T = (key: string, params?: Params) => string;
 
 export type { Json };

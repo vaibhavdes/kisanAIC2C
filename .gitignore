@@ -25,3 +25,5 @@ local-secrets/
 *.sqlite3
 envcopy.txt
 *.tsbuildinfo
+.claude/
+
