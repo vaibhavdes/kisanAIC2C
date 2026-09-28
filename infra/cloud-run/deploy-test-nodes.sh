@@ -30,8 +30,9 @@ PROJECT_NUMBER=$(gcloud projects describe "${PROJECT_ID}" --format="value(projec
 MH_URL="https://${MH_SERVICE}-${PROJECT_NUMBER}.${REGION}.run.app"
 PB_URL="https://${PB_SERVICE}-${PROJECT_NUMBER}.${REGION}.run.app"
 
+# APP_ENV=development because demo nodes keep data in SQLite; production requires Firestore + GCS.
 # Env vars are joined with "@" (gcloud's ^@^ delimiter) so values such as NODE_SUBDIVISIONS keep their commas.
-COMMON="APP_ENV=production@AUTH_MODE=local@STORE_PROVIDER=sqlite@SQLITE_PATH=/tmp/kisanai.sqlite3@MEDIA_PROVIDER=local@MEDIA_DIRECTORY=/tmp/media"
+COMMON="APP_ENV=development@AUTH_MODE=local@STORE_PROVIDER=sqlite@SQLITE_PATH=/tmp/kisanai.sqlite3@MEDIA_PROVIDER=local@MEDIA_DIRECTORY=/tmp/media"
 COMMON="${COMMON}@AI_ENABLED=true@AI_PROVIDER=vertex@GEMINI_MODEL=gemini-3.5-flash@GEMINI_FALLBACK_MODEL=gemini-3.7-flash@VERTEX_LOCATION=${REGION}"
 COMMON="${COMMON}@GOOGLE_CLOUD_PROJECT=${PROJECT_ID}@EARTH_ENGINE_ENABLED=true@SPEECH_ENABLED=true@OPEN_METEO_ENABLED=true@IMD_ENABLED=true"
 COMMON="${COMMON}@EXPERT_ACCESS_TOKEN=${EXPERT_ACCESS_TOKEN}"

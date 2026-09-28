@@ -92,8 +92,8 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def validate_production(self):
         if self.app_env == "production":
-            if self.auth_mode != "firebase":
-                raise ValueError("AUTH_MODE=firebase is required in production")
+            if self.auth_mode == "local" and not self.expert_access_token:
+                raise ValueError("EXPERT_ACCESS_TOKEN is required in production")
             if self.store_provider != "firestore":
                 raise ValueError("STORE_PROVIDER=firestore is required in production")
             if self.media_provider != "gcs" or not self.media_bucket:

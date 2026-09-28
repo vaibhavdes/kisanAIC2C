@@ -27,8 +27,6 @@ def current_actor(
     settings: Settings = Depends(get_settings),
 ) -> Actor:
     if settings.auth_mode == "local":
-        if settings.app_env == "production":
-            raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Local authentication is disabled")
         # Farmers are identified by an anonymous per-device id generated in the browser.
         subject = (x_actor_id or "local-farmer").strip().lower()
         if subject != "local-farmer" and not DEVICE_SUBJECT.match(subject):
@@ -39,7 +37,7 @@ def current_actor(
                 if not hmac.compare_digest(x_expert_token, settings.expert_access_token):
                     raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid expert access code")
                 roles.add(Role.expert)
-        elif x_actor_role and "expert" in x_actor_role:
+        elif x_actor_role and "expert" in x_actor_role and settings.app_env != "production":
             # No access code configured: local development only.
             roles.add(Role.expert)
         return Actor(

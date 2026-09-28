@@ -210,3 +210,16 @@ def test_seeded_practices_match_the_node_states():
 def test_soil_health_card_ph_classes():
     from kisanai_c2c.soil import ph_rating
     assert [ph_rating(v) for v in (5.5, 6.2, 6.8, 8.0, 9.0)] == ["acidic", "slightly_acidic", "neutral", "alkaline", "strongly_alkaline"]
+
+
+def test_production_needs_durable_storage_and_an_expert_code():
+    durable = dict(app_env="production", store_provider="firestore", media_provider="gcs", media_bucket="b",
+                   google_cloud_project="p", imd_enabled=False)
+    with pytest.raises(ValueError, match="EXPERT_ACCESS_TOKEN"):
+        make_settings(**durable)
+    with pytest.raises(ValueError, match="firestore"):
+        make_settings(app_env="production", expert_access_token="code", google_cloud_project="p")
+    settings = make_settings(**durable, expert_access_token="code")
+    farmer = current_actor(None, "dev-abcdef12", None, "expert", None, settings)
+    assert Role.expert not in farmer.roles
+    assert Role.expert in current_actor(None, "dev-abcdef12", "code", None, None, settings).roles
