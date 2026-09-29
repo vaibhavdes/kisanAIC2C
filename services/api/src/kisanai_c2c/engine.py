@@ -36,6 +36,7 @@ IRRIGATION_CAPACITY_MM = {"rainfed": 0.0, "supplemental_irrigation": 150.0, "irr
 STORAGE_MM = {"heavy": 150.0, "medium": 100.0, "light": 50.0}
 CROP_FACTOR = {"cereal": 0.85, "millet": 0.75, "pulse": 0.75, "oilseed": 0.8, "fibre": 0.85, "sugar": 1.05,
                "tuber": 0.85, "vegetable": 0.85, "fodder": 0.9, "green_manure": 0.7}
+CROP_NEUTRAL_PRACTICES = {"reduced-disturbance", "residue-retention", "field-scouting"}
 RICE_EXTRA_MM = 250.0  # puddling and percolation losses on top of crop evapotranspiration
 EFFECTIVE_RAIN = 0.8
 GROUNDWATER_PENALTY = {
@@ -470,11 +471,14 @@ class RecommendationEngine:
         return round(0.3 * nfix + 0.3 * water + 0.2 * residue + 0.2 * diversity, 3)
 
     def _practices(self, crop: dict[str, Any]) -> list[PracticeRef]:
+        priority = (self.pack or {}).get("priority_practices", [])
         ids = list(crop.get("practices", []))
+        # Region-wide priority practices that suit any field crop (e.g. no-till in Paraná).
+        ids += [pid for pid in priority if pid in CROP_NEUTRAL_PRACTICES]
         if self.soil["oc_rating"] == "low" and self.soil["oc_source"] == "measured":
             ids.append("compost-fym")
-        priority = (self.pack or {}).get("priority_practices", [])
-        # Broad bed and furrow suits heavy, waterlogging-prone soils where the regional pack recommends it.
+        # Broad bed and furrow is for heavy, waterlogging-prone soils, and only where the regional pack recommends it.
+        ids = [pid for pid in ids if pid != "broad-bed-furrow" or "broad-bed-furrow" in priority]
         if self.soil["texture"] == "heavy" and crop["group"] in {"oilseed", "pulse", "fibre"} and "broad-bed-furrow" in priority:
             ids.append("broad-bed-furrow")
         ordered = [pid for pid in ids if pid in priority] + [pid for pid in ids if pid not in priority]
