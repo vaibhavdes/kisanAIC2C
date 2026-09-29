@@ -199,6 +199,59 @@ flowchart LR
 
 Code layout: [`DOCS.md`](DOCS.md).
 
+### How the node network works
+
+**1. Every node describes itself.** It publishes a manifest at `/.well-known/agrin-node` (protocol `kisanai-agrin-node/1.0`). Trimmed, the live Maharashtra manifest reads:
+
+```json
+{
+  "protocol": "kisanai-agrin-node/1.0",
+  "node_id": "india-node-mh",
+  "country_code": "IN",
+  "subdivisions": ["IN-MH"],
+  "languages": ["mr-IN", "hi-IN", "en-IN"],
+  "schemas": {"agronomy_pack": "urn:kisanai-c2c:agronomy-pack:1.0.0",
+              "practice_bundle": "urn:kisanai-c2c:practice-bundle:1.0.0"},
+  "packs": [{"pack_id": "pack_in_maharashtra", "pack_version": 1, "crops": 21, "digest": "5a987d39…", "url": "…"}],
+  "signals_url": "…/api/v1/network/signals",
+  "data_sharing": {"bigquery_dataset": "…agrin_in_mh", "location": "asia-south1", "via": "BigQuery Analytics Hub"},
+  "privacy": "No farmer identity, location or field geometry is published. Aggregates are suppressed below 5 records."
+}
+```
+
+**2. Peers are chosen, not discovered at random.** Each node lists the peers it trusts (`PEER_NODES`). The officer's *Network* page reads their manifests and shows which are online, what they publish and their crop-health signals.
+
+**3. Three things travel between nodes:**
+
+| Item | Contract | What it carries | What it never carries |
+|---|---|---|---|
+| **Crop calendar (agronomy pack)** | [`agronomy-pack.schema.json`](contracts/agronomy-pack.schema.json) | Sowing windows per crop and season, legal sowing rules, irrigation need, groundwater category, priority practices, sources, licence, review status | Farms, farmers, locations |
+| **Practice bundle** | [`practice-bundle.schema.json`](contracts/practice-bundle.schema.json) | Steps, crops, seasons, water contexts, the countries and states it applies to, contraindications, sources and, once 5 or more farmers have reported back, how often it *worked / partly / didn't work* | Individual outcomes |
+| **Crop-health signal** | `/api/v1/network/signals` | District counts of plant-health reports | Any group smaller than 5 |
+
+**4. An import goes through the same steps every time:**
+1. The officer imports from a peer (or pastes a bundle file).
+2. The receiving node validates it against the JSON Schema; unknown fields are rejected, so a bundle cannot smuggle in farm geometry or identities.
+3. It is deduplicated by content digest and stored as *pending*, with a check of where it applies. For example, Maharashtra's black-soil BBF practice is flagged *not applicable* in Paraná.
+4. The local officer sees every sowing window and source, then approves or rejects.
+5. Only approved items reach farmers. An approved calendar replaces older versions for that region, and each farm shows whose calendar it follows ("Using Punjab crop calendar (v1) · shared by india-node-north").
+
+AI-drafted calendars for uncovered regions use the same format and the same review queue, marked *AI draft*.
+
+**5. Joining is a deployment, not a negotiation.** A new state or country adds one line of settings to [`deploy-nodes.sh`](infra/cloud-run/deploy-nodes.sh) and deploys one more Cloud Run node with its ISO 3166-2 region codes and BCP-47 languages, adds its pack and soil-rating scheme, and lists its peers. Languages without a hand-written dictionary are translated automatically. The Paraná node runs the same code as the Indian nodes.
+
+### Why it is built this way
+
+- **Each state keeps control.** There is no central server or owner. Every state's or country's data stays in its own cloud region and under its own officers, and nothing foreign or AI-written reaches its farmers without a local expert's approval.
+- **Privacy is built into the format.** The contracts leave no field for a person, a farm or a location, and aggregates below 5 are suppressed at the source. A careless export cannot leak farmer data.
+- **Knowledge stays traceable.** Every item carries its sources, licence, version and content digest, and every farm shows whose calendar it uses. An officer can always answer "where did this date come from?".
+- **Practices carry proof from the field.** When farmers report whether a practice worked, the anonymous counts travel with the practice, so another state imports field results, not just a write-up.
+- **Open standards, not our code.** JSON Schema, ISO 3166-2, BCP-47 and scientific crop names mean any government can build a compatible node in its own stack.
+- **It fits the BRICS reality.** Countries differ in language, law and soil science. A legal sowing date (Punjab's subsoil-water act, Brazil's soybean sanitary break) and a national soil scheme (Soil Health Card, Embrapa) are data in a pack, so no code has to change from country to country.
+- **Cheap to run and scale.** A node is one small Cloud Run service (1 vCPU, 1 warm instance, up to 3), configured by one line of settings in [`deploy-nodes.sh`](infra/cloud-run/deploy-nodes.sh). Growth means more nodes, not a bigger central system.
+
+The protocol is this project's own, not an official AgriN or BRICS standard; see [`contracts/README.md`](contracts/README.md).
+
 ---
 
 ## Google Cloud and Google AI: what each is used for
