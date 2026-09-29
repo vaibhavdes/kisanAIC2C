@@ -28,6 +28,7 @@ const BASEMAPS: Record<string, { url: string; attribution: string }> = {
   google: { url: "/api/v1/maps/satellite/{z}/{x}/{y}", attribution: "Map data &copy; Google" },
   esri: { url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", attribution: "Imagery &copy; Esri, Maxar, Earthstar Geographics" },
 };
+const LABELS = { url: "https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png", attribution: "&copy; OpenStreetMap contributors &copy; CARTO" };
 
 export function FieldMap({ t, center, zoom = 17, corners, onCornersChange, onCenterChange, maxCorners = 8, basemap = "esri" }: FieldMapProps) {
   const holder = useRef<HTMLDivElement | null>(null);
@@ -41,12 +42,16 @@ export function FieldMap({ t, center, zoom = 17, corners, onCornersChange, onCen
     if (!holder.current || map.current) return;
     const instance = L.map(holder.current, { zoomControl: true, attributionControl: true, scrollWheelZoom: false }).setView(center, zoom);
     const imagery = BASEMAPS[basemap] || BASEMAPS.esri;
+    // Esri imagery has no place names, so it gets a separate label layer; Google tiles carry their own.
+    const addLabels = () => L.tileLayer(LABELS.url, { maxZoom: 19, attribution: LABELS.attribution }).addTo(instance);
     base.current = L.tileLayer(imagery.url, { maxZoom: 19, attribution: imagery.attribution }).addTo(instance);
+    if (imagery === BASEMAPS.esri) addLabels();
     base.current.on("tileerror", () => {  // fall back to Esri if Google tiles are unavailable
       if (base.current && base.current.options.attribution !== BASEMAPS.esri.attribution) {
         instance.removeLayer(base.current);
         base.current = L.tileLayer(BASEMAPS.esri.url, { maxZoom: 19, attribution: BASEMAPS.esri.attribution }).addTo(instance);
         base.current.bringToBack();
+        addLabels();
       }
     });
     layer.current = L.layerGroup().addTo(instance);

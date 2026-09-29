@@ -63,6 +63,10 @@ class Settings(BaseSettings):
     imd_auth_query_name: str = "api_key"
     imd_auth_scheme: str = ""
     imd_retry_attempts: int = 1
+    # IMD authorises one caller IP. A node without IMD access fetches it through the node that has it
+    # (IMD_RELAY_URL); that node serves only the service accounts listed in IMD_RELAY_CALLERS.
+    imd_relay_url: str | None = None
+    imd_relay_callers: str = ""
     open_meteo_enabled: bool = True
     open_meteo_base_url: str = "https://api.open-meteo.com/v1/forecast"
     earth_engine_enabled: bool = False
@@ -81,6 +85,10 @@ class Settings(BaseSettings):
     @property
     def peer_node_list(self) -> list[str]:
         return [item.strip().rstrip("/") for item in self.peer_nodes.split(",") if item.strip()]
+
+    @property
+    def imd_relay_caller_list(self) -> list[str]:
+        return [item.strip() for item in self.imd_relay_callers.split(",") if item.strip()]
 
     @property
     def node_language_list(self) -> list[str]:

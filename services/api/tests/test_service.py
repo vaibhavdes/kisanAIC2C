@@ -336,3 +336,49 @@ def test_imd_errors_never_carry_credentials():
     provider = WeatherProvider(make_settings(imd_api_key="secret-key-123", imd_password="pw-456"))
     text = provider._redact("401 for url https://api.imd.gov.in/api/v1/x?api_key=secret-key-123 password pw-456")
     assert "secret-key-123" not in text and "pw-456" not in text and "api_key=<redacted>" in text
+
+
+def test_imd_relay_serves_district_products_without_farm_details(monkeypatch):
+    from kisanai_c2c.providers.weather import WeatherProvider
+
+    provider = WeatherProvider(make_settings(imd_enabled=True))
+    rows = {"/api/v1/state_district_rainfall_forecast": [{"State": "PUNJAB", "District": "LUDHIANA", "day1_distribution": "FWS"}],
+            "/api/v1/districtwarning": [], "/api/v1/districtnowcast": []}
+    monkeypatch.setattr(provider, "_imd_json", lambda path: rows[path])
+    snapshots = provider.fetch_imd_for_district("Punjab", "Ludhiana")
+    assert [s["kind"] for s in snapshots] == ["weather_forecast"]
+    assert not {"id", "farm_id", "node_id"} & set(snapshots[0])
+
+
+def test_node_without_imd_uses_the_relay_node(monkeypatch):
+    import google.oauth2.id_token
+    from kisanai_c2c.providers import weather
+
+    provider = weather.WeatherProvider(make_settings(imd_relay_url="https://mh.example", imd_retry_attempts=0))
+    sent = {}
+
+    class Reply:
+        status_code = 200
+
+        def json(self):
+            return {"snapshots": [{"provider": "imd", "kind": "official_warning", "mode": "live", "spatial_scope": "district:x",
+                                   "source_reference": "https://api.imd.gov.in/api/v1/districtwarning"}]}
+
+    monkeypatch.setattr(google.oauth2.id_token, "fetch_id_token", lambda request, audience: "id-token")
+    monkeypatch.setattr(weather.requests, "post", lambda url, json, headers, timeout: sent.update(url=url, auth=headers["Authorization"]) or Reply())
+    farm = AppService(MemoryStore(), MemoryMediaStore(), make_settings()).create_farm(Actor(subject="f1", node_id="node-mh"), _payload())
+    snapshots = provider.fetch(farm)
+    assert sent == {"url": "https://mh.example/api/v1/internal/imd", "auth": "Bearer id-token"}
+    assert snapshots[0].farm_id == farm.id and "via_imd_relay" in snapshots[0].quality_flags
+
+
+def test_imd_relay_rejects_calls_without_an_allowed_identity():
+    from fastapi.testclient import TestClient
+    from kisanai_c2c import main
+
+    main.settings = make_settings(imd_enabled=True, imd_relay_callers="kisanai-node@p.iam.gserviceaccount.com")
+    try:
+        reply = TestClient(main.app).post("/api/v1/internal/imd", json={"state_name": "Punjab", "district": "Ludhiana"})
+    finally:
+        main.settings = main.get_settings()
+    assert reply.status_code == 401

@@ -26,11 +26,12 @@ class WeatherProvider:
         snapshots: list[EvidenceSnapshot] = []
         imd_error: str | None = None
 
-        if self.settings.imd_enabled and farm.country_code == "IN":
+        imd_source = self._fetch_imd if self.settings.imd_enabled else self._fetch_imd_relay if self.settings.imd_relay_url else None
+        if imd_source and farm.country_code == "IN":
             attempts = self.settings.imd_retry_attempts + 1
             for attempt in range(attempts):
                 try:
-                    snapshots.extend(self._fetch_imd(farm))
+                    snapshots.extend(imd_source(farm))
                     break
                 except Exception as exc:
                     if attempt < attempts - 1:
@@ -155,6 +156,30 @@ class WeatherProvider:
         if not result:
             raise WeatherUnavailable(f"IMD: {errors[0] if errors else 'no data for this district'}")
         return result
+
+    def _fetch_imd_relay(self, farm: Farm) -> list[EvidenceSnapshot]:
+        """IMD products fetched by the node whose IP IMD authorised, called with this node's Google identity."""
+        from google.auth.transport import requests as google_requests
+        from google.oauth2 import id_token
+
+        url = f"{self.settings.imd_relay_url.rstrip('/')}/api/v1/internal/imd"
+        token = id_token.fetch_id_token(google_requests.Request(), url)
+        response = requests.post(url, json={"state_name": farm.state_name, "district": farm.district},
+                                 headers={"Authorization": f"Bearer {token}"}, timeout=45)
+        if response.status_code != 200:
+            try:
+                detail = response.json().get("detail", "")
+            except ValueError:
+                detail = ""
+            raise WeatherUnavailable(f"IMD relay {response.status_code} {detail}".strip())
+        return [EvidenceSnapshot.model_validate(item | {"farm_id": farm.id, "node_id": farm.node_id,
+                                                        "quality_flags": [*item.get("quality_flags", []), "via_imd_relay"]})
+                for item in response.json()["snapshots"]]
+
+    def fetch_imd_for_district(self, state_name: str, district: str) -> list[dict[str, Any]]:
+        """Serves the IMD relay: this node's IMD products for a district, without any farm details."""
+        place = Farm.model_construct(id="imd_relay", node_id=self.settings.node_id, state_name=state_name, district=district)
+        return [item.model_dump(mode="json", exclude={"id", "farm_id", "node_id"}) for item in self._fetch_imd(place)]
 
     def _imd_reason(self, exc: Exception) -> str:
         """IMD's own error message (e.g. 'IP address ... not authorized') when it sent one."""

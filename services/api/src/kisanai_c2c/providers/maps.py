@@ -79,7 +79,7 @@ class GoogleMaps:
             if _SESSION.get("expiry", 0) - 3600 > time.time():
                 return _SESSION["session"]
             response = requests.post(f"{TILES_URL}/createSession", params={"key": self.settings.google_maps_api_key},
-                                     json={"mapType": "satellite", "language": "en-US", "region": self.settings.node_country_code,
+                                     json={"mapType": "satellite", "language": self.settings.default_locale, "region": self.settings.node_country_code,
                                            "layerTypes": ["layerRoadmap"], "overlay": False}, timeout=6)
             data = response.json()
             if "session" not in data:

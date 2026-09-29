@@ -14,7 +14,7 @@ Three independent nodes run on Google Cloud Run. Each one belongs to one agricul
 | North India | India, `IN-PB` Punjab + `IN-UP` Uttar Pradesh | `asia-south2` (Delhi) | Hindi, Punjabi\*, English | **https://kisanai-in-north-313370978552.asia-south2.run.app** |
 | Paraná | Brazil, `BR-PR` | `southamerica-east1` (São Paulo) | Portuguese\*, English | **https://kisanai-br-pr-313370978552.southamerica-east1.run.app** |
 
-\* Machine-translated automatically with Google Cloud Translation. No hand-written file exists for these languages.
+\* Machine-translated automatically with Google Cloud Translation. A few Portuguese strings are corrected by hand in `data/i18n/pt-BR.json`.
 
 Each node also exposes:
 - a public manifest at `/.well-known/agrin-node` (for example the [Maharashtra manifest](https://kisanai-in-mh-313370978552.asia-south1.run.app/.well-known/agrin-node));
@@ -223,7 +223,7 @@ Code layout: [`DOCS.md`](DOCS.md).
 | Source | Used for | Licence / terms |
 |---|---|---|
 | Open-Meteo forecast and ERA5 archive | Hourly and 7-day forecast, soil moisture, ET₀; 2015–2024 climate normals | CC-BY 4.0 |
-| India Meteorological Department | District weather warnings in India (when credentials are configured) | IMD terms |
+| India Meteorological Department | District forecasts, warnings and nowcasts for Indian farms | IMD terms |
 | Copernicus Sentinel-2 SR (Earth Engine) | NDVI / NDMI / NDWI field health | Copernicus open licence |
 | ISRIC SoilGrids 2.0 (Earth Engine) | Estimated pH, organic carbon, clay and sand when there is no soil test | CC-BY 4.0 |
 | ESA WorldCover v200 (Earth Engine) | Land cover and nearby cropland | CC-BY 4.0 |
@@ -258,7 +258,7 @@ Code layout: [`DOCS.md`](DOCS.md).
 - Paraná soil ratings cover clay above 40% (Embrapa's table); lighter soils are shown unrated.
 - WRI Aqueduct has no sub-basin value in a few places; the state category or "unknown" is then shown.
 - Punjabi and Portuguese are machine-translated and marked as such; a native speaker should review them.
-- IMD warnings need IMD API credentials. Without them the app uses Open-Meteo only.
+- IMD authorises a single caller IP (`34.93.240.120`, the Maharashtra node). The North India node gets IMD through the Maharashtra node; Paraná uses Open-Meteo.
 - The officer access code is a per-node shared secret. A production rollout should use the department's identity provider.
 
 ## Digital Public Good checklist

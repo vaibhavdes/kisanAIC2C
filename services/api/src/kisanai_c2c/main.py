@@ -28,7 +28,7 @@ from .providers.bigquery import BigQueryUnavailable
 from .providers.maps import GoogleMaps, MapsUnavailable
 from .providers.translate import TranslationUnavailable
 from .providers.voice import VoiceProvider, VoiceUnavailable
-from .providers.weather import WeatherUnavailable
+from .providers.weather import WeatherProvider, WeatherUnavailable
 from .service import AppService
 from .settings import PROJECT_ROOT, get_settings
 
@@ -114,19 +114,43 @@ def me(actor: Actor = Depends(current_actor)):
 @app.post("/api/v1/internal/publish")
 def publish_shared_data(request: Request, authorization: str | None = Header(default=None), svc: AppService = Depends(service)):
     """Called daily by Cloud Scheduler with a Google-signed OIDC token: publishes shareable data to BigQuery."""
+    allowed = [settings.job_service_account] if settings.job_service_account else []
+    require_google_identity(request, authorization, "/api/v1/internal/publish", allowed)
+    return {"node_id": settings.node_id, "published": svc.publish_shared_data()}
+
+
+class ImdRelayRequest(BaseModel):
+    state_name: str = Field(min_length=2, max_length=80)
+    district: str = Field(min_length=2, max_length=80)
+
+
+@app.post("/api/v1/internal/imd")
+def imd_relay(body: ImdRelayRequest, request: Request, authorization: str | None = Header(default=None)):
+    """IMD authorises one caller IP; other India nodes fetch district IMD products through this node."""
+    if not settings.imd_enabled:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "This node has no IMD access")
+    require_google_identity(request, authorization, "/api/v1/internal/imd", settings.imd_relay_caller_list)
+    provider = WeatherProvider(settings)
+    try:
+        return {"node_id": settings.node_id, "snapshots": provider.fetch_imd_for_district(body.state_name, body.district)}
+    except Exception as exc:  # noqa: BLE001 - IMD's reason is passed back, without credentials
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, provider._redact(str(exc))[:200]) from exc
+
+
+def require_google_identity(request: Request, authorization: str | None, path: str, allowed: list[str]) -> None:
+    """Accepts only a Google-signed identity token for this endpoint from one of the allowed service accounts."""
     from google.auth.transport import requests as google_requests
     from google.oauth2 import id_token
 
-    if not settings.job_service_account or not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Scheduler identity token required")
-    audience = f"{(settings.public_base_url or str(request.base_url)).rstrip('/')}/api/v1/internal/publish"
+    if not allowed or not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Google identity token required")
+    audience = f"{(settings.public_base_url or str(request.base_url)).rstrip('/')}{path}"
     try:
         claims = id_token.verify_oauth2_token(authorization.removeprefix("Bearer ").strip(), google_requests.Request(), audience=audience)
     except ValueError as exc:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid identity token") from exc
-    if claims.get("email") != settings.job_service_account or not claims.get("email_verified"):
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "This identity may not run the publish job")
-    return {"node_id": settings.node_id, "published": svc.publish_shared_data()}
+    if claims.get("email") not in allowed or not claims.get("email_verified"):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "This identity may not call this endpoint")
 
 
 @app.get("/api/v1/node")

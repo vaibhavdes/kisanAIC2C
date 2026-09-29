@@ -8,8 +8,8 @@ set -euo pipefail
 #   kisanai-br-pr     Brazil, Paraná                  southamerica-east1 (São Paulo)
 # The earlier kisanai-c2c service is not touched.
 #
-# Only the Maharashtra node uses IMD. Its Cloud NAT egress IP is 34.93.240.120;
-# the north India node uses Open-Meteo because IMD permits only one deployment IP.
+# IMD authorises one caller IP: the Maharashtra node's Cloud NAT egress IP 34.93.240.120. The north
+# India node gets IMD through the Maharashtra node (/api/v1/internal/imd, Google identity token).
 #
 # One-time resources per node (see infra/cloud-run/README.md): Firestore database kisanai-<node>,
 # bucket <project>-kisanai-<node>, secret kisanai-expert-code-<node>; service accounts kisanai-node and
@@ -49,7 +49,7 @@ deploy() {
     secrets="${secrets},IMD_API_KEY=kisanai-imd-api-key:latest,IMD_EMAIL=kisanai-imd-email:latest,IMD_PASSWORD=kisanai-imd-password:latest"
     network=(--network=default --subnet=default --vpc-egress=all-traffic)
   elif [[ "${node}" == "in-north" ]]; then
-    # Remove the previous north-node VPC attachment; its IP is not registered with IMD.
+    # No VPC egress: IMD is reached through the Maharashtra node.
     network=(--clear-network)
   fi
   echo "Deploying kisanai-${node} (${PROJECT_ID}, ${region})..."
@@ -72,8 +72,8 @@ deploy() {
   fi
 }
 
-deploy in-mh asia-south1 "${IN_MH_URL}" "NODE_ID=india-node-mh|NODE_LABEL=India - Maharashtra node|NODE_COUNTRY_CODE=IN|NODE_SUBDIVISIONS=IN-MH|NODE_LANGUAGES=mr-IN,hi-IN,en-IN|DEFAULT_LOCALE=mr-IN|VERTEX_LOCATION=asia-south1|IMD_ENABLED=true|IMD_AUTH_MODE=jwt|PEER_NODES=${IN_NORTH_URL},${BR_PR_URL}"
-deploy in-north asia-south2 "${IN_NORTH_URL}" "NODE_ID=india-node-north|NODE_LABEL=India - Punjab and Uttar Pradesh node|NODE_COUNTRY_CODE=IN|NODE_SUBDIVISIONS=IN-PB,IN-UP|NODE_LANGUAGES=pa-IN,hi-IN,en-IN|DEFAULT_LOCALE=hi-IN|VERTEX_LOCATION=asia-south1|IMD_ENABLED=false|PEER_NODES=${IN_MH_URL},${BR_PR_URL}"
+deploy in-mh asia-south1 "${IN_MH_URL}" "NODE_ID=india-node-mh|NODE_LABEL=India - Maharashtra node|NODE_COUNTRY_CODE=IN|NODE_SUBDIVISIONS=IN-MH|NODE_LANGUAGES=mr-IN,hi-IN,en-IN|DEFAULT_LOCALE=mr-IN|VERTEX_LOCATION=asia-south1|IMD_ENABLED=true|IMD_AUTH_MODE=jwt|IMD_RELAY_CALLERS=${NODE_SA}|PEER_NODES=${IN_NORTH_URL},${BR_PR_URL}"
+deploy in-north asia-south2 "${IN_NORTH_URL}" "NODE_ID=india-node-north|NODE_LABEL=India - Punjab and Uttar Pradesh node|NODE_COUNTRY_CODE=IN|NODE_SUBDIVISIONS=IN-PB,IN-UP|NODE_LANGUAGES=pa-IN,hi-IN,en-IN|DEFAULT_LOCALE=hi-IN|VERTEX_LOCATION=asia-south1|IMD_ENABLED=false|IMD_RELAY_URL=${IN_MH_URL}|PEER_NODES=${IN_MH_URL},${BR_PR_URL}"
 deploy br-pr southamerica-east1 "${BR_PR_URL}" "NODE_ID=brazil-node-pr|NODE_LABEL=Brazil - Paraná node|NODE_COUNTRY_CODE=BR|NODE_SUBDIVISIONS=BR-PR|NODE_LANGUAGES=pt-BR,en-IN|DEFAULT_LOCALE=pt-BR|VERTEX_LOCATION=global|IMD_ENABLED=false|PEER_NODES=${IN_MH_URL},${IN_NORTH_URL}"
 
 echo "Nodes:"
