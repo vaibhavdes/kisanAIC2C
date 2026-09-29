@@ -239,7 +239,7 @@ Code layout: [`DOCS.md`](DOCS.md).
 | MAPA Portaria 1.579/2026, ADAPAR; IBGE municipality register | Legal soybean sowing window for each of Paraná's 399 municipalities | Government of Brazil |
 | Embrapa Soja (Sfredo et al. 1999) | Paraná P and K ratings and soybean doses | Embrapa |
 | EMBRAPA, ICRISAT, ICAR-CICR, FAO conservation agriculture | Practice write-ups (no-till, inoculation, BBF, intercropping, residue mulching) | Cited per practice |
-| Google Maps Platform; Esri World Imagery; OpenStreetMap / CARTO; Nominatim | Place search, satellite basemap, fallback map and labels | Google terms, Esri, ODbL |
+| Google Maps Platform; Esri World Imagery and reference labels; Nominatim (OpenStreetMap) | Place search, satellite basemap, fallback map and labels | Google terms, Esri terms, ODbL |
 | pincodeapi.in | Indian PIN code lookup | Service terms |
 
 ---

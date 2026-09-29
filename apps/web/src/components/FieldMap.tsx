@@ -22,38 +22,30 @@ const cornerIcon = (n: number) =>
 
 /**
  * Satellite basemap where the farmer taps the corners of the field. Corners can be dragged to
- * adjust. Google tiles include place labels; Esri imagery is used if Google is unavailable.
+ * adjust. Google tiles include place labels; Esri imagery with Esri labels is used if Google is unavailable.
  */
 const BASEMAPS: Record<string, { url: string; attribution: string }> = {
   google: { url: "/api/v1/maps/satellite/{z}/{x}/{y}", attribution: "Map data &copy; Google" },
   esri: { url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", attribution: "Imagery &copy; Esri, Maxar, Earthstar Geographics" },
 };
-const LABELS = { url: "https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png", attribution: "&copy; OpenStreetMap contributors &copy; CARTO" };
+// Esri imagery has no place names; Esri's reference layer adds them (no key needed). Google tiles carry their own.
+const LABELS = { url: "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", attribution: "Labels &copy; Esri" };
 
 export function FieldMap({ t, center, zoom = 17, corners, onCornersChange, onCenterChange, maxCorners = 8, basemap = "esri" }: FieldMapProps) {
   const holder = useRef<HTMLDivElement | null>(null);
   const map = useRef<L.Map | null>(null);
   const layer = useRef<L.LayerGroup | null>(null);
   const base = useRef<L.TileLayer | null>(null);
+  const labels = useRef<L.TileLayer | null>(null);
+  const baseKind = useRef("");
   const cornersRef = useRef(corners);
   cornersRef.current = corners;
 
   useEffect(() => {
     if (!holder.current || map.current) return;
     const instance = L.map(holder.current, { zoomControl: true, attributionControl: true, scrollWheelZoom: false }).setView(center, zoom);
-    const imagery = BASEMAPS[basemap] || BASEMAPS.esri;
-    // Esri imagery has no place names, so it gets a separate label layer; Google tiles carry their own.
-    const addLabels = () => L.tileLayer(LABELS.url, { maxZoom: 19, attribution: LABELS.attribution }).addTo(instance);
-    base.current = L.tileLayer(imagery.url, { maxZoom: 19, attribution: imagery.attribution }).addTo(instance);
-    if (imagery === BASEMAPS.esri) addLabels();
-    base.current.on("tileerror", () => {  // fall back to Esri if Google tiles are unavailable
-      if (base.current && base.current.options.attribution !== BASEMAPS.esri.attribution) {
-        instance.removeLayer(base.current);
-        base.current = L.tileLayer(BASEMAPS.esri.url, { maxZoom: 19, attribution: BASEMAPS.esri.attribution }).addTo(instance);
-        base.current.bringToBack();
-        addLabels();
-      }
-    });
+    map.current = instance;
+    setBase(basemap);
     layer.current = L.layerGroup().addTo(instance);
     instance.on("click", (event: L.LeafletMouseEvent) => {
       if (cornersRef.current.length >= maxCorners) return;
@@ -63,22 +55,41 @@ export function FieldMap({ t, center, zoom = 17, corners, onCornersChange, onCen
       const c = instance.getCenter();
       onCenterChange?.([Number(c.lat.toFixed(5)), Number(c.lng.toFixed(5))]);
     });
-    map.current = instance;
     return () => {
       instance.remove();
       map.current = null;
+      baseKind.current = "";
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
+  useEffect(() => setBase(basemap), [basemap]);
+
+  /** Shows one basemap with its labels; Google falls back to Esri if its tiles keep failing. */
+  function setBase(kind: string) {
     const instance = map.current;
-    const imagery = BASEMAPS[basemap] || BASEMAPS.esri;
-    if (!instance || !base.current || base.current.options.attribution === imagery.attribution) return;
-    instance.removeLayer(base.current);
-    base.current = L.tileLayer(imagery.url, { maxZoom: 19, attribution: imagery.attribution }).addTo(instance);
-    base.current.bringToBack();
-  }, [basemap]);
+    const next = kind === "google" ? "google" : "esri";
+    if (!instance || baseKind.current === next) return;
+    baseKind.current = next;
+    if (base.current) instance.removeLayer(base.current);
+    if (labels.current) instance.removeLayer(labels.current);
+    labels.current = null;
+    const imagery = BASEMAPS[next];
+    const tiles = L.tileLayer(imagery.url, { maxZoom: 19, attribution: imagery.attribution }).addTo(instance);
+    tiles.bringToBack();
+    base.current = tiles;
+    if (next === "esri") {
+      labels.current = L.tileLayer(LABELS.url, { maxZoom: 19, attribution: LABELS.attribution }).addTo(instance);
+      return;
+    }
+    let loaded = 0;
+    let failed = 0;
+    tiles.on("tileload", () => { loaded += 1; });
+    tiles.on("tileerror", () => {
+      failed += 1;
+      if (base.current === tiles && failed >= 3 && failed > loaded) setBase("esri");
+    });
+  }
 
   useEffect(() => {
     const instance = map.current;
