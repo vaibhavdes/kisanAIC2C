@@ -22,10 +22,10 @@ const cornerIcon = (n: number) =>
 
 /**
  * Satellite basemap where the farmer taps the corners of the field. Corners can be dragged to
- * adjust. Imagery: Esri World Imagery; place names: OpenStreetMap contributors.
+ * adjust. Google tiles include place labels; Esri imagery is used if Google is unavailable.
  */
 const BASEMAPS: Record<string, { url: string; attribution: string }> = {
-  google: { url: "/api/v1/maps/satellite/{z}/{x}/{y}", attribution: "Imagery &copy; Google" },
+  google: { url: "/api/v1/maps/satellite/{z}/{x}/{y}", attribution: "Map data &copy; Google" },
   esri: { url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", attribution: "Imagery &copy; Esri, Maxar, Earthstar Geographics" },
 };
 
@@ -49,10 +49,6 @@ export function FieldMap({ t, center, zoom = 17, corners, onCornersChange, onCen
         base.current.bringToBack();
       }
     });
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png", {
-      maxZoom: 19,
-      attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
-    }).addTo(instance);
     layer.current = L.layerGroup().addTo(instance);
     instance.on("click", (event: L.LeafletMouseEvent) => {
       if (cornersRef.current.length >= maxCorners) return;

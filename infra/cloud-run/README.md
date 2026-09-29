@@ -38,6 +38,8 @@ Service accounts:
 
 Google Maps Platform uses a server-only API key limited to Geocoding, Places and Map Tiles, kept in the Secret Manager secret `kisanai-maps-server-key`; the browser loads tiles through the node.
 
+IMD is enabled only on the Maharashtra node, which uses the approved Cloud NAT egress IP `34.93.240.120`. The north India node uses Open-Meteo until IMD authorizes another deployment IP. An IMD HTTP 403 from the Maharashtra node needs correction in the IMD account's IP authorization; Open-Meteo remains the forecast fallback.
+
 The BigQuery dataset is created by the node's first publish. Each dataset is then listed in its region's Analytics Hub exchange (Analytics Hub needs the exchange and the dataset in the same region).
 
 ## Adding a state or a country

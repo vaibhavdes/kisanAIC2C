@@ -8,8 +8,8 @@ set -euo pipefail
 #   kisanai-br-pr     Brazil, Paraná                  southamerica-east1 (São Paulo)
 # The earlier kisanai-c2c service is not touched.
 #
-# India nodes egress through static IPs (Cloud NAT) registered with IMD: asia-south1 34.93.240.120,
-# asia-south2 34.131.248.83.
+# Only the Maharashtra node uses IMD. Its Cloud NAT egress IP is 34.93.240.120;
+# the north India node uses Open-Meteo because IMD permits only one deployment IP.
 #
 # One-time resources per node (see infra/cloud-run/README.md): Firestore database kisanai-<node>,
 # bucket <project>-kisanai-<node>, secret kisanai-expert-code-<node>; service accounts kisanai-node and
@@ -19,6 +19,7 @@ set -euo pipefail
 
 PROJECT_ID="${1:-project-52e7ca23-228b-4cfd-879}"
 ONLY="${2:-all}"
+DEPLOY_IMAGE=""
 PROJECT_NUMBER=$(gcloud projects describe "${PROJECT_ID}" --format="value(projectNumber)")
 NODE_SA="kisanai-node@${PROJECT_ID}.iam.gserviceaccount.com"
 SCHEDULER_SA="kisanai-scheduler@${PROJECT_ID}.iam.gserviceaccount.com"
@@ -39,14 +40,21 @@ deploy() {
   local dataset="agrin_${node//-/_}"
   local secrets="EXPERT_ACCESS_TOKEN=kisanai-expert-code-${node}:latest,GOOGLE_MAPS_API_KEY=kisanai-maps-server-key:latest"
   local network=()
-  if [[ "${node}" == in-* ]]; then
-    # India nodes: IMD serves only registered IPs, so traffic leaves through the region's static Cloud NAT IP.
+  local source=(--source=".")
+  if [[ -n "${DEPLOY_IMAGE}" ]]; then
+    source=(--image="${DEPLOY_IMAGE}")
+  fi
+  if [[ "${node}" == "in-mh" ]]; then
+    # IMD serves only the approved IP; Maharashtra traffic leaves through its static Cloud NAT IP.
     secrets="${secrets},IMD_API_KEY=kisanai-imd-api-key:latest,IMD_EMAIL=kisanai-imd-email:latest,IMD_PASSWORD=kisanai-imd-password:latest"
     network=(--network=default --subnet=default --vpc-egress=all-traffic)
+  elif [[ "${node}" == "in-north" ]]; then
+    # Remove the previous north-node VPC attachment; its IP is not registered with IMD.
+    network=(--clear-network)
   fi
   echo "Deploying kisanai-${node} (${PROJECT_ID}, ${region})..."
   gcloud run deploy "kisanai-${node}" \
-    --project="${PROJECT_ID}" --region="${region}" --source="." \
+    --project="${PROJECT_ID}" --region="${region}" "${source[@]}" \
     --service-account="${NODE_SA}" --allow-unauthenticated --port=8080 \
     --memory=1Gi --cpu=1 --concurrency=40 --min-instances=1 --max-instances=3 --timeout=120 \
     --set-secrets="${secrets}" ${network[@]+"${network[@]}"} \
@@ -56,10 +64,16 @@ deploy() {
               --oidc-service-account-email="${SCHEDULER_SA}" --oidc-token-audience="${url}/api/v1/internal/publish")
   gcloud scheduler jobs create http "kisanai-${node}-publish" "${args[@]}" 2>/dev/null \
     || gcloud scheduler jobs update http "kisanai-${node}-publish" "${args[@]}"
+  if [[ "${ONLY}" == "all" && "${node}" == "in-mh" ]]; then
+    # The same application image serves all three nodes; build it once to conserve trial credits.
+    DEPLOY_IMAGE=$(gcloud run services describe "kisanai-${node}" --project="${PROJECT_ID}" --region="${region}" \
+      --format='value(spec.template.spec.containers[0].image)')
+    [[ -n "${DEPLOY_IMAGE}" ]] || { echo "Could not read the deployed image" >&2; exit 1; }
+  fi
 }
 
 deploy in-mh asia-south1 "${IN_MH_URL}" "NODE_ID=india-node-mh|NODE_LABEL=India - Maharashtra node|NODE_COUNTRY_CODE=IN|NODE_SUBDIVISIONS=IN-MH|NODE_LANGUAGES=mr-IN,hi-IN,en-IN|DEFAULT_LOCALE=mr-IN|VERTEX_LOCATION=asia-south1|IMD_ENABLED=true|IMD_AUTH_MODE=jwt|PEER_NODES=${IN_NORTH_URL},${BR_PR_URL}"
-deploy in-north asia-south2 "${IN_NORTH_URL}" "NODE_ID=india-node-north|NODE_LABEL=India - Punjab and Uttar Pradesh node|NODE_COUNTRY_CODE=IN|NODE_SUBDIVISIONS=IN-PB,IN-UP|NODE_LANGUAGES=pa-IN,hi-IN,en-IN|DEFAULT_LOCALE=hi-IN|VERTEX_LOCATION=asia-south1|IMD_ENABLED=true|IMD_AUTH_MODE=jwt|PEER_NODES=${IN_MH_URL},${BR_PR_URL}"
+deploy in-north asia-south2 "${IN_NORTH_URL}" "NODE_ID=india-node-north|NODE_LABEL=India - Punjab and Uttar Pradesh node|NODE_COUNTRY_CODE=IN|NODE_SUBDIVISIONS=IN-PB,IN-UP|NODE_LANGUAGES=pa-IN,hi-IN,en-IN|DEFAULT_LOCALE=hi-IN|VERTEX_LOCATION=asia-south1|IMD_ENABLED=false|PEER_NODES=${IN_MH_URL},${BR_PR_URL}"
 deploy br-pr southamerica-east1 "${BR_PR_URL}" "NODE_ID=brazil-node-pr|NODE_LABEL=Brazil - Paraná node|NODE_COUNTRY_CODE=BR|NODE_SUBDIVISIONS=BR-PR|NODE_LANGUAGES=pt-BR,en-IN|DEFAULT_LOCALE=pt-BR|VERTEX_LOCATION=global|IMD_ENABLED=false|PEER_NODES=${IN_MH_URL},${IN_NORTH_URL}"
 
 echo "Nodes:"

@@ -847,7 +847,13 @@ class AppService:
             cached = {"id": doc_id, "kind": "ui", "locale": locale, "provider": "Google Cloud Translation v3",
                       "strings": strings, "created_at": datetime.now(UTC).isoformat()}
             self.store.put("translations", doc_id, cached)
-        return {"locale": locale, "machine_translated": True, "provider": cached["provider"], "strings": cached["strings"]}
+        strings = dict(cached["strings"])
+        override_path = PROJECT_ROOT / "data" / "i18n" / f"{locale}.json"
+        if override_path.is_file():
+            overrides = json.loads(override_path.read_text(encoding="utf-8"))
+            strings.update({key: value for key, value in overrides.items()
+                            if key in source and isinstance(value, str) and placeholders_match(source[key], value)})
+        return {"locale": locale, "machine_translated": True, "provider": cached["provider"], "strings": strings}
 
     def localize_names(self, locale: str) -> None:
         """Make crop and practice names available in a language the catalogs do not cover."""
