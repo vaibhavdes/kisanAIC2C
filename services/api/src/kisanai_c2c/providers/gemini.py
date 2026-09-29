@@ -144,14 +144,17 @@ class GeminiProvider:
             targets.append((s.gemini_fallback_model, s.gemini_fallback_location))
         return targets
 
-    def _client(self, location: str | None):
+    def _client(self, location: str | None, timeout_s: int | None = None):
         from google import genai
+        from google.genai import types
 
+        options = types.HttpOptions(timeout=timeout_s * 1000) if timeout_s else None
         if location is None:
-            return genai.Client(api_key=self.settings.gemini_api_key)
-        return genai.Client(vertexai=True, project=self.settings.google_cloud_project, location=location)
+            return genai.Client(api_key=self.settings.gemini_api_key, http_options=options)
+        return genai.Client(vertexai=True, project=self.settings.google_cloud_project, location=location, http_options=options)
 
-    def _generate(self, contents: list[Any], *, schema: type[BaseModel] | None, temperature: float = 0.2) -> tuple[Any, str]:
+    def _generate(self, contents: list[Any], *, schema: type[BaseModel] | None, temperature: float = 0.2,
+                  timeout_s: int | None = None) -> tuple[Any, str]:
         from google.genai import types
 
         if not self.settings.ai_enabled:
@@ -165,7 +168,7 @@ class GeminiProvider:
         errors: list[str] = []
         for model, location in targets:
             try:
-                client = self._client(location)  # keep a reference so the HTTP client stays open for the call
+                client = self._client(location, timeout_s)  # keep a reference so the HTTP client stays open for the call
                 response = client.models.generate_content(model=model, contents=contents, config=config)
                 text = (response.text or "").strip()
                 if not text:
@@ -321,7 +324,7 @@ Statistics: {json.dumps(stats, ensure_ascii=False, default=str)}
         errors: list[str] = []
         for model, location in self._targets():
             try:
-                client = self._client(location)
+                client = self._client(location, 150)  # a stalled model falls back instead of holding the request
                 response = client.models.generate_content(model=model, contents=[prompt], config=config)
                 text = (response.text or "").strip()
                 metadata = response.candidates[0].grounding_metadata if response.candidates else None
@@ -355,7 +358,9 @@ institutes, meteorological services and FAO; do not use social media. For each o
 window(s) as start and end dates, the season name used locally, and whether the window needs irrigation:
 {catalog}
 Also give the region's agro-climatic zones, its season months, and the groundwater status (official assessment if any).
-Only report dates you found in a source; say which source each date comes from. Skip crops with no source.""")
+Only report dates you found in a source; skip crops with no source. Answer only with compact lines, no prose:
+crop | season | start MM-DD | end MM-DD | irrigated yes/no | source name
+then one line each for zones, season months and groundwater.""")
         prompt = f"""Convert these research findings into structured data. Do not add anything that is not in the findings.
 Region: {region} ({subdivision_code}).
 Rules:
@@ -368,6 +373,6 @@ Rules:
 - groundwater_category: use "unknown" unless the findings give an official assessment.
 Findings:
 {findings}"""
-        draft, _ = self._generate([prompt], schema=PackDraftOutput, temperature=0.0)
+        draft, _ = self._generate([prompt], schema=PackDraftOutput, temperature=0.0, timeout_s=90)
         return draft, sources, model, findings
 
