@@ -8,5 +8,7 @@
   "stage_seedling": "Plântula",
   "stage_vegetative": "Em crescimento",
   "stage_fruiting": "Frutificação",
-  "check_photo": "Analisar minha planta"
+  "check_photo": "Analisar minha planta",
+  "fit": "Aptidão",
+  "show_reasons": "Por quê? Ver motivos"
 }
