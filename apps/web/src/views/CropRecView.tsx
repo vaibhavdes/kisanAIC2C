@@ -106,7 +106,11 @@ function ContextBar({ t, r, locale }: { t: T; r: Json; locale: Locale }) {
       {c.soil_texture && <span>{t("texture")}: <b>{t(`texture_${c.soil_texture}`)}</b></span>}
       {c.soil_ph != null && <span>pH <b>{Number(c.soil_ph).toFixed(1)}</b> <SourceBadge t={t} kind={c.soil_ph_source === "measured" ? "measured" : "estimated"} /></span>}
       {c.previous_crop_name && <span>{t("previous_crop")}: <b>{c.previous_crop_name}</b></span>}
-      {c.groundwater_category && c.groundwater_category !== "unknown" && <span>{t("groundwater")}: <b>{t(`gw_${c.groundwater_category}`)}</b></span>}
+      {c.groundwater_category && c.groundwater_category !== "unknown" && (
+        <span>{t("groundwater")}: <b>{t(`gw_${c.groundwater_category}`)}</b>
+          {c.groundwater_decline_cm_per_year > 0 ? ` (${t("gw_decline", { cm: c.groundwater_decline_cm_per_year })})` : ""}</span>
+      )}
+      {c.water_stress_category != null && <span>{t("water_stress")}: <b>{t(`ws_${c.water_stress_category}`)}</b></span>}
       {c.annual_rain_mm != null && <span>{t("annual_rain")}: <b>{c.annual_rain_mm} mm</b></span>}
       {(r.notes as string[]).length > 0 && <p className="context-note">{r.knowledge_mode === "global_baseline" ? t("global_note") : t("pack_note")}</p>}
     </div>

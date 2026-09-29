@@ -227,6 +227,7 @@ class LandProfile(BaseModel):
     climate_period: str
     soil: SoilEstimate | None = None
     land_cover: dict[str, Any] | None = None
+    water_risk: dict[str, Any] | None = None
     quality_flags: list[str] = Field(default_factory=list)
     method_version: int = 1  # bumped when the sampling method changes so cached profiles are rebuilt
     fetched_at: datetime = Field(default_factory=utcnow)

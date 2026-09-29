@@ -480,5 +480,13 @@
   "srcname_soil_model": "Soil map estimate (ISRIC SoilGrids)",
   "srcname_soil_test": "Your soil test report",
   "srcname_satellite": "Satellite images (Sentinel-2, Google Earth Engine)",
-  "srcname_crop_catalog": "Crop requirements (FAO EcoCrop)"
+  "srcname_crop_catalog": "Crop requirements (FAO EcoCrop)",
+  "gw_decline": "groundwater falling {cm} cm a year",
+  "water_stress": "Water stress",
+  "ws_-1": "Arid, low water use",
+  "ws_0": "Low",
+  "ws_1": "Low to medium",
+  "ws_2": "Medium to high",
+  "ws_3": "High",
+  "ws_4": "Extremely high"
 }

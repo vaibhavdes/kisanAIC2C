@@ -207,3 +207,13 @@ def test_nutrient_ratings_only_where_the_country_scheme_is_known():
     values = SoilValues(ph=5.4, nitrogen_kg_ha=150, phosphorus_kg_ha=8)
     assert {r.parameter for r in rate_values(values, "IN")} == {"ph", "nitrogen_kg_ha", "phosphorus_kg_ha"}
     assert {r.parameter for r in rate_values(values, "BR")} == {"ph"}  # Brazilian labs use other units and tables
+
+
+def test_field_sub_basin_groundwater_overrides_the_state_category():
+    farm = make_farm(water_access="irrigated", previous_crop="soybean")
+    land = land_profile(farm, VIDARBHA)
+    land.water_risk = {"groundwater_category": "over_exploited", "groundwater_decline_cm_per_year": 12.9, "water_stress_category": 4}
+    result = RecommendationEngine(farm, pack=bundled_packs()["IN-MH"], pack_ref=None, land=land, soil_test=None, evidence=[], today=TODAY).run()
+    assert result.context["groundwater_category"] == "over_exploited" and result.context["groundwater_scope"] == "basin"
+    sugarcane = next(o for o in result.sow_now + result.upcoming + result.not_suitable if o.crop == "sugarcane")
+    assert any(f.id == "groundwater" and f.source == "estimated" for f in sugarcane.factors)

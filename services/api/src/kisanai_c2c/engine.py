@@ -109,7 +109,12 @@ class RecommendationEngine:
         self.today = today or date.today()
         self.soil = effective_soil(farm.soil_type, soil_test, land.soil if land else None, farm.country_code)
         self.district = find_district(pack, farm.district)
-        self.groundwater = (self.district or {}).get("groundwater_category") or ((pack or {}).get("groundwater") or {}).get("category") or "unknown"
+        # Most specific source first: a cited district value, the field's own sub-basin (WRI Aqueduct), then the state.
+        basin = ((land.water_risk or {}) if land else {}).get("groundwater_category")
+        district_gw = (self.district or {}).get("groundwater_category")
+        state_gw = ((pack or {}).get("groundwater") or {}).get("category")
+        self.groundwater = district_gw or basin or (state_gw if state_gw != "unknown" else None) or "unknown"
+        self.groundwater_scope = "district" if district_gw else "basin" if basin else "state" if state_gw and state_gw != "unknown" else None
         self.previous = normalize_crop(farm.previous_crop) if farm.previous_crop else ""
         self.satellite = satellite_values(evidence)
         self.climate = {month.month: month for month in land.climate} if land else {}
@@ -397,8 +402,9 @@ class RecommendationEngine:
         penalty = GROUNDWATER_PENALTY.get((water_class, self.groundwater))
         if penalty is None:
             return None
-        factors.append(DecisionFactor(id="groundwater", status=_status(penalty), score=penalty, source="regional",
-                                      params={"category": self.groundwater, "water_class": water_class, "scope": "district" if self.district else "state"},
+        factors.append(DecisionFactor(id="groundwater", status=_status(penalty), score=penalty,
+                                      source="estimated" if self.groundwater_scope == "basin" else "regional",
+                                      params={"category": self.groundwater, "water_class": water_class, "scope": self.groundwater_scope},
                                       message=f"Groundwater here is {self.groundwater.replace('_', '-')}; this is a {water_class}-water crop."))
         return penalty
 
@@ -501,7 +507,9 @@ class RecommendationEngine:
             "soil_ph": self.soil["ph"], "soil_ph_source": self.soil["ph_source"],
             "soil_test": self.soil["test_source"],
             "groundwater_category": self.groundwater,
-            "groundwater_scope": "district" if self.district and self.district.get("groundwater_category") else "state" if self.pack else None,
+            "groundwater_scope": self.groundwater_scope,
+            "groundwater_decline_cm_per_year": ((self.land.water_risk or {}) if self.land else {}).get("groundwater_decline_cm_per_year"),
+            "water_stress_category": ((self.land.water_risk or {}) if self.land else {}).get("water_stress_category"),
             "annual_rain_mm": annual,
             "district_normal_rain_mm": (self.district or {}).get("normal_rainfall_mm"),
             "district_note": (self.district or {}).get("note"),

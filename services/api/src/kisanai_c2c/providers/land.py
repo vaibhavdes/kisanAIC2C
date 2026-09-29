@@ -29,7 +29,7 @@ DEPTH_WEIGHTS = {"0-5cm": 5, "5-15cm": 10, "15-30cm": 15}
 SOIL_LAYERS = ("phh2o", "soc", "clay", "sand")
 
 
-LAND_PROFILE_METHOD = 2  # 2: SoilGrids sampled around the field centre (300 m, widening to 1.5 km)
+LAND_PROFILE_METHOD = 3  # 2: SoilGrids around the field centre; 3: + WRI Aqueduct sub-basin water risk
 
 
 class LandProfileUnavailable(RuntimeError):
@@ -60,10 +60,10 @@ class LandProfileProvider:
                 months, climate_source, climate_period = climate_future.result()
             except Exception as exc:  # noqa: BLE001
                 raise LandProfileUnavailable(f"Climate normals unavailable: {str(exc)[:200]}") from exc
-            soil, cover = None, None
+            soil, cover, water_risk = None, None, None
             if ground_future is not None:
                 try:
-                    soil, cover = ground_future.result()
+                    soil, cover, water_risk = ground_future.result()
                 except Exception as exc:  # noqa: BLE001
                     flags.append(f"earth_engine_soil_unavailable: {str(exc)[:120]}")
             else:
@@ -74,7 +74,7 @@ class LandProfileProvider:
             farm_id=farm.id, node_id=farm.node_id,
             latitude=farm.location.latitude, longitude=farm.location.longitude,
             climate=months, climate_source=climate_source, climate_period=climate_period,
-            soil=soil, land_cover=cover, quality_flags=flags, method_version=LAND_PROFILE_METHOD,
+            soil=soil, land_cover=cover, water_risk=water_risk, quality_flags=flags, method_version=LAND_PROFILE_METHOD,
         )
 
     def _climate(self, farm: Farm) -> tuple[list[ClimateMonth], str, str]:
@@ -117,6 +117,8 @@ class LandProfileProvider:
             "soil_wide": soil_img.reduceRegion(ee.Reducer.mean(), centroid.buffer(1500), 250, maxPixels=1e7),
             "cover": worldcover.reduceRegion(ee.Reducer.mode(), geometry, 10, maxPixels=1e8),
             "cropland": worldcover.eq(40).reduceRegion(ee.Reducer.mean(), centroid.buffer(2000), 30, maxPixels=1e8),
+            "water_risk": ee.FeatureCollection("WRI/Aqueduct_Water_Risk/V4/baseline_annual")
+                          .filterBounds(centroid).filter(ee.Filter.neq("pfaf_id", -9999)).first(),
         }).getInfo()
         soil = self._soilgrids_estimate(result.get("soil") or {}, radius_m=300) \
             or self._soilgrids_estimate(result.get("soil_wide") or {}, radius_m=1500)
@@ -131,7 +133,7 @@ class LandProfileProvider:
                 "cropland_share_2km": round(float(cropland), 3) if cropland is not None else None,
                 "source": "ESA WorldCover 10 m v200 (2021)",
             }
-        return soil, cover
+        return soil, cover, _water_risk((result.get("water_risk") or {}).get("properties") or {})
 
     def _fetch_worldclim_normals(self, farm: Farm) -> list[ClimateMonth]:
         import ee
@@ -214,6 +216,32 @@ class LandProfileProvider:
                 pet_mm=round(sum(pet) / len(pet), 1) if pet and any(pet) else round(hargreaves_monthly_pet(farm.location.latitude, month, tmin_c, tmax_c), 1),
             ))
         return months
+
+
+# WRI Aqueduct 4.0 groundwater-table-decline classes mapped to the stress categories the engine uses.
+GTD_TO_CATEGORY = {0: "safe", 1: "safe", 2: "semi_critical", 3: "critical", 4: "over_exploited"}
+
+
+def _water_risk(props: dict[str, Any]) -> dict[str, Any] | None:
+    """Sub-basin water risk from WRI Aqueduct 4.0 (baseline water stress, groundwater table decline)."""
+    if not props or props.get("pfaf_id") in (None, -9999):
+        return None  # no Aqueduct sub-basin at this point: its placeholder labels are not measurements
+    gtd_cat = props.get("gtd_cat")
+    gtd_raw = props.get("gtd_raw")
+    bws_cat = props.get("bws_cat")
+    return {
+        "source": "WRI Aqueduct 4.0 (baseline, sub-basin)",
+        "basin_id": props.get("pfaf_id"),
+        "water_stress_category": int(bws_cat) if isinstance(bws_cat, (int, float)) and bws_cat >= -1 else None,
+        "water_stress_label": props.get("bws_label") if props.get("bws_label") != "No Data" else None,
+        # Only a statistically significant trend is reported as a decline rate.
+        "groundwater_decline_cm_per_year": round(float(gtd_raw), 1)
+        if isinstance(gtd_raw, (int, float)) and isinstance(gtd_cat, (int, float)) and gtd_cat >= 0 else None,
+        "groundwater_decline_label": props.get("gtd_label"),
+        # An insignificant trend is a measured result: no significant decline.
+        "groundwater_category": GTD_TO_CATEGORY.get(int(gtd_cat)) if isinstance(gtd_cat, (int, float)) and gtd_cat >= 0
+        else ("safe" if props.get("gtd_label") == "Insignificant Trend" else None),
+    }
 
 
 def hargreaves_monthly_pet(latitude: float, month: int, tmin: float, tmax: float) -> float:
