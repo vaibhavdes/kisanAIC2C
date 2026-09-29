@@ -12,9 +12,10 @@ set -euo pipefail
 #   secrets kisanai-expert-code-in-mh / -br-pr, service accounts kisanai-node and kisanai-scheduler,
 #   BigQuery datasets agrin_in_mh / agrin_br_pr listed in Analytics Hub exchanges brics_agrin_in / brics_agrin_br.
 #
-# Usage: infra/cloud-run/deploy-nodes.sh [PROJECT_ID]
+# Usage: infra/cloud-run/deploy-nodes.sh [PROJECT_ID] [in|br]   (second argument deploys only that node)
 
 PROJECT_ID="${1:-project-52e7ca23-228b-4cfd-879}"
+ONLY="${2:-all}"
 PROJECT_NUMBER=$(gcloud projects describe "${PROJECT_ID}" --format="value(projectNumber)")
 NODE_SA="kisanai-node@${PROJECT_ID}.iam.gserviceaccount.com"
 SCHEDULER_SA="kisanai-scheduler@${PROJECT_ID}.iam.gserviceaccount.com"
@@ -58,11 +59,11 @@ schedule() {
     || gcloud scheduler jobs update http "${service}-publish" "${args[@]}"
 }
 
-deploy "${IN_SERVICE}" "${IN_REGION}" "${COMMON}|NODE_ID=india-node-mh|NODE_LABEL=India - Maharashtra node|NODE_COUNTRY_CODE=IN|NODE_SUBDIVISIONS=IN-MH|NODE_LANGUAGES=mr-IN,hi-IN,en-IN|DEFAULT_LOCALE=mr-IN|VERTEX_LOCATION=${IN_REGION}|FIRESTORE_DATABASE=kisanai-in-mh|MEDIA_BUCKET=${PROJECT_ID}-kisanai-in-mh|BIGQUERY_DATASET=agrin_in_mh|BIGQUERY_LOCATION=${IN_REGION}|IMD_ENABLED=true|PUBLIC_BASE_URL=${IN_URL}|PEER_NODES=${BR_URL}"
-deploy "${BR_SERVICE}" "${BR_REGION}" "${COMMON}|NODE_ID=brazil-node-pr|NODE_LABEL=Brazil - Paraná node|NODE_COUNTRY_CODE=BR|NODE_SUBDIVISIONS=BR-PR|NODE_LANGUAGES=pt-BR,en-IN|DEFAULT_LOCALE=pt-BR|VERTEX_LOCATION=global|FIRESTORE_DATABASE=kisanai-br-pr|MEDIA_BUCKET=${PROJECT_ID}-kisanai-br-pr|BIGQUERY_DATASET=agrin_br_pr|BIGQUERY_LOCATION=${BR_REGION}|IMD_ENABLED=false|PUBLIC_BASE_URL=${BR_URL}|PEER_NODES=${IN_URL}"
+[ "${ONLY}" = "br" ] || deploy "${IN_SERVICE}" "${IN_REGION}" "${COMMON}|NODE_ID=india-node-mh|NODE_LABEL=India - Maharashtra node|NODE_COUNTRY_CODE=IN|NODE_SUBDIVISIONS=IN-MH|NODE_LANGUAGES=mr-IN,hi-IN,en-IN|DEFAULT_LOCALE=mr-IN|VERTEX_LOCATION=${IN_REGION}|FIRESTORE_DATABASE=kisanai-in-mh|MEDIA_BUCKET=${PROJECT_ID}-kisanai-in-mh|BIGQUERY_DATASET=agrin_in_mh|BIGQUERY_LOCATION=${IN_REGION}|IMD_ENABLED=true|PUBLIC_BASE_URL=${IN_URL}|PEER_NODES=${BR_URL}"
+[ "${ONLY}" = "in" ] || deploy "${BR_SERVICE}" "${BR_REGION}" "${COMMON}|NODE_ID=brazil-node-pr|NODE_LABEL=Brazil - Paraná node|NODE_COUNTRY_CODE=BR|NODE_SUBDIVISIONS=BR-PR|NODE_LANGUAGES=pt-BR,en-IN|DEFAULT_LOCALE=pt-BR|VERTEX_LOCATION=global|FIRESTORE_DATABASE=kisanai-br-pr|MEDIA_BUCKET=${PROJECT_ID}-kisanai-br-pr|BIGQUERY_DATASET=agrin_br_pr|BIGQUERY_LOCATION=${BR_REGION}|IMD_ENABLED=false|PUBLIC_BASE_URL=${BR_URL}|PEER_NODES=${IN_URL}"
 
-schedule "${IN_SERVICE}" "${IN_REGION}" "${IN_URL}"
-schedule "${BR_SERVICE}" "${BR_REGION}" "${BR_URL}"
+[ "${ONLY}" = "br" ] || schedule "${IN_SERVICE}" "${IN_REGION}" "${IN_URL}"
+[ "${ONLY}" = "in" ] || schedule "${BR_SERVICE}" "${BR_REGION}" "${BR_URL}"
 
 echo "Nodes:"
 echo "  ${IN_URL}"
