@@ -31,7 +31,7 @@ openssl rand -hex 16 | tr -d '\n' | gcloud secrets create kisanai-expert-code-br
 Service accounts:
 - **`kisanai-node`** (the Cloud Run identity) has these roles:
   - Firestore user, Storage object user, Secret accessor;
-  - Vertex AI user, Earth Engine viewer, Service usage consumer, Cloud Translation user;
+  - Vertex AI user, Earth Engine writer (needed to render field thumbnails), Service usage consumer, Cloud Translation user;
   - BigQuery job user and data editor.
 - **`kisanai-scheduler`** has no roles; it only signs the daily call.
 
