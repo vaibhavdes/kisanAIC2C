@@ -292,3 +292,20 @@ def test_deleting_a_farm_erases_its_records_and_photos(service: AppService, farm
     for collection in ("farms", "diagnoses", "expert_cases", "soil_tests", "media"):
         assert service.store.list(collection, filters={}, limit=10) == [], collection
     assert service.media_store.media == {}  # the photo file itself is gone
+
+
+def test_google_geocoding_maps_to_state_and_district():
+    from kisanai_c2c.providers.maps import place_from_google
+
+    def comp(kind, name, short=None):
+        return {"types": [kind, "political"], "long_name": name, "short_name": short or name}
+
+    india = place_from_google({"formatted_address": "Yavatmal, Maharashtra 445001, India", "geometry": {"location": {"lat": 20.39, "lng": 78.13}},
+                               "address_components": [comp("locality", "Yavatmal"), comp("administrative_area_level_3", "Yavatmal"),
+                                                      comp("administrative_area_level_2", "Amravati Division"),
+                                                      comp("administrative_area_level_1", "Maharashtra", "MH"), comp("country", "India", "IN")]})
+    assert (india["state_code"], india["district"]) == ("MH", "Yavatmal")  # division (level 2) is not the district
+    brazil = place_from_google({"formatted_address": "Pato Branco - PR, Brazil", "geometry": {"location": {"lat": -26.23, "lng": -52.67}},
+                                "address_components": [comp("administrative_area_level_2", "Pato Branco"),
+                                                       comp("administrative_area_level_1", "Paraná", "PR"), comp("country", "Brazil", "BR")]})
+    assert (brazil["country_code"], brazil["state_code"], brazil["district"]) == ("BR", "PR", "Pato Branco")

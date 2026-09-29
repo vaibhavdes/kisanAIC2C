@@ -36,6 +36,8 @@ Service accounts:
   - BigQuery job user and data editor.
 - **`kisanai-scheduler`** has no roles; it only signs the daily call.
 
+Google Maps Platform uses a server-only API key limited to Geocoding, Places and Map Tiles, kept in the Secret Manager secret `kisanai-maps-server-key`; the browser loads tiles through the node.
+
 The BigQuery dataset is created by the node's first publish. Each dataset is then listed in its region's Analytics Hub exchange (Analytics Hub needs the exchange and the dataset in the same region).
 
 ## Adding a state or a country

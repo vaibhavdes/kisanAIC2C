@@ -39,7 +39,7 @@ deploy() {
     --project="${PROJECT_ID}" --region="${region}" --source="." \
     --service-account="${NODE_SA}" --allow-unauthenticated --port=8080 \
     --memory=1Gi --cpu=1 --concurrency=40 --min-instances=1 --max-instances=3 --timeout=120 \
-    --set-secrets="EXPERT_ACCESS_TOKEN=kisanai-expert-code-${node}:latest" \
+    --set-secrets="EXPERT_ACCESS_TOKEN=kisanai-expert-code-${node}:latest,GOOGLE_MAPS_API_KEY=kisanai-maps-server-key:latest" \
     --set-env-vars="^|^${COMMON}|FIRESTORE_DATABASE=kisanai-${node}|MEDIA_BUCKET=${PROJECT_ID}-kisanai-${node}|BIGQUERY_DATASET=${dataset}|BIGQUERY_LOCATION=${region}|PUBLIC_BASE_URL=${url}|${env}"
   local args=(--project="${PROJECT_ID}" --location="${region}" --schedule="15 2 * * *" --time-zone="UTC"
               --uri="${url}/api/v1/internal/publish" --http-method=POST

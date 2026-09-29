@@ -804,6 +804,7 @@ class AppService:
         return {
             "node_id": self.settings.node_id, "label": self.settings.node_label, "country_code": self.settings.node_country_code,
             "subdivisions": self.settings.node_subdivision_list, "default_locale": self.settings.default_locale,
+            "basemap": "google" if self.settings.google_maps_api_key else "esri",
             "languages": [{"locale": code, "name": self.translator.native_name(code),
                            "machine_translated": code not in HANDWRITTEN_LOCALES} for code in self.settings.node_language_list],
         }

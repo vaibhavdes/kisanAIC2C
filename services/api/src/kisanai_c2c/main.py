@@ -25,6 +25,7 @@ from .models import (
 from .providers.gemini import GeminiProvider, GeminiUnavailable
 from .providers.satellite import SatelliteProvider, SatelliteUnavailable
 from .providers.bigquery import BigQueryUnavailable
+from .providers.maps import GoogleMaps, MapsUnavailable
 from .providers.translate import TranslationUnavailable
 from .providers.voice import VoiceProvider, VoiceUnavailable
 from .providers.weather import WeatherUnavailable
@@ -86,7 +87,7 @@ async def provider_unavailable(_: Request, exc: Exception):
     return _error(status.HTTP_503_SERVICE_UNAVAILABLE, "provider_unavailable", str(exc), True)
 
 
-for _exc in (GeminiUnavailable, VoiceUnavailable, WeatherUnavailable, SatelliteUnavailable, TranslationUnavailable, BigQueryUnavailable):
+for _exc in (GeminiUnavailable, VoiceUnavailable, WeatherUnavailable, SatelliteUnavailable, TranslationUnavailable, BigQueryUnavailable, MapsUnavailable):
     app.add_exception_handler(_exc, provider_unavailable)
 
 
@@ -513,11 +514,26 @@ def lookup_pincode(pincode: str):
     return result
 
 
+@app.get("/api/v1/maps/satellite/{z}/{x}/{y}")
+def satellite_tile(z: int, x: int, y: int):
+    """Google Map Tiles satellite basemap through the node, so the Maps key stays on the server."""
+    if not (0 <= z <= 21 and 0 <= x < 2 ** z and 0 <= y < 2 ** z):
+        raise ValueError("Invalid tile")
+    content, content_type = GoogleMaps(settings).satellite_tile(z, x, y)
+    return Response(content=content, media_type=content_type, headers={"Cache-Control": "public, max-age=86400"})
+
+
 @app.get("/api/v1/geo/reverse")
 def reverse_geocode(latitude: float, longitude: float):
     key = f"rev:{round(latitude, 3)},{round(longitude, 3)}"
     if key in _GEO_CACHE:
         return _GEO_CACHE[key]
+    try:  # Google Maps Geocoding first; OpenStreetMap Nominatim if Maps is not configured or fails
+        result = GoogleMaps(settings).reverse(latitude, longitude)
+        _GEO_CACHE[key] = result
+        return result
+    except MapsUnavailable:
+        pass
     try:
         resp = requests.get("https://nominatim.openstreetmap.org/reverse",
                             params={"format": "jsonv2", "lat": latitude, "lon": longitude, "zoom": 14, "addressdetails": 1},
@@ -538,6 +554,13 @@ def search_place(q: str, country_code: str | None = None):
     key = f"search:{query.lower()}:{country_code or ''}"
     if key in _GEO_CACHE:
         return _GEO_CACHE[key]
+    try:
+        google = GoogleMaps(settings).search(query, country_code)
+        if google:
+            _GEO_CACHE[key] = google
+            return google
+    except MapsUnavailable:
+        pass
     params: dict[str, Any] = {"format": "jsonv2", "q": query, "limit": 6, "addressdetails": 1}
     if country_code:
         params["countrycodes"] = country_code.lower()

@@ -74,6 +74,7 @@ A node lists its farmer languages in `NODE_LANGUAGES`.
 | Cloud Run | One service per country node, in that country's region; dedicated least-privilege service account |
 | Vertex AI Gemini 3.5 Flash | Plans, leaf diagnosis, soil report reading, chat, district brief (asia-south1; global endpoint for the Brazil node) |
 | Google Earth Engine | Sentinel-2 indices, SoilGrids, WorldCover, WRI Aqueduct water risk, WorldClim fallback |
+| Google Maps Platform | Geocoding for village search and GPS-to-district lookup, Map Tiles satellite basemap for plotting the field. A server-only key in Secret Manager; OpenStreetMap / Esri are the automatic fallback |
 | Cloud Firestore | One database per node in its region (`kisanai-in-mh`, `kisanai-in-north`, `kisanai-br-pr`) |
 | Cloud Storage | Private buckets per node for leaf photos and soil reports |
 | Cloud Translation | Node languages without a hand-written dictionary |
@@ -115,7 +116,8 @@ React + Vite (apps/web) ── same origin ──> FastAPI (services/api) on Clo
 | State agricultural universities' packages of practice (Maharashtra, Punjab, Uttar Pradesh); CGWB Dynamic Ground Water Resources assessment; Punjab Preservation of Subsoil Water Act 2009 | Sowing windows, state groundwater category, legal sowing dates | Cited in each pack |
 | India Soil Health Card (ICAR rating limits) | Soil test ratings in India | Cited in `data/soil/interpretation.json` |
 | CONAB planting calendar; MAPA Portaria 1.579/2026 and ADAPAR soybean sanitary break; IBGE municipality register; Embrapa Soja P and K table (Sfredo et al. 1999); EMBRAPA practices | Paraná planting windows, per-municipality legal soybean dates, soil ratings with soybean doses, no-till and inoculation | Cited in the pack, soil schemes and practices |
-| Esri World Imagery; OpenStreetMap / CARTO labels; Nominatim | Field-plotting map and place search | Esri, ODbL |
+| Google Maps Platform (Geocoding, Map Tiles) | Place search, GPS-to-district lookup, satellite basemap | Google Maps Platform terms |
+| Esri World Imagery; OpenStreetMap / CARTO labels; Nominatim | Fallback basemap, map labels and place search | Esri, ODbL |
 | pincodeapi.in | Indian PIN code lookup | Service terms |
 
 ## Run locally

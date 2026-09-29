@@ -56,6 +56,7 @@ export function FarmFormView({ t, locale, editing, onSaved, onCancel }: FarmForm
     previous_crop: editing?.previous_crop || "",
   }));
 
+  const node = useResource<Json>("/api/v1/node");
   const catalog = useResource<Json>(place ? `/api/v1/catalog/crops?locale=${locale}&country_code=${place.country_code}&state_code=${place.state_code}` : `/api/v1/catalog/crops?locale=${locale}`);
   const crops: Json[] = catalog.data?.crops || [];
 
@@ -239,7 +240,7 @@ export function FarmFormView({ t, locale, editing, onSaved, onCancel }: FarmForm
       <div className="form-block">
         <h3>{t("draw_field")}</h3>
         <p className="muted">{t("draw_field_help")}</p>
-        <FieldMap t={t} center={center} zoom={place ? 17 : 5} corners={corners} onCornersChange={setCorners} />
+        <FieldMap t={t} center={center} zoom={place ? 17 : 5} corners={corners} onCornersChange={setCorners} basemap={node.data?.basemap} />
         <div className="map-toolbar">
           <span>{corners.length >= 3 ? t("field_drawn", { ha: plottedHa.toFixed(2), acres: (plottedHa * 2.47105).toFixed(2) }) : t("corners_count", { n: corners.length })}</span>
           <div>

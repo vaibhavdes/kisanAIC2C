@@ -13,6 +13,8 @@ interface FieldMapProps {
   onCornersChange: (corners: LatLon[]) => void;
   onCenterChange?: (center: LatLon) => void;
   maxCorners?: number;
+  /** "google": Google Map Tiles through the node (key stays on the server); otherwise Esri World Imagery. */
+  basemap?: string;
 }
 
 const cornerIcon = (n: number) =>
@@ -22,20 +24,31 @@ const cornerIcon = (n: number) =>
  * Satellite basemap where the farmer taps the corners of the field. Corners can be dragged to
  * adjust. Imagery: Esri World Imagery; place names: OpenStreetMap contributors.
  */
-export function FieldMap({ t, center, zoom = 17, corners, onCornersChange, onCenterChange, maxCorners = 8 }: FieldMapProps) {
+const BASEMAPS: Record<string, { url: string; attribution: string }> = {
+  google: { url: "/api/v1/maps/satellite/{z}/{x}/{y}", attribution: "Imagery &copy; Google" },
+  esri: { url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", attribution: "Imagery &copy; Esri, Maxar, Earthstar Geographics" },
+};
+
+export function FieldMap({ t, center, zoom = 17, corners, onCornersChange, onCenterChange, maxCorners = 8, basemap = "esri" }: FieldMapProps) {
   const holder = useRef<HTMLDivElement | null>(null);
   const map = useRef<L.Map | null>(null);
   const layer = useRef<L.LayerGroup | null>(null);
+  const base = useRef<L.TileLayer | null>(null);
   const cornersRef = useRef(corners);
   cornersRef.current = corners;
 
   useEffect(() => {
     if (!holder.current || map.current) return;
     const instance = L.map(holder.current, { zoomControl: true, attributionControl: true, scrollWheelZoom: false }).setView(center, zoom);
-    L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
-      maxZoom: 19,
-      attribution: "Imagery &copy; Esri, Maxar, Earthstar Geographics",
-    }).addTo(instance);
+    const imagery = BASEMAPS[basemap] || BASEMAPS.esri;
+    base.current = L.tileLayer(imagery.url, { maxZoom: 19, attribution: imagery.attribution }).addTo(instance);
+    base.current.on("tileerror", () => {  // fall back to Esri if Google tiles are unavailable
+      if (base.current && base.current.options.attribution !== BASEMAPS.esri.attribution) {
+        instance.removeLayer(base.current);
+        base.current = L.tileLayer(BASEMAPS.esri.url, { maxZoom: 19, attribution: BASEMAPS.esri.attribution }).addTo(instance);
+        base.current.bringToBack();
+      }
+    });
     L.tileLayer("https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png", {
       maxZoom: 19,
       attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
@@ -56,6 +69,15 @@ export function FieldMap({ t, center, zoom = 17, corners, onCornersChange, onCen
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const instance = map.current;
+    const imagery = BASEMAPS[basemap] || BASEMAPS.esri;
+    if (!instance || !base.current || base.current.options.attribution === imagery.attribution) return;
+    instance.removeLayer(base.current);
+    base.current = L.tileLayer(imagery.url, { maxZoom: 19, attribution: imagery.attribution }).addTo(instance);
+    base.current.bringToBack();
+  }, [basemap]);
 
   useEffect(() => {
     const instance = map.current;
