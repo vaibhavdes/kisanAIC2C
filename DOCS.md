@@ -10,9 +10,10 @@
 | `data/crops/global_crop_catalog.json` | ~36 crops: EcoCrop ranges, cycle, water class, N-fixing, names in 8 languages |
 | `data/practices/regenerative_practices.json` | Regenerative practice catalog with localized names (used by the engine) |
 | `data/practices/practice_library.json` | Detailed practice write-ups loaded into a node's library as drafts for expert review |
-| `data/packs/IN-*.json` | Bundled state agronomy packs (MH, PB, UP) |
+| `data/packs/*.json` | Bundled regional agronomy packs (`IN-MH`, `BR-PR`) |
+| `data/i18n/en.json` | English farmer UI strings, shared by the web app and the API translator |
 | `static/` | Built web app served by the API (`npm run build:static`) |
-| `infra/cloud-run/` | Deploy scripts (`deploy.sh` for production, `deploy-test-nodes.sh` for two peer test nodes) |
+| `infra/cloud-run/` | `deploy-nodes.sh` deploys the India-Maharashtra and Brazil-Paraná nodes with their Scheduler jobs |
 | `config/cloud-run.example.yaml` | Env-vars file template for one node |
 
 ## Backend (`services/api/src/kisanai_c2c/`)
@@ -34,7 +35,9 @@
 | `providers/land.py` | Climate normals (Open-Meteo ERA5, fallback WorldClim + Hargreaves PET), SoilGrids soil and WorldCover land cover |
 | `providers/satellite.py` | Sentinel-2 indices, zone areas, neighbour comparison, server-rendered thumbnails |
 | `providers/gemini.py` | Vertex AI Gemini: plan writing, photo diagnosis, Soil Health Card extraction, chat, district brief |
-| `providers/voice.py` | Google Speech-to-Text and Text-to-Speech |
+| `providers/voice.py` | Google Speech-to-Text and Text-to-Speech (best voice per language discovered automatically) |
+| `providers/translate.py` | Cloud Translation for node languages without a dictionary; language names |
+| `providers/bigquery.py` | Daily publish of k-anonymous shared data to the node's BigQuery dataset |
 
 Scripts in `services/api/scripts/`:
 - `build_crop_catalog.py` builds the crop catalog from the EcoCrop CSV;
@@ -51,7 +54,7 @@ Tests (`services/api/tests/`) run offline with in-memory stores:
 | `App.tsx` | Farm loading and selection, language, view routing (map form and expert views are lazy-loaded) |
 | `api.ts` | Fetch wrapper with device ID and expert code headers, uploads, text-to-speech |
 | `hooks.ts` | `useResource` (shared 10-minute cache), `invalidate`, `useCropName` |
-| `constants/i18n.ts`, `constants/locales/` | Translations (en, hi, mr, te, kn); expert strings are English only |
+| `constants/i18n.ts`, `constants/locales/` | Hand-written translations (en, hi, mr, te, kn); other node languages are fetched from `/api/v1/i18n/{locale}`; expert strings are English only |
 | `utils/text.ts` | Turns engine codes and parameters into localized sentences |
 | `components/` | Header, language modal, step bar, mobile nav, Leaflet field map, shared UI pieces |
 | `views/` | Home, FarmForm, Weather, Soil, CropRec, Advisory (plan, satellite, chat), Diagnose, Expert |

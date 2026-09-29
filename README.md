@@ -1,10 +1,17 @@
 # KISANAI
 
-**Farm advice from satellite, soil and weather, in the farmer's language, on an open network that states can join.**
+**Farm advice from satellite, soil and weather, in the farmer's language, on an open BRICS network that countries and their states can join.**
 
-Built for *Build with AI: Code for Communities, Second Edition*, Track 04 Agricultural Intelligence (AgriN and regenerative agricultural intelligence).
+Built for *Build with AI: Code for Communities, Second Edition*, Track 04 AgriN & Regenerative Agricultural Intelligence (BRICS theme: Cooperation).
 
-[Live demo](https://kisanai-c2c-313370978552.asia-south1.run.app) · Google Cloud Run (`asia-south1`) · Apache-2.0
+Two country nodes run on Google Cloud, each keeping its data in its own region:
+
+| Node | Region | Languages |
+|---|---|---|
+| [India, Maharashtra](https://kisanai-in-mh-313370978552.asia-south1.run.app) | `asia-south1` (Mumbai) | Marathi, Hindi, English |
+| [Brazil, Paraná](https://kisanai-br-pr-313370978552.southamerica-east1.run.app) | `southamerica-east1` (São Paulo) | Portuguese, English |
+
+Licence: Apache-2.0.
 
 ---
 
@@ -16,54 +23,81 @@ A smallholder deciding what to sow next week needs answers to concrete questions
 - Which crop fits my water, my soil and my last season?
 - What is wrong with this leaf?
 
-State universities publish good crop calendars, and satellites and forecasts are free. But the calendar sits in a PDF, the forecast is not tied to field operations, and nothing combines them for one field. Each state also keeps its own knowledge, with no standard way for another state to reuse it.
+Agricultural institutions publish good crop calendars, and satellites and forecasts are free. But the calendar sits in a PDF, the forecast isn't tied to field operations, and nothing combines them for one field. Each country and state also keeps its own knowledge, with no shared digital infrastructure for another to reuse it.
 
 ## What KISANAI does
 
 | Farmer need | How it is answered | Evidence behind it |
 |---|---|---|
-| **What to sow now** | A deterministic engine ranks ~36 crops for the field on today's date. It checks the state sowing window, a seasonal water balance (FAO-56 style: PET × Kc against effective rain, stored soil moisture and irrigation), temperature fit (FAO EcoCrop), measured soil pH, groundwater status and rotation. Every crop comes with its reasons. | State agronomy pack, Open-Meteo ERA5 normals, ISRIC SoilGrids, Soil Health Card, farmer inputs |
-| **Regenerative choice** | Each option also gets a *soil-friendly* score (N-fixing, water use, residue, diversity), plus practices that fit it, such as rhizobium, BBF, residue mulching or AWD. | Curated practice catalog; state priority practices |
-| **This week's operations** | Sowing readiness from soil moisture. Spray windows are computed hour by hour (wind, rain probability, 6 h dry after). Also irrigation need from ET₀, drainage risk, heat and cold extremes, and disease-risk weather (leaf wetness, late-blight Smith periods, blast). | Open-Meteo hourly forecast; IMD warnings where available |
-| **Field condition** | Sentinel-2 NDVI, NDMI and NDWI zones over the plotted boundary, with the acreage in each class. The field median is compared with nearby cropland from ESA WorldCover. | Google Earth Engine |
-| **A plan in plain words** | Gemini writes a short plan in the farmer's language. It may only use crops and practices the engine allowed, and must cite the numbers. The farmer marks each step *will do* or *not for me*, and later *worked / partly / didn't work*. | Engine output + evidence IDs |
+| **What to sow now** | A deterministic engine ranks ~36 crops for the field on today's date. It checks the regional sowing window and legal dates, a seasonal water balance (FAO-56 style: PET × Kc against effective rain, stored soil moisture and irrigation), temperature fit (FAO EcoCrop), measured soil pH, groundwater status and rotation. Every crop comes with its reasons. | Regional agronomy pack, Open-Meteo ERA5 normals, ISRIC SoilGrids, soil test, farmer inputs |
+| **Regenerative choice** | Each option also gets a *soil-friendly* score (N-fixing, water use, residue, diversity), plus practices that fit the region, such as no-till, inoculation, residue mulching, BBF or AWD. | Practice catalog; regional priority practices |
+| **This week's operations** | Sowing readiness from soil moisture. Spray windows are computed hour by hour (wind, rain probability, 6 h dry after). Also irrigation need from ET₀, drainage risk, heat and cold extremes, and disease-risk weather (leaf wetness, late-blight Smith periods, blast). | Open-Meteo hourly forecast; IMD warnings in India |
+| **Field condition** | Sentinel-2 NDVI, NDMI and NDWI zones over the plotted boundary, with the area in each class. The field median is compared with nearby cropland from ESA WorldCover. | Google Earth Engine |
+| **A plan in plain words** | Gemini writes a short plan in the farmer's language using the engine's crops, the field's satellite readings and the week's windows. It may only use practices the engine allowed. The farmer marks each step *will do* or *not for me*, and later *worked / partly / didn't work*. | Engine output + evidence IDs |
 | **Plant Doctor** | Gemini reads a leaf photo and returns structured screening: findings, likely causes, safe next steps and prevention. Poor photos, low confidence and fast-spreading diseases go to an expert queue, and the expert's reply shows up in the farmer's app. | Photo + local weather risk |
-| **Soil Health Card** | Upload a photo or PDF and Gemini extracts 12 parameters. Values are rated against Soil Health Card limits and explained. Measured values always override estimates. | Farmer's card |
-| **Voice** | Ask by voice and hear answers read aloud (Google Speech-to-Text and Text-to-Speech, with a browser fallback). A short-lived chat is grounded in the same computed windows. | |
-
-Languages: English, हिन्दी, मराठी, తెలుగు, ಕನ್ನಡ. The expert workspace is in English.
+| **Soil test** | Upload a photo or PDF of the lab report (India's Soil Health Card or any lab report) and Gemini extracts the values and explains them. pH and salinity are rated everywhere; nutrient ratings use the country's official limits where they are encoded (India). | Farmer's report |
+| **Voice** | Ask by voice and hear answers read aloud. Google Speech-to-Text, plus the best available Text-to-Speech voice for the language, found automatically. | |
 
 ### Why the AI does not pick crops
 
-Gemini explains, reads photos and writes in the farmer's language. Crop ranking, sowing windows and spray windows come from transparent rules over measured data. That keeps them reproducible, auditable by state experts and identical in every language. When evidence is missing, the app says so; it never fills the gap with made-up numbers.
+Gemini explains, reads photos and writes in the farmer's language. Crop ranking, sowing windows and spray windows come from transparent rules over measured data. That keeps them reproducible, auditable by regional experts and identical in every language. When evidence is missing, the app says so; it never fills the gap with made-up numbers.
 
-## Interoperable state network (AgriN)
+## BRICS AgriN network
 
-Each deployment is a **node** serving one or more states (ISO 3166-2 codes such as `IN-MH`).
+Each deployment is a **node** for one country, serving one or more of its states or provinces (ISO 3166-2 codes such as `IN-MH` and `BR-PR`).
 
-- **Agronomy packs** are the state crop calendars: sowing windows by season, irrigation needs, groundwater category, legal sowing dates and priority practices. They follow [`contracts/agronomy-pack.schema.json`](contracts/agronomy-pack.schema.json) (JSON Schema 2020-12, ISO codes, crop IDs plus scientific names), so any country or state can publish one.
-- A node publishes a manifest at `/.well-known/agrin-node` listing its packs, practices and signal endpoint.
-- An officer on another node can import a pack **only from an allowlisted peer**. It is schema-validated, deduplicated by digest and **used only after expert approval**. Farms in that state immediately switch from the global baseline to the regional calendar.
-- **Practice bundles** ([`contracts/practice-bundle.schema.json`](contracts/practice-bundle.schema.json)) travel the same way. A node's practice write-ups ([`data/practices/practice_library.json`](data/practices/practice_library.json)) start as drafts and are published only after that node's expert reviews them. Field evidence is attached once at least 5 farmer outcomes exist.
-- **Signals** are district-level crop-health counts, published only for groups of 5 or more reports; no farm, farmer or location is ever shared. Each node's officers see their peers' signals in the expert workspace, which gives early warning of outbreaks across state borders.
+- **Agronomy packs** are regional crop calendars: sowing windows by season, irrigation needs, groundwater category, legal sowing dates and priority practices. They follow [`contracts/agronomy-pack.schema.json`](contracts/agronomy-pack.schema.json) (JSON Schema 2020-12, ISO codes, crop IDs plus scientific names), so any BRICS country can publish one.
+  - The **Maharashtra** pack comes from the state agricultural universities' packages of practice, with the CGWB groundwater category.
+  - The **Paraná** pack comes from the CONAB planting calendar, plus the MAPA/ADAPAR soybean sanitary-break dates that legally set when soybean may be sown.
+- Each node publishes a manifest at `/.well-known/agrin-node`. An officer on another node imports a pack **only from an allowlisted peer**; it is schema-validated, deduplicated by digest and **used only after local expert approval**. A Paraná farm registered on the India node switches from the global baseline to Paraná's calendar once the India expert approves the pack.
+- **Practice bundles** ([`contracts/practice-bundle.schema.json`](contracts/practice-bundle.schema.json)) travel the same way.
+  - Each node's write-ups ([`data/practices/practice_library.json`](data/practices/practice_library.json)) start as drafts and are published only after its expert reviews them.
+  - A bundle outside its declared countries is flagged and can't be approved blindly; for example, Maharashtra's black-soil BBF is flagged in Brazil.
+  - Field evidence is attached once at least 5 farmer outcomes exist.
+- **Signals** are district-level crop-health counts, published only for groups of 5 or more reports. Officers see their peers' signals in the expert workspace, which gives early warning across borders.
+- **Shared data on BigQuery:** every day, Cloud Scheduler asks each node to publish its k-anonymous calendars, signals and practice outcomes to a BigQuery dataset in its own region. The datasets are listed in **BigQuery Analytics Hub** exchanges (`brics_agrin_in`, `brics_agrin_br`) that other countries' agencies can subscribe to.
 
-Bundled packs: **Maharashtra, Punjab, Uttar Pradesh**. They are curated from the published state university packages of practice and are marked *pending state expert review*. Farms outside those states, including other BRICS countries, get the **global baseline**: FAO EcoCrop climate and soil fit plus the water balance, with sowing dates found by temperature. The crop catalog includes crops such as teff, cassava, canola and oats, with names in English, Hindi, Marathi, Telugu, Kannada, Portuguese, Russian and Chinese.
+A farm outside any pack region, anywhere in the world, gets the **global baseline**: FAO EcoCrop climate and soil fit plus the water balance, with sowing dates found by temperature.
+
+### Languages without hand-written files
+
+A node lists its farmer languages in `NODE_LANGUAGES`.
+- **Hand-written dictionaries:** English, Hindi, Marathi, Telugu and Kannada ship with the app.
+- **Any other language** (for example `pt-BR` on the Brazil node) is machine-translated once from [`data/i18n/en.json`](data/i18n/en.json) with **Google Cloud Translation** and cached in the node's database. This covers the UI strings and any missing crop or practice names; `{placeholders}` are protected, and a string that fails the check stays in English.
+- **What adapts automatically:** Gemini's output language and the Text-to-Speech voice follow the node's languages. A new country's node needs configuration, not code.
+
+## Google Cloud services
+
+| Service | Use |
+|---|---|
+| Cloud Run | One service per country node, in that country's region; dedicated least-privilege service account |
+| Vertex AI Gemini 3.5 Flash | Plans, leaf diagnosis, soil report reading, chat, district brief (asia-south1; global endpoint for the Brazil node) |
+| Google Earth Engine | Sentinel-2 indices, SoilGrids, WorldCover, WorldClim fallback |
+| Cloud Firestore | One database per node in its region (`kisanai-in-mh`, `kisanai-br-pr`) |
+| Cloud Storage | Private buckets per node for leaf photos and soil reports |
+| Cloud Translation | Node languages without a hand-written dictionary |
+| Speech-to-Text / Text-to-Speech | Voice questions and read-aloud answers |
+| BigQuery + Analytics Hub | Cross-country sharing of k-anonymous agricultural data |
+| Cloud Scheduler | Daily publish job, authenticated with a Google-signed OIDC token |
+| Secret Manager | Per-node expert access codes |
+| Cloud Build / Artifact Registry | Source deployments |
 
 ## Privacy
 
 - No login and no phone number. Each device gets an anonymous ID, and farms are private to that device.
 - Chat is not stored; it is wiped after 5 minutes.
-- Officers see aggregated dashboards and the cases farmers chose to send. Exchanges between nodes carry no personal data.
+- Officers see aggregated dashboards and the cases farmers chose to send. Exchanges between nodes and BigQuery listings carry no personal data and nothing below district level.
+- Each country's farm data, photos and shared dataset stay in that country's cloud region.
 
 ## Architecture
 
 ```
-React + Vite (apps/web) ── same origin ──> FastAPI (services/api) on Cloud Run
+React + Vite (apps/web) ── same origin ──> FastAPI (services/api) on Cloud Run, one service per country node
                                              ├─ engine.py      crop ranking, windows, water balance
                                              ├─ operations.py  sowing / spray / irrigation / disease-risk windows
-                                             ├─ providers/     Open-Meteo, IMD, Earth Engine, SoilGrids, Gemini, Speech
-                                             ├─ knowledge.py   crop catalog, practices, state packs (data/)
-                                             └─ store.py       SQLite (dev/demo) or Firestore; media local or GCS
+                                             ├─ providers/     Open-Meteo, IMD, Earth Engine, Gemini, Speech, Translation, BigQuery
+                                             ├─ knowledge.py   crop catalog, practices, regional packs, UI strings (data/)
+                                             └─ store.py       Firestore (production) or SQLite (development); media in GCS
 ```
 
 ## Data sources and attribution
@@ -75,10 +109,11 @@ React + Vite (apps/web) ── same origin ──> FastAPI (services/api) on Clo
 | ESA WorldCover v200 (Earth Engine) | Land cover; nearby cropland for comparison | CC-BY 4.0 |
 | Copernicus Sentinel-2 SR (Earth Engine) | NDVI / NDMI / NDWI | Copernicus open licence |
 | Open-Meteo forecast and ERA5 archive | Hourly and daily forecast, 2015-2024 climate normals | CC-BY 4.0 |
-| India Meteorological Department | District warnings (when credentials are configured) | IMD terms |
-| State university packages of practice; CGWB Dynamic Ground Water Resources assessment; Punjab Preservation of Subsoil Water Act 2009 | Sowing windows, state groundwater category, legal sowing dates | Cited per pack |
+| India Meteorological Department | District warnings in India (when credentials are configured) | IMD terms |
+| Maharashtra agricultural universities' packages of practice; CGWB Dynamic Ground Water Resources assessment | Maharashtra sowing windows and groundwater category | Cited in the pack |
+| CONAB planting calendar; MAPA Portaria 1.579/2026 and ADAPAR soybean sanitary break; EMBRAPA | Paraná planting windows, legal soybean dates, no-till and inoculation practices | Cited in the pack and practices |
 | Esri World Imagery; OpenStreetMap / CARTO labels; Nominatim | Field-plotting map and place search | Esri, ODbL |
-| pincodeapi.in | PIN code lookup | Service terms |
+| pincodeapi.in | Indian PIN code lookup | Service terms |
 
 ## Run locally
 
@@ -101,40 +136,43 @@ To rebuild the data from sources, run `python services/api/scripts/build_crop_ca
 
 ## Deploy
 
-- **One node:** `gcloud run deploy <service> --source . --env-vars-file config/cloud-run.local.yaml`. Start from [`config/cloud-run.example.yaml`](config/cloud-run.example.yaml).
-- **Two peer test nodes:** [`infra/cloud-run/deploy-test-nodes.sh`](infra/cloud-run/deploy-test-nodes.sh) deploys `kisanai-c2c-test` (MH+UP) and `kisanai-node-pb` (PB).
-
-For durable data, use `STORE_PROVIDER=firestore` and `MEDIA_PROVIDER=gcs`. SQLite in `/tmp` is only for demos.
+[`infra/cloud-run/deploy-nodes.sh`](infra/cloud-run/deploy-nodes.sh) deploys both country nodes and their daily publish jobs. [`infra/cloud-run/README.md`](infra/cloud-run/README.md) lists the one-time resources and how to add a country. For a single node, start from [`config/cloud-run.example.yaml`](config/cloud-run.example.yaml).
 
 ## Main API
 
 | Method | Path | Purpose |
 |---|---|---|
+| GET | `/api/v1/node` | Node country, regions and farmer languages |
+| GET | `/api/v1/i18n/{locale}` | Machine-translated UI strings for a node language |
 | POST/GET/PUT/DELETE | `/api/v1/farms[/{id}]` | Farms (private per device, `X-Actor-Id`) |
 | GET | `/api/v1/farms/{id}/weather/operational` | Sowing, spray, irrigation, drainage and disease-risk windows |
 | GET | `/api/v1/farms/{id}/crop-recommendations` | Ranked crops with reasons, windows and water balance |
 | GET | `/api/v1/farms/{id}/satellite/map` | Index zones and neighbour comparison |
-| POST | `/api/v1/farms/{id}/soil/extract`, `/soil` | Soil Health Card extraction and saving |
+| POST | `/api/v1/farms/{id}/soil/extract`, `/soil` | Soil report extraction and saving |
 | POST | `/api/v1/farms/{id}/advisories` | AI-written plan grounded in the engine |
 | POST | `/api/v1/farms/{id}/diagnoses` | Plant Doctor |
 | GET | `/.well-known/agrin-node` | Node manifest |
 | GET | `/api/v1/network/packs/{id}`, `/practices/{id}`, `/signals` | Public exchange endpoints |
-| * | `/api/v1/expert/...` | Cases, practices, imports, packs, dashboard (`X-Expert-Token`) |
+| POST | `/api/v1/internal/publish` | Daily BigQuery publish (Cloud Scheduler OIDC only) |
+| * | `/api/v1/expert/...` | Cases, practices, imports, packs, peer signals, dashboard (`X-Expert-Token`) |
 
 ## Honest limitations
 
-- Bundled state packs are curated by the team from published sources and still need sign-off by state experts. The app labels them that way.
+- Both bundled packs are curated by the team from official sources and still need sign-off by regional experts (for example IDR-Paraná / EMBRAPA and the Maharashtra agricultural universities). The app labels them that way.
+- The Paraná pack gives the soybean window that is legal statewide (20 Sep–31 Dec); earlier regional dates are stated in its regulation note but not yet applied per municipality.
+- Brazil has no groundwater category comparable to India's CGWB, so the Paraná pack says "unknown".
+- Nutrient ratings (N, P, K, micronutrients) use India's Soil Health Card limits and are shown only for Indian farms. Brazilian lab units and interpretation tables are not yet encoded.
+- Portuguese UI text is machine-translated and marked as such; a native speaker should review it.
 - The global baseline is coarse. It can suggest crops that are climatically possible but not locally grown, and a regional pack fixes that.
-- Groundwater is applied at state level (CGWB). Block-level categories vary inside a state, so a pack can add district values only with a cited source.
-- IMD warnings need IMD API credentials. Without them the app says IMD is unavailable and uses Open-Meteo only.
+- IMD warnings need IMD API credentials. Without them the app uses Open-Meteo only.
 - Plant Doctor is screening, not a lab diagnosis. It never names pesticide products or doses.
-- The officer access code is a shared secret per node. A production rollout should put the expert workspace behind the state's identity provider.
+- The officer access code is a per-node shared secret (kept in Secret Manager). A production rollout should put the expert workspace behind the agency's identity provider.
 
 ## Digital Public Good checklist
 
-- Open licence (Apache-2.0 code; packs CC-BY-4.0).
-- Open standards: JSON Schema contracts, ISO 3166-2, scientific crop names.
-- Privacy by design: no PII collected, anonymous devices, k ≥ 5 aggregation.
+- Open licence (Apache-2.0 code; packs and practices CC-BY-4.0).
+- Open standards: JSON Schema contracts, ISO 3166-2, BCP-47 language tags, scientific crop names.
+- Privacy by design: no PII collected, anonymous devices, k ≥ 5 aggregation, data kept in each country's region.
 - Documented data sources with licences (above).
-- Any state or country can run its own node and publish its own pack; no central owner.
-- Do-no-harm safeguards: expert review for risky diagnoses, no chemical doses, and honest *unavailable* states instead of invented data.
+- Any BRICS country or state can run its own node, in its own language, and publish its own pack; no central owner.
+- Do-no-harm safeguards: expert review for risky diagnoses and imported knowledge, no chemical doses, and honest *unavailable* states instead of invented data.

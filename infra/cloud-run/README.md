@@ -1,46 +1,47 @@
-# Cloud Run Deployment (`infra/cloud-run`)
+# Cloud Run deployment
 
-Deployment automation for the KISANAI C2C unified container service on Google Cloud Run.
+Each BRICS country node is its own Cloud Run service in its own region. [`deploy-nodes.sh`](deploy-nodes.sh) deploys:
 
-## Live Deployment Info
-
-- **Service**: `kisanai-c2c`
-- **Current Live Revision**: `kisanai-c2c-00008-8r4`
-- **Live Service URL**: `https://kisanai-c2c-313370978552.asia-south1.run.app`
-- **GCP Project**: `project-52e7ca23-228b-4cfd-879`
-- **Region**: `asia-south1` (Mumbai)
-- **Container Port**: `8080`
-- **Memory**: `1Gi`, **CPU**: `1`
-- **Concurrency**: `8`, **Max Instances**: `3`
-
-## Deploy Script
-
-Deploy the application from source using:
+| Service | Country / state | Region | Firestore DB | Bucket | BigQuery dataset | Analytics Hub exchange |
+|---|---|---|---|---|---|---|
+| `kisanai-in-mh` | India, Maharashtra (`IN-MH`) | asia-south1 | `kisanai-in-mh` | `<project>-kisanai-in-mh` | `agrin_in_mh` | `brics_agrin_in` |
+| `kisanai-br-pr` | Brazil, Paraná (`BR-PR`) | southamerica-east1 | `kisanai-br-pr` | `<project>-kisanai-br-pr` | `agrin_br_pr` | `brics_agrin_br` |
 
 ```bash
-bash infra/cloud-run/deploy.sh project-52e7ca23-228b-4cfd-879 asia-south1
+bash infra/cloud-run/deploy-nodes.sh project-52e7ca23-228b-4cfd-879
 ```
 
-The script builds the multi-stage `Dockerfile` (React build + Python runtime) in Cloud Build, pushes the container image to Google Artifact Registry, and deploys it to Cloud Run with full environment variables configured.
+The script also creates, or updates, a daily Cloud Scheduler job per node. The job calls `POST /api/v1/internal/publish` with a Google-signed OIDC token for `kisanai-scheduler@`, and the node verifies that token before publishing.
 
-## Two-node test network
-
-`deploy-test-nodes.sh` deploys two peer nodes as separate services, so the state network can be exercised without touching `kisanai-c2c`:
-
-| Service | States | Peer |
-|---|---|---|
-| `kisanai-c2c-test` | IN-MH, IN-UP | `kisanai-node-pb` |
-| `kisanai-node-pb` | IN-PB | `kisanai-c2c-test` |
+## One-time resources
 
 ```bash
-bash infra/cloud-run/deploy-test-nodes.sh project-52e7ca23-228b-4cfd-879 asia-south1
+P=project-52e7ca23-228b-4cfd-879
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com aiplatform.googleapis.com \
+  earthengine.googleapis.com firestore.googleapis.com storage.googleapis.com translate.googleapis.com speech.googleapis.com \
+  texttospeech.googleapis.com bigquery.googleapis.com analyticshub.googleapis.com cloudscheduler.googleapis.com \
+  secretmanager.googleapis.com --project $P
+
+# Per node (example: Brazil, Paraná)
+gcloud firestore databases create --database=kisanai-br-pr --location=southamerica-east1 --type=firestore-native --project $P
+gcloud storage buckets create gs://$P-kisanai-br-pr --location=southamerica-east1 --uniform-bucket-level-access --public-access-prevention --project $P
+openssl rand -hex 16 | tr -d '\n' | gcloud secrets create kisanai-expert-code-br-pr --data-file=- --project $P
 ```
 
-The expert access code is generated once into `.env.test-nodes.local` (git-ignored). Both nodes keep demo data in SQLite on one warm instance, so data resets on redeploy. For durable data, enable Firestore and a GCS bucket and use `config/cloud-run.example.yaml`.
+Service accounts:
+- **`kisanai-node`** (the Cloud Run identity) has these roles:
+  - Firestore user, Storage object user, Secret accessor;
+  - Vertex AI user, Earth Engine viewer, Service usage consumer, Cloud Translation user;
+  - BigQuery job user and data editor.
+- **`kisanai-scheduler`** has no roles; it only signs the daily call.
 
-Demo of the exchange:
-1. On `kisanai-c2c-test`, create a farm in Punjab; it gets the global baseline.
-2. Open **Expert → State network**, import the Punjab crop calendar from `kisanai-node-pb` and approve it.
-3. Refresh the farm's crops; they now follow the Punjab calendar.
+The BigQuery dataset is created by the node's first publish. Each dataset is then listed in its region's Analytics Hub exchange (Analytics Hub needs the exchange and the dataset in the same region).
 
-Both deploy scripts require `EXPERT_ACCESS_TOKEN`.
+## Adding a country
+
+1. Build its agronomy pack with official sources (see `services/api/scripts/build_agronomy_packs.py`) and add practice write-ups to `data/practices/practice_library.json`.
+2. Create the node's Firestore database, bucket and expert-code secret in the country's region.
+3. Deploy with its own `NODE_ID`, `NODE_COUNTRY_CODE`, `NODE_SUBDIVISIONS`, `NODE_LANGUAGES` and `DEFAULT_LOCALE`. Languages without a hand-written dictionary are machine-translated automatically.
+4. Add the new node's URL to the other nodes' `PEER_NODES`, and list its BigQuery dataset in an Analytics Hub exchange.
+
+The expert access code for each node is in Secret Manager (`kisanai-expert-code-<node>`). The earlier `kisanai-c2c` service is separate and is not changed by this script.

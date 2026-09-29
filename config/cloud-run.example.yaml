@@ -4,17 +4,22 @@
 APP_ENV: "production"
 NODE_ID: "india-node-mh"
 NODE_COUNTRY_CODE: "IN"
-NODE_LABEL: "Maharashtra and Uttar Pradesh node"
-NODE_SUBDIVISIONS: "IN-MH,IN-UP"
+NODE_LABEL: "India - Maharashtra node"
+NODE_SUBDIVISIONS: "IN-MH"
+NODE_LANGUAGES: "mr-IN,hi-IN,en-IN"
+DEFAULT_LOCALE: "mr-IN"
 PUBLIC_BASE_URL: "https://<service>-<project-number>.asia-south1.run.app"
 PEER_NODES: "https://<peer-service>-<project-number>.asia-south1.run.app"
-EXPERT_ACCESS_TOKEN: "<long random code for officers>"
+# EXPERT_ACCESS_TOKEN comes from Secret Manager: --set-secrets EXPERT_ACCESS_TOKEN=kisanai-expert-code-in-mh:latest
 
 # Durable storage (enable the Firestore API and create the database and bucket first)
 STORE_PROVIDER: "firestore"
-FIRESTORE_DATABASE: "kisanai-c2c"
+FIRESTORE_DATABASE: "kisanai-in-mh"
 MEDIA_PROVIDER: "gcs"
-MEDIA_BUCKET: "<project-id>-kisanai-media"
+MEDIA_BUCKET: "<project-id>-kisanai-in-mh"
+BIGQUERY_DATASET: "agrin_in_mh"
+BIGQUERY_LOCATION: "asia-south1"
+JOB_SERVICE_ACCOUNT: "kisanai-scheduler@<project-id>.iam.gserviceaccount.com"
 
 GOOGLE_CLOUD_PROJECT: "<project-id>"
 AI_ENABLED: "true"

@@ -24,10 +24,10 @@ BR_SERVICE="kisanai-br-pr"; BR_REGION="southamerica-east1"
 IN_URL="https://${IN_SERVICE}-${PROJECT_NUMBER}.${IN_REGION}.run.app"
 BR_URL="https://${BR_SERVICE}-${PROJECT_NUMBER}.${BR_REGION}.run.app"
 
-# Env vars are joined with "@" (gcloud's ^@^ delimiter) so list values keep their commas.
-COMMON="APP_ENV=production@GOOGLE_CLOUD_PROJECT=${PROJECT_ID}@STORE_PROVIDER=firestore@MEDIA_PROVIDER=gcs"
-COMMON="${COMMON}@AI_ENABLED=true@AI_PROVIDER=vertex@GEMINI_MODEL=gemini-3.5-flash@GEMINI_FALLBACK_MODEL=gemini-3.7-flash"
-COMMON="${COMMON}@EARTH_ENGINE_ENABLED=true@SPEECH_ENABLED=true@OPEN_METEO_ENABLED=true@JOB_SERVICE_ACCOUNT=${SCHEDULER_SA}"
+# Env vars are joined with "|" (gcloud's ^|^ delimiter) so list values keep their commas.
+COMMON="APP_ENV=production|GOOGLE_CLOUD_PROJECT=${PROJECT_ID}|STORE_PROVIDER=firestore|MEDIA_PROVIDER=gcs"
+COMMON="${COMMON}|AI_ENABLED=true|AI_PROVIDER=vertex|GEMINI_MODEL=gemini-3.5-flash|GEMINI_FALLBACK_MODEL=gemini-3.7-flash"
+COMMON="${COMMON}|EARTH_ENGINE_ENABLED=true|SPEECH_ENABLED=true|OPEN_METEO_ENABLED=true|JOB_SERVICE_ACCOUNT=${SCHEDULER_SA}"
 
 deploy() {
   local service="$1" region="$2" env="$3"
@@ -46,7 +46,7 @@ deploy() {
     --max-instances=3 \
     --timeout=120 \
     --set-secrets="EXPERT_ACCESS_TOKEN=kisanai-expert-code-${service#kisanai-}:latest" \
-    --set-env-vars="^@^${env}"
+    --set-env-vars="^|^${env}"
 }
 
 schedule() {
@@ -58,8 +58,8 @@ schedule() {
     || gcloud scheduler jobs update http "${service}-publish" "${args[@]}"
 }
 
-deploy "${IN_SERVICE}" "${IN_REGION}" "${COMMON}@NODE_ID=india-node-mh@NODE_LABEL=India - Maharashtra node@NODE_COUNTRY_CODE=IN@NODE_SUBDIVISIONS=IN-MH@NODE_LANGUAGES=mr-IN,hi-IN,en-IN@DEFAULT_LOCALE=mr-IN@VERTEX_LOCATION=${IN_REGION}@FIRESTORE_DATABASE=kisanai-in-mh@MEDIA_BUCKET=${PROJECT_ID}-kisanai-in-mh@BIGQUERY_DATASET=agrin_in_mh@BIGQUERY_LOCATION=${IN_REGION}@IMD_ENABLED=true@PUBLIC_BASE_URL=${IN_URL}@PEER_NODES=${BR_URL}"
-deploy "${BR_SERVICE}" "${BR_REGION}" "${COMMON}@NODE_ID=brazil-node-pr@NODE_LABEL=Brazil - Paraná node@NODE_COUNTRY_CODE=BR@NODE_SUBDIVISIONS=BR-PR@NODE_LANGUAGES=pt-BR,en-IN@DEFAULT_LOCALE=pt-BR@VERTEX_LOCATION=global@FIRESTORE_DATABASE=kisanai-br-pr@MEDIA_BUCKET=${PROJECT_ID}-kisanai-br-pr@BIGQUERY_DATASET=agrin_br_pr@BIGQUERY_LOCATION=${BR_REGION}@IMD_ENABLED=false@PUBLIC_BASE_URL=${BR_URL}@PEER_NODES=${IN_URL}"
+deploy "${IN_SERVICE}" "${IN_REGION}" "${COMMON}|NODE_ID=india-node-mh|NODE_LABEL=India - Maharashtra node|NODE_COUNTRY_CODE=IN|NODE_SUBDIVISIONS=IN-MH|NODE_LANGUAGES=mr-IN,hi-IN,en-IN|DEFAULT_LOCALE=mr-IN|VERTEX_LOCATION=${IN_REGION}|FIRESTORE_DATABASE=kisanai-in-mh|MEDIA_BUCKET=${PROJECT_ID}-kisanai-in-mh|BIGQUERY_DATASET=agrin_in_mh|BIGQUERY_LOCATION=${IN_REGION}|IMD_ENABLED=true|PUBLIC_BASE_URL=${IN_URL}|PEER_NODES=${BR_URL}"
+deploy "${BR_SERVICE}" "${BR_REGION}" "${COMMON}|NODE_ID=brazil-node-pr|NODE_LABEL=Brazil - Paraná node|NODE_COUNTRY_CODE=BR|NODE_SUBDIVISIONS=BR-PR|NODE_LANGUAGES=pt-BR,en-IN|DEFAULT_LOCALE=pt-BR|VERTEX_LOCATION=global|FIRESTORE_DATABASE=kisanai-br-pr|MEDIA_BUCKET=${PROJECT_ID}-kisanai-br-pr|BIGQUERY_DATASET=agrin_br_pr|BIGQUERY_LOCATION=${BR_REGION}|IMD_ENABLED=false|PUBLIC_BASE_URL=${BR_URL}|PEER_NODES=${IN_URL}"
 
 schedule "${IN_SERVICE}" "${IN_REGION}" "${IN_URL}"
 schedule "${BR_SERVICE}" "${BR_REGION}" "${BR_URL}"
