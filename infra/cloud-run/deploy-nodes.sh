@@ -2,7 +2,8 @@
 set -euo pipefail
 
 # Deploys the KISANAI AgriN nodes as separate Cloud Run services. Each keeps its data in its own
-# region and gets a daily Cloud Scheduler job that publishes shareable data to BigQuery.
+# region and gets a daily Cloud Scheduler job that publishes shareable data to BigQuery and asks Gemini to
+# draft a crop calendar (for expert review) for a region whose farms have none.
 #   kisanai-in-mh     India, Maharashtra              asia-south1 (Mumbai)
 #   kisanai-in-north  India, Punjab + Uttar Pradesh   asia-south2 (Delhi)
 #   kisanai-br-pr     Brazil, Paraná                  southamerica-east1 (São Paulo)
@@ -56,11 +57,11 @@ deploy() {
   gcloud run deploy "kisanai-${node}" \
     --project="${PROJECT_ID}" --region="${region}" "${source[@]}" \
     --service-account="${NODE_SA}" --allow-unauthenticated --port=8080 \
-    --memory=1Gi --cpu=1 --concurrency=40 --min-instances=1 --max-instances=3 --timeout=120 \
+    --memory=1Gi --cpu=1 --concurrency=40 --min-instances=1 --max-instances=3 --timeout=300 \
     --set-secrets="${secrets}" ${network[@]+"${network[@]}"} \
     --set-env-vars="^|^${COMMON}|FIRESTORE_DATABASE=kisanai-${node}|MEDIA_BUCKET=${PROJECT_ID}-kisanai-${node}|BIGQUERY_DATASET=${dataset}|BIGQUERY_LOCATION=${region}|PUBLIC_BASE_URL=${url}|${env}"
   local args=(--project="${PROJECT_ID}" --location="${region}" --schedule="15 2 * * *" --time-zone="UTC"
-              --uri="${url}/api/v1/internal/publish" --http-method=POST
+              --uri="${url}/api/v1/internal/publish" --http-method=POST --attempt-deadline=300s
               --oidc-service-account-email="${SCHEDULER_SA}" --oidc-token-audience="${url}/api/v1/internal/publish")
   gcloud scheduler jobs create http "kisanai-${node}-publish" "${args[@]}" 2>/dev/null \
     || gcloud scheduler jobs update http "kisanai-${node}-publish" "${args[@]}"

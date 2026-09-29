@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import time
 from collections import Counter, defaultdict
 from concurrent.futures import ThreadPoolExecutor
@@ -59,6 +60,7 @@ from .store import DocumentStore, get_store
 
 POLICY_VERSION = "kisanai-engine-2.0.0"
 _NETWORK_CACHE: dict[str, tuple[float, dict[str, Any]]] = {}
+AI_DRAFT_STATUS = "ai_draft_pending_review"
 MIN_GROUP_SIZE = 5  # k-anonymity threshold for anything shared outside the node
 HANDWRITTEN_LOCALES = {"en-IN", "hi-IN", "mr-IN", "te-IN", "kn-IN"}  # dictionaries shipped with the web app
 
@@ -599,7 +601,7 @@ class AppService:
                        or catalog[c["crop_id"]]["scientific_name"] != c["scientific_name"]]
             if unknown:
                 findings.append(f"Crops not in this node's catalog or with a different scientific name: {', '.join(unknown)}")
-            if (bundle.get("origin") or {}).get("node_id") == self.settings.node_id:
+            if (bundle.get("origin") or {}).get("node_id") == self.settings.node_id and bundle["review"]["status"] != AI_DRAFT_STATUS:
                 findings.append("This pack was exported by this same node")
         elif self.settings.node_country_code not in bundle["applicability"]["country_codes"]:
             findings.append("This country is outside the practice's declared applicability")
@@ -645,6 +647,51 @@ class AppService:
             )
             self.store.put("practices", practice.id, practice.model_dump(mode="json"))
         return updated
+
+    # ------------------------------------------------------------------ AI-drafted crop calendars
+    def regions_without_pack(self, actor: Actor) -> list[dict[str, Any]]:
+        """Regions where this node's farms fall back to the global baseline because no regional pack is active."""
+        covered = {item.get("subdivision_code") for item in self._imported_packs()}
+        covered |= {code for code in bundled_packs() if code in self.settings.node_subdivision_list}
+        drafting = {item.bundle["region"]["subdivision_code"] for item in self.imports(actor)
+                    if item.bundle_type == "agronomy_pack" and item.local_review_status == "pending"}
+        regions: dict[str, dict[str, Any]] = {}
+        for value in self.store.list("farms", filters={"node_id": actor.node_id}, limit=500):
+            code = subdivision_code(value.get("country_code"), value.get("state_code"))
+            if not code or code in covered:
+                continue
+            entry = regions.setdefault(code, {"subdivision_code": code, "country_code": value["country_code"],
+                                              "name": value.get("state_name") or code, "farms": 0, "draft_pending": code in drafting})
+            entry["farms"] += 1
+        return sorted(regions.values(), key=lambda item: -item["farms"])
+
+    def draft_pack(self, actor: Actor, code: str) -> ExchangeImport:
+        """Gemini researches the region's official calendars with Google Search and drafts a pack in the exchange
+        schema. It enters the same review queue as imports; farms use it only after an officer approves it."""
+        region = next((item for item in self.regions_without_pack(actor) if item["subdivision_code"] == code.upper()), None)
+        if region is None:
+            raise LookupError("No farms in this region are missing a crop calendar")
+        if region["draft_pending"]:
+            raise RuntimeError("A calendar for this region is already waiting for review")
+        catalog = crop_catalog()
+        draft, sources, model, _ = GeminiProvider(self.settings).draft_pack(
+            region=region["name"], country_code=region["country_code"], subdivision_code=region["subdivision_code"],
+            crops={cid: crop["names"]["en"] for cid, crop in catalog.items()})
+        if not sources:
+            raise ValueError("Gemini found no web sources for this region, so no draft was stored")
+        pack = build_draft_pack(draft.model_dump(), region, sources, model, self.settings)
+        if not pack["crops"]:
+            raise ValueError("Gemini found no sourced sowing dates for this region, so no draft was stored")
+        return self.import_bundle(actor, pack, source_url=f"ai-draft:{model}+google-search")
+
+    def auto_draft_missing_packs(self, limit: int = 1) -> list[str]:
+        """Daily job: draft calendars for the regions with the most farms that have neither a pack nor a pending draft."""
+        actor = Actor(subject="ai-drafter", node_id=self.settings.node_id, roles={Role.expert})
+        drafted = []
+        for region in [item for item in self.regions_without_pack(actor) if not item["draft_pending"]][:limit]:
+            self.draft_pack(actor, region["subdivision_code"])
+            drafted.append(region["subdivision_code"])
+        return drafted
 
     # ------------------------------------------------------------------ network
     def node_manifest(self) -> dict[str, Any]:
@@ -889,3 +936,57 @@ class AppService:
             practice = Practice(**item, license="CC-BY-4.0", node_id=self.settings.node_id,
                                 created_by="knowledge-base", review_status="draft")
             self.store.put("practices", practice.id, practice.model_dump(mode="json"))
+
+
+_MMDD = re.compile(r"^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$")
+
+
+def build_draft_pack(draft: dict[str, Any], region: dict[str, Any], sources: list[dict[str, str]], model: str,
+                     settings: Settings) -> dict[str, Any]:
+    """Turns Gemini's structured draft into a schema-valid agronomy pack, dropping anything it cannot verify
+    locally (unknown crop ids, malformed dates or seasons)."""
+    catalog = crop_catalog()
+    slug = lambda text: re.sub(r"[^a-z_]", "", re.sub(r"[\s-]+", "_", text.strip().lower()))[:20]  # noqa: E731
+    seasons = {}
+    for season in draft["seasons"]:
+        sid, months = slug(season["id"]), sorted({m for m in season["months"] if 1 <= m <= 12})
+        if len(sid) >= 2 and months:
+            seasons[sid] = months
+    crops = []
+    for crop in draft["crops"]:
+        if crop["crop_id"] not in catalog:
+            continue
+        windows = []
+        for window in crop["sowing_windows"]:
+            season = slug(window["season"])
+            if season not in seasons or not _MMDD.match(window["start"]) or not _MMDD.match(window["end"]):
+                continue
+            item = {"season": season, "start": window["start"], "end": window["end"], "irrigation_required": bool(window["irrigation_required"])}
+            if window.get("label"):
+                item["label"] = window["label"][:80]
+            windows.append(item)
+        if windows:
+            entry = {"crop_id": crop["crop_id"], "scientific_name": catalog[crop["crop_id"]]["scientific_name"], "sowing_windows": windows}
+            if crop.get("note"):
+                entry["note"] = crop["note"][:400]
+            crops.append(entry)
+    country, sub = region["subdivision_code"].split("-", 1)
+    now = datetime.now(UTC).isoformat()
+    return {
+        "schema_version": "1.0.0",
+        "pack_id": f"pack_{country.lower()}_{slug(sub) or sub.lower()}_ai_draft",
+        "pack_version": 1,
+        "region": {"country_code": country, "subdivision_code": region["subdivision_code"], "name": region["name"][:120],
+                   "agro_climatic_zones": [zone[:160] for zone in draft["agro_climatic_zones"][:12]]},
+        "origin": {"node_id": settings.node_id, "organization_label": f"AI draft by {settings.node_label} ({model}, Google Search)"[:160],
+                   "exported_at": now},
+        "license": "CC-BY-4.0",
+        "review": {"status": AI_DRAFT_STATUS, "reviewer": None, "reviewed_at": None,
+                   "note": "Drafted by Gemini from web sources found with Google Search. Check every window against the sources before approving."},
+        "sources": sources,
+        "seasons": [{"id": sid, "months": months} for sid, months in seasons.items()],
+        "groundwater": {"category": draft["groundwater_category"], "scope": "state", "note": draft["groundwater_note"][:600],
+                        "source": "AI draft - verify"},
+        "crops": crops,
+    }
+

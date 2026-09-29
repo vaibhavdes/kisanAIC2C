@@ -116,7 +116,13 @@ def publish_shared_data(request: Request, authorization: str | None = Header(def
     """Called daily by Cloud Scheduler with a Google-signed OIDC token: publishes shareable data to BigQuery."""
     allowed = [settings.job_service_account] if settings.job_service_account else []
     require_google_identity(request, authorization, "/api/v1/internal/publish", allowed)
-    return {"node_id": settings.node_id, "published": svc.publish_shared_data()}
+    published = svc.publish_shared_data()
+    try:  # regions whose farms have no crop calendar get an AI draft for expert review (one per day)
+        drafted = svc.auto_draft_missing_packs(limit=1)
+    except Exception as exc:  # noqa: BLE001 - publishing already succeeded
+        logger.warning("AI pack draft skipped: %s", exc)
+        drafted = []
+    return {"node_id": settings.node_id, "published": published, "drafted_packs": drafted}
 
 
 class ImdRelayRequest(BaseModel):
@@ -367,6 +373,20 @@ def review_import(import_id: str, payload: ExchangeReview, actor: Actor = Depend
 @app.get("/api/v1/expert/packs")
 def packs(actor: Actor = Depends(expert), svc: AppService = Depends(service)):
     return svc.list_packs()
+
+
+@app.get("/api/v1/expert/packs/missing")
+def packs_missing(actor: Actor = Depends(expert), svc: AppService = Depends(service)):
+    return svc.regions_without_pack(actor)
+
+
+class PackDraftRequest(BaseModel):
+    subdivision_code: str = Field(pattern="^[A-Za-z]{2}-[A-Za-z0-9]{1,3}$")
+
+
+@app.post("/api/v1/expert/packs/draft", status_code=201)
+def draft_pack(payload: PackDraftRequest, actor: Actor = Depends(expert), svc: AppService = Depends(service)):
+    return svc.draft_pack(actor, payload.subdivision_code)
 
 
 @app.get("/api/v1/expert/network/peers")

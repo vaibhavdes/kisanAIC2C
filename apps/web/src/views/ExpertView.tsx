@@ -306,6 +306,8 @@ function NetworkTab({ t, locale }: { t: T; locale: Locale }) {
   const peers = useExpert<Json>("/api/v1/expert/network/peers");
   const imports = useExpert<Json[]>("/api/v1/expert/exchange/imports");
   const signals = useExpert<Json>("/api/v1/expert/network/signals");
+  const missing = useExpert<Json[]>("/api/v1/expert/packs/missing");
+  const [drafting, setDrafting] = useState("");
   const cropName = useCropName(locale);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -317,7 +319,7 @@ function NetworkTab({ t, locale }: { t: T; locale: Locale }) {
     try {
       await fn();
       setNotice(ok);
-      await Promise.all([packs.reload(), imports.reload()]);
+      await Promise.all([packs.reload(), imports.reload(), missing.reload()]);
     } catch (err) {
       setError((err as Error).message);
     }
@@ -334,6 +336,11 @@ function NetworkTab({ t, locale }: { t: T; locale: Locale }) {
     await api("/api/v1/expert/exchange/imports", { method: "POST", body: JSON.stringify(parsed) }, true);
     setPaste("");
   }, t("ex_imported_for_review"));
+  const draftPack = async (code: string) => {
+    setDrafting(code);
+    await run(() => api("/api/v1/expert/packs/draft", { method: "POST", body: JSON.stringify({ subdivision_code: code }) }, true), t("ex_draft_ready"));
+    setDrafting("");
+  };
   const review = (id: string, approve: boolean) =>
     run(() => api(`/api/v1/expert/exchange/imports/${id}`, { method: "PATCH", body: JSON.stringify({ approve, note: approve ? "Approved after local review" : "Rejected after local review" }) }, true),
       approve ? t("ex_approved") : t("ex_rejected"));
@@ -410,6 +417,24 @@ function NetworkTab({ t, locale }: { t: T; locale: Locale }) {
                    crop: cropName(s.crop), category: t(`category_${s.category}`), reports: s.reports }))} />
 
       <div className="card-block">
+        <h3>{t("ex_missing_packs")}</h3>
+        <p className="muted">{t("ex_missing_packs_desc")}</p>
+        {missing.data && !missing.data.length && <p className="muted">{t("ex_no_missing_packs")}</p>}
+        <ul className="peer-items">
+          {(missing.data || []).map((r) => (
+            <li key={r.subdivision_code}>
+              <span>{t("ex_missing_item", { name: r.name, code: r.subdivision_code, farms: r.farms })}</span>
+              {r.draft_pending ? <span className="muted">{t("ex_draft_waiting")}</span> : (
+                <button className="small secondary" disabled={!!drafting} onClick={() => draftPack(r.subdivision_code)}>
+                  {drafting === r.subdivision_code ? t("ex_drafting") : t("ex_draft_ai")}
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="card-block">
         <h3>{t("ex_review_queue")}</h3>
         {!(imports.data || []).length && <p className="muted">{t("ex_no_imports")}</p>}
         {(imports.data || []).map((item) => (
@@ -421,7 +446,27 @@ function NetworkTab({ t, locale }: { t: T; locale: Locale }) {
             </div>
             {item.compatibility_findings.length > 0 && <ul className="warn-text">{item.compatibility_findings.map((f: string) => <li key={f}>{f}</li>)}</ul>}
             {item.bundle_type === "agronomy_pack" && (
-              <small className="muted">{t("ex_pack_summary", { crops: item.bundle.crops.length, sources: item.bundle.sources.length, gw: String(item.bundle.groundwater?.category || "unknown").replace(/_/g, "-") })}</small>
+              <>
+                {item.bundle.review?.status === "ai_draft_pending_review" && <p className="warn-text">{t("ex_ai_draft_note")}</p>}
+                <small className="muted">{t("ex_pack_summary", { crops: item.bundle.crops.length, sources: item.bundle.sources.length, gw: String(item.bundle.groundwater?.category || "unknown").replace(/_/g, "-") })}</small>
+                <details>
+                  <summary>{t("ex_pack_details")}</summary>
+                  <ul>
+                    {item.bundle.crops.map((c: Json) => (
+                      <li key={c.crop_id}>
+                        <b>{cropName(c.crop_id)}</b>: {c.sowing_windows.map((w: Json) => `${w.season} ${w.start} → ${w.end}${w.irrigation_required ? " (irrigated)" : ""}`).join("; ")}
+                        {c.note && <small className="muted"> — {c.note}</small>}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="muted">{t("ex_sources")}:</p>
+                  <ul>
+                    {item.bundle.sources.map((src: Json, i: number) => (
+                      <li key={i}>{src.url ? <a href={src.url} target="_blank" rel="noreferrer">{src.title}</a> : src.title}</li>
+                    ))}
+                  </ul>
+                </details>
+              </>
             )}
             {item.local_review_status === "pending" && (
               <div className="action-btns">

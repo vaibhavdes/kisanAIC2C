@@ -101,6 +101,7 @@
         "status": {
           "enum": [
             "curated_pending_review",
+            "ai_draft_pending_review",
             "reviewed"
           ]
         },

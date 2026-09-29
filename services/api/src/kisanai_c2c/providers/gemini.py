@@ -1,4 +1,5 @@
-"""Gemini on Vertex AI: grounded field plans, leaf diagnosis, Soil Health Card reading, chat.
+"""Gemini on Vertex AI: grounded field plans, leaf diagnosis, Soil Health Card reading, chat, and
+AI-drafted crop calendars (Google Search grounding) for regions that have no reviewed pack yet.
 
 Gemini never chooses crops or invents numbers. Crop options, weather windows and soil ratings
 come from the deterministic engine and are passed in as facts; Gemini explains them in the
@@ -86,6 +87,36 @@ class SoilOutput(BaseModel):
     card_recommendations: list[str] = Field(default_factory=list)
     plain_explanation: str | None = None
     uncertain_fields: list[str] = Field(default_factory=list)
+
+
+SOCIAL_SITES = ("facebook.", "youtube.", "instagram.", "twitter.", "x.com", "linkedin.", "whatsapp.", "reddit.", "quora.", "pinterest.")
+
+
+class DraftWindow(BaseModel):
+    season: str
+    start: str = Field(description="MM-DD")
+    end: str = Field(description="MM-DD")
+    irrigation_required: bool
+    label: str | None = None
+
+
+class DraftCrop(BaseModel):
+    crop_id: str
+    sowing_windows: list[DraftWindow]
+    note: str | None = None
+
+
+class DraftSeason(BaseModel):
+    id: str
+    months: list[int]
+
+
+class PackDraftOutput(BaseModel):
+    agro_climatic_zones: list[str]
+    seasons: list[DraftSeason]
+    groundwater_category: Literal["safe", "semi_critical", "critical", "over_exploited", "unknown"]
+    groundwater_note: str
+    crops: list[DraftCrop]
 
 
 class GeminiProvider:
@@ -278,3 +309,65 @@ Statistics: {json.dumps(stats, ensure_ascii=False, default=str)}
 """
         text, _ = self._generate([prompt], schema=None, temperature=0.2)
         return str(text).strip()
+
+    # --- AI-drafted crop calendar ----------------------------------------------------------
+    def _research(self, prompt: str) -> tuple[str, list[dict[str, str]], str]:
+        """One Google Search-grounded call; returns the findings, the web sources Gemini used and the model."""
+        from google.genai import types
+
+        if not self.settings.ai_enabled or not self._targets():
+            raise GeminiUnavailable("AI is not configured on this node")
+        config = types.GenerateContentConfig(temperature=0.1, tools=[types.Tool(google_search=types.GoogleSearch())])
+        errors: list[str] = []
+        for model, location in self._targets():
+            try:
+                client = self._client(location)
+                response = client.models.generate_content(model=model, contents=[prompt], config=config)
+                text = (response.text or "").strip()
+                metadata = response.candidates[0].grounding_metadata if response.candidates else None
+                sources, seen = [], set()
+                for chunk in (metadata.grounding_chunks or []) if metadata else []:
+                    web = getattr(chunk, "web", None)
+                    title = (getattr(web, "title", "") or "").lower() if web else ""
+                    if any(site in title for site in SOCIAL_SITES):
+                        continue  # social media posts are not agronomic sources
+                    if web and web.uri and web.uri.startswith("https://") and web.uri not in seen:
+                        seen.add(web.uri)
+                        sources.append({"title": (web.title or web.uri)[:300], "url": web.uri})
+                if not text:
+                    raise GeminiUnavailable("empty response")
+                return text, sources[:15], model
+            except Exception as exc:  # noqa: BLE001 - try the next target
+                errors.append(f"{model}@{location or 'api'}: {str(exc)[:120]}")
+        raise GeminiUnavailable("Gemini is unavailable: " + " | ".join(errors))
+
+    def draft_pack(self, *, region: str, country_code: str, subdivision_code: str,
+                   crops: dict[str, str]) -> tuple[PackDraftOutput, list[dict[str, str]], str, str]:
+        """Researches official sowing calendars for a region, then converts them into the pack format.
+
+        Returns (draft, sources, model, findings). The draft only uses crop ids from the node's catalog and
+        is stored for expert review; it is never used for farms before an officer approves it.
+        """
+        catalog = ", ".join(f"{cid} ({name})" for cid, name in sorted(crops.items()))
+        findings, sources, model = self._research(f"""Research the official crop sowing calendar for {region} ({subdivision_code}, country {country_code}).
+Use government agriculture departments, state/provincial agricultural universities, national agricultural research
+institutes, meteorological services and FAO; do not use social media. For each of these crops that is actually grown there, give the sowing
+window(s) as start and end dates, the season name used locally, and whether the window needs irrigation:
+{catalog}
+Also give the region's agro-climatic zones, its season months, and the groundwater status (official assessment if any).
+Only report dates you found in a source; say which source each date comes from. Skip crops with no source.""")
+        prompt = f"""Convert these research findings into structured data. Do not add anything that is not in the findings.
+Region: {region} ({subdivision_code}).
+Rules:
+- crop_id must be one of: {", ".join(sorted(crops))}. Omit crops without a sourced date.
+- season ids: short lowercase words with underscores (e.g. kharif, rabi, zaid, summer, safra, safrinha, winter).
+  Every window's season must be one of the seasons listed, and each season lists its months (1-12).
+- start and end are MM-DD. A window may cross the new year (e.g. 11-01 to 01-15).
+- irrigation_required is true only when the source says the crop needs irrigation in that window.
+- label: a short name for the window (e.g. "Kharif, rainfed"); note: the source of the dates.
+- groundwater_category: use "unknown" unless the findings give an official assessment.
+Findings:
+{findings}"""
+        draft, _ = self._generate([prompt], schema=PackDraftOutput, temperature=0.0)
+        return draft, sources, model, findings
+

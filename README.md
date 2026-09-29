@@ -73,7 +73,8 @@ Use a phone or a desktop browser. Everything below runs on the live nodes with l
 2. Open **Expert** (top right) and enter the node's access code. The codes are given in the submission form; they are kept in Secret Manager.
 3. In **Network**, the North India node appears online. Import its **Punjab crop calendar**, review it and **Approve**.
 4. Go back to the Ludhiana farm's **Crops**. It now follows Punjab's official calendar: Punjab-specific crops and dates, and the paddy-transplanting date set by the Punjab Preservation of Subsoil Water Act.
-5. Also worth a look:
+5. **A region with no calendar anywhere:** add a farm in, for example, `Dharwad, Karnataka`. In **Expert → Network**, *Regions without a crop calendar* lists Karnataka. Tap **Draft with AI**: Gemini searches official sources (2–3 minutes) and the draft appears in the review queue with every sowing window and its sources. Approve it and the Dharwad farm switches to the regional calendar.
+6. Also worth a look:
    - **Dashboard:** district plant-health reports and practice outcomes.
    - **Farmer cases:** review a Plant Doctor case and reply.
    - **Practices:** approve a practice write-up so that other nodes can import it.
@@ -125,6 +126,7 @@ Use a phone or a desktop browser. Everything below runs on the live nodes with l
 | **Plant Doctor** | Gemini multimodal screening: findings, causes, safe steps and prevention. Unclear or fast-spreading problems go to an expert queue. | Leaf photo + local disease-risk weather |
 | **Soil test** | Gemini reads a Soil Health Card or a lab report. The values are rated with the region's official scheme: Soil Health Card limits in India, Embrapa's table with soybean doses in Paraná. | Farmer's report, `data/soil/interpretation.json` |
 | **Voice and chat** | Speak a question and hear the answer. A short-lived chat is grounded in the same computed windows. | Speech-to-Text, Text-to-Speech, Gemini |
+| **New region, no calendar yet** | When farms appear in a state or country without a crop calendar, Gemini researches official sources with Google Search and drafts one in the exchange schema. It is validated, stored with its sources and goes to the officer's review queue; farms use it only after approval. | Gemini + Google Search grounding, pack schema |
 | **State cooperation** | Exchange of crop calendars and practices with expert review, peer crop-health signals (k ≥ 5), and daily BigQuery data sharing through Analytics Hub. | Node network |
 
 **Why the AI does not pick crops:** Gemini explains, reads photos and writes in the farmer's language. Crop ranking, sowing windows and spray windows come from transparent rules over measured data, so they are reproducible, auditable by state experts and identical in every language. When evidence is missing the app says so; it never fills gaps with invented numbers.
@@ -203,7 +205,7 @@ Code layout: [`DOCS.md`](DOCS.md).
 
 | Tool | What it does in KISANAI |
 |---|---|
-| **Vertex AI – Gemini 3.5 Flash** | Writes each field plan in the farmer's language, grounded in the engine's output. Screens leaf photos in Plant Doctor (multimodal). Reads Soil Health Cards and lab reports. Answers chat questions. Drafts district briefs for officers. |
+| **Vertex AI – Gemini 3.5 Flash** | Writes each field plan in the farmer's language, grounded in the engine's output. Screens leaf photos in Plant Doctor (multimodal). Reads Soil Health Cards and lab reports. Answers chat questions. Drafts district briefs for officers. With Google Search grounding, drafts crop calendars (with sources) for regions that have none. |
 | **Google Earth Engine** | Sentinel-2 crop-health zones for the plotted field. SoilGrids soil estimate. ESA WorldCover land use and nearby cropland. WRI Aqueduct water stress and groundwater decline. WorldClim fallback climate. |
 | **Google Maps Platform** | Geocoding for village search and GPS-to-district lookup, and Map Tiles for the satellite map where the farmer plots the field. The key stays server-side, and OpenStreetMap / Esri are the fallback. |
 | **Cloud Translation API** | Serves any node language without a hand-written dictionary (Punjabi, Portuguese, and any future language). Also names crops and practices in that language. |
@@ -212,7 +214,7 @@ Code layout: [`DOCS.md`](DOCS.md).
 | **Cloud Firestore** | Farms, soil tests, plans, cases and translations, in one database per node in its own region. |
 | **Cloud Storage** | Private buckets for leaf photos and soil reports, one per node. |
 | **BigQuery + Analytics Hub** | Daily k-anonymous crop calendars, crop-health signals and practice outcomes, shared between states and countries. |
-| **Cloud Scheduler** | The daily publish job. The call is signed with a Google OIDC token that the node verifies. |
+| **Cloud Scheduler** | The daily job: BigQuery publish and one AI calendar draft for a region that lacks one. The call is signed with a Google OIDC token that the node verifies. |
 | **Secret Manager** | Expert access codes and the Maps key. |
 | **Cloud Build / Artifact Registry** | Source-to-container deployments. |
 
@@ -254,6 +256,7 @@ Code layout: [`DOCS.md`](DOCS.md).
 ## Honest limitations
 
 - The bundled packs and practices are curated by the team from the official sources above and still need sign-off by regional experts. The app labels them *pending review*.
+- AI-drafted calendars depend on what Google Search finds; the officer must check each date against the listed sources before approving.
 - Paraná municipalities are assigned to the ADAPAR soybean regions through their IBGE mesoregion, following ADAPAR's geographic description. Border municipalities should be checked against the portaria's annex.
 - Paraná soil ratings cover clay above 40% (Embrapa's table); lighter soils are shown unrated.
 - WRI Aqueduct has no sub-basin value in a few places; the state category or "unknown" is then shown.
@@ -314,7 +317,9 @@ bash infra/cloud-run/deploy-nodes.sh project-52e7ca23-228b-4cfd-879 in-north   #
 | POST | `/api/v1/farms/{id}/advisories` | AI-written plan grounded in the engine |
 | POST | `/api/v1/farms/{id}/diagnoses` | Plant Doctor |
 | GET | `/api/v1/geo/search`, `/geo/reverse`, `/geo/pincode/{pin}` | Place search and lookup (Google Maps, OpenStreetMap fallback) |
+| GET, POST | `/api/v1/expert/packs/missing`, `/expert/packs/draft` | Regions without a calendar; AI draft for review |
 | GET | `/.well-known/agrin-node` | Node manifest |
 | GET | `/api/v1/network/packs/{id}`, `/practices/{id}`, `/signals` | Public exchange endpoints |
-| POST | `/api/v1/internal/publish` | Daily BigQuery publish (Cloud Scheduler OIDC only) |
+| POST | `/api/v1/internal/publish` | Daily BigQuery publish and AI calendar draft (Cloud Scheduler OIDC only) |
+| POST | `/api/v1/internal/imd` | IMD relay between India nodes (node service account only) |
 | * | `/api/v1/expert/...` | Cases, practices, imports, packs, peer signals, dashboard (`X-Expert-Token`) |

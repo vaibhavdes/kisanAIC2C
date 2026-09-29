@@ -382,3 +382,53 @@ def test_imd_relay_rejects_calls_without_an_allowed_identity():
     finally:
         main.settings = main.get_settings()
     assert reply.status_code == 401
+
+
+def test_ai_drafted_calendar_is_schema_valid_and_only_used_after_review(monkeypatch):
+    from kisanai_c2c.providers.gemini import GeminiProvider, PackDraftOutput
+
+    node = AppService(store=MemoryStore(), media_store=MemoryMediaStore(), settings=make_settings(node_id="node-mh", node_subdivisions="IN-MH"))
+    farmer = Actor(subject="dev-farmer-ka0001", node_id="node-mh", roles={Role.farmer})
+    officer = Actor(subject="dev-expert-mh0001", node_id="node-mh", roles={Role.expert})
+    farm = node.create_farm(farmer, _payload(state_code="KA", state_name="Karnataka", district="Dharwad",
+                                             location=Location(latitude=15.46, longitude=75.0)))
+    assert node.regions_without_pack(officer) == [{"subdivision_code": "IN-KA", "country_code": "IN", "name": "Karnataka",
+                                                   "farms": 1, "draft_pending": False}]
+    draft = PackDraftOutput.model_validate({
+        "agro_climatic_zones": ["Northern Transition Zone"], "groundwater_category": "unknown", "groundwater_note": "No assessment found",
+        "seasons": [{"id": "Kharif", "months": [6, 7, 8, 9, 10]}, {"id": "rabi", "months": [10, 11, 12, 1, 2]}],
+        "crops": [{"crop_id": "soybean", "note": "UAS Dharwad", "sowing_windows": [{"season": "kharif", "start": "06-01", "end": "07-15", "irrigation_required": False}]},
+                  {"crop_id": "chickpea", "sowing_windows": [{"season": "rabi", "start": "10-01", "end": "11-15", "irrigation_required": False},
+                                                             {"season": "spring", "start": "02-01", "end": "02-28", "irrigation_required": True}]},
+                  {"crop_id": "not_a_crop", "sowing_windows": [{"season": "rabi", "start": "10-01", "end": "10-30", "irrigation_required": False}]},
+                  {"crop_id": "maize", "sowing_windows": [{"season": "kharif", "start": "June", "end": "07-01", "irrigation_required": False}]}],
+    })
+    sources = [{"title": "uasd.edu", "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/abc"}]
+    monkeypatch.setattr(GeminiProvider, "draft_pack", lambda self, **kw: (draft, sources, "gemini-3.5-flash", "findings"))
+
+    record = node.draft_pack(officer, "in-ka")
+    pack = record.bundle
+    assert record.compatibility_findings == [] and pack["review"]["status"] == "ai_draft_pending_review"
+    assert [c["crop_id"] for c in pack["crops"]] == ["soybean", "chickpea"]  # unknown crop, bad date and unknown season dropped
+    assert len(pack["crops"][1]["sowing_windows"]) == 1 and pack["sources"] == sources
+    assert node.regions_without_pack(officer)[0]["draft_pending"] is True
+    with pytest.raises(RuntimeError):
+        node.draft_pack(officer, "IN-KA")
+    assert node.crop_recommendations(farmer, farm.id).knowledge_mode == "global_baseline"  # not used before review
+
+    node.review_import(officer, record.id, ExchangeReview(approve=True, note="Checked against UAS Dharwad"))
+    assert node.crop_recommendations(farmer, farm.id).knowledge_mode == "regional_pack"
+    assert node.regions_without_pack(officer) == []
+
+
+def test_ai_draft_without_sources_is_not_stored(monkeypatch):
+    from kisanai_c2c.providers.gemini import GeminiProvider, PackDraftOutput
+
+    node = AppService(store=MemoryStore(), media_store=MemoryMediaStore(), settings=make_settings(node_id="node-mh"))
+    officer = Actor(subject="dev-expert-mh0001", node_id="node-mh", roles={Role.expert})
+    node.create_farm(Actor(subject="dev-farmer-ka0001", node_id="node-mh"), _payload(state_code="KA", state_name="Karnataka", district="Dharwad"))
+    empty = PackDraftOutput(agro_climatic_zones=[], seasons=[], groundwater_category="unknown", groundwater_note="", crops=[])
+    monkeypatch.setattr(GeminiProvider, "draft_pack", lambda self, **kw: (empty, [], "m", ""))
+    with pytest.raises(ValueError):
+        node.draft_pack(officer, "IN-KA")
+    assert node.imports(officer) == []
