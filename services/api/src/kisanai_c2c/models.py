@@ -145,14 +145,22 @@ class SoilValues(BaseModel):
     copper_ppm: float | None = Field(default=None, ge=0, le=500)
     manganese_ppm: float | None = Field(default=None, ge=0, le=1000)
     boron_ppm: float | None = Field(default=None, ge=0, le=100)
+    # Units used by Brazilian labs (Mehlich-1 extraction)
+    clay_percent: float | None = Field(default=None, ge=0, le=100)
+    organic_matter_g_dm3: float | None = Field(default=None, ge=0, le=1000)
+    phosphorus_mehlich_mg_dm3: float | None = Field(default=None, ge=0, le=1000)
+    potassium_mg_dm3: float | None = Field(default=None, ge=0, le=5000)
 
 
 class SoilRating(BaseModel):
     parameter: str
     value: float
     unit: str
-    rating: Literal["low", "medium", "high", "acidic", "slightly_acidic", "neutral", "alkaline", "strongly_alkaline", "normal", "saline", "deficient", "sufficient"]
+    rating: Literal["very_low", "low", "medium", "high", "very_high", "acidic", "slightly_acidic", "neutral", "alkaline",
+                    "strongly_alkaline", "normal", "saline", "deficient", "sufficient"]
     note: str | None = None
+    doses: dict[str, dict[str, float]] | None = None  # official per-crop fertiliser doses for this class (kg/ha)
+    scheme: str | None = None
 
 
 class SoilExtraction(BaseModel):

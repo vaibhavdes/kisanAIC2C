@@ -200,6 +200,11 @@ def get_soil(farm_id: str, actor: Actor = Depends(current_actor), svc: AppServic
     return svc.latest_soil(farm_id)
 
 
+@app.get("/api/v1/farms/{farm_id}/soil/scheme")
+def soil_scheme(farm_id: str, actor: Actor = Depends(current_actor), svc: AppService = Depends(service)):
+    return svc.soil_scheme_for(actor, farm_id)
+
+
 @app.get("/api/v1/farms/{farm_id}/land-profile", response_model=LandProfile | None)
 def land_profile(farm_id: str, actor: Actor = Depends(current_actor), svc: AppService = Depends(service)):
     return svc.land_profile(svc.farm(actor, farm_id))

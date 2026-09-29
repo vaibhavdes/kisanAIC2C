@@ -246,3 +246,6 @@ button.full { width: 100%; justify-content: center; }
   .expert-link { display: inline-flex; }
   .expert-link span { display: none; }
 }
+
+/* Official fertiliser dose under a soil rating (e.g. Embrapa soybean table) */
+.dose-line { display: block; margin-top: 4px; font-size: 12px; color: var(--muted); }

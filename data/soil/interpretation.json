@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "note": "Official soil-test interpretation schemes. A farm uses the scheme for its ISO 3166-2 region first, then its country. pH and EC classes apply everywhere. Class rules: 'below' means value < limit, 'upto' means value <= limit, a class without a limit catches the rest.",
+  "universal": [
+    {"id": "ph", "unit": "pH", "step": "0.1", "classes": [
+      {"below": 6.0, "rating": "acidic"}, {"below": 6.5, "rating": "slightly_acidic"}, {"upto": 7.5, "rating": "neutral"},
+      {"upto": 8.5, "rating": "alkaline"}, {"rating": "strongly_alkaline"}]},
+    {"id": "ec_ds_m", "unit": "dS/m", "step": "0.01", "classes": [
+      {"below": 1.0, "rating": "normal"}, {"rating": "saline", "note": "Above 1 dS/m can affect germination of sensitive crops"}]}
+  ],
+  "schemes": {
+    "IN": {
+      "name": "India Soil Health Card (ICAR rating limits)",
+      "source": "Soil Health Card scheme, Department of Agriculture & Farmers Welfare; ICAR soil test rating limits",
+      "source_url": "https://soilhealth.dac.gov.in/",
+      "parameters": [
+        {"id": "organic_carbon_percent", "unit": "%", "step": "0.01", "method": "Walkley-Black", "classes": [
+          {"below": 0.5, "rating": "low"}, {"upto": 0.75, "rating": "medium"}, {"rating": "high"}]},
+        {"id": "nitrogen_kg_ha", "unit": "kg/ha", "step": "1", "method": "Alkaline permanganate", "classes": [
+          {"below": 280, "rating": "low"}, {"upto": 560, "rating": "medium"}, {"rating": "high"}]},
+        {"id": "phosphorus_kg_ha", "unit": "kg/ha", "step": "0.1", "method": "Olsen", "classes": [
+          {"below": 10, "rating": "low"}, {"upto": 25, "rating": "medium"}, {"rating": "high"}]},
+        {"id": "potassium_kg_ha", "unit": "kg/ha", "step": "1", "method": "Ammonium acetate", "classes": [
+          {"below": 108, "rating": "low"}, {"upto": 280, "rating": "medium"}, {"rating": "high"}]},
+        {"id": "sulphur_ppm", "unit": "ppm", "step": "0.1", "classes": [{"below": 10, "rating": "deficient", "note": "Critical limit 10 ppm"}, {"rating": "sufficient"}]},
+        {"id": "zinc_ppm", "unit": "ppm", "step": "0.01", "method": "DTPA", "classes": [{"below": 0.6, "rating": "deficient", "note": "Critical limit 0.6 ppm"}, {"rating": "sufficient"}]},
+        {"id": "iron_ppm", "unit": "ppm", "step": "0.1", "method": "DTPA", "classes": [{"below": 4.5, "rating": "deficient", "note": "Critical limit 4.5 ppm"}, {"rating": "sufficient"}]},
+        {"id": "copper_ppm", "unit": "ppm", "step": "0.01", "method": "DTPA", "classes": [{"below": 0.2, "rating": "deficient", "note": "Critical limit 0.2 ppm"}, {"rating": "sufficient"}]},
+        {"id": "manganese_ppm", "unit": "ppm", "step": "0.1", "method": "DTPA", "classes": [{"below": 2.0, "rating": "deficient", "note": "Critical limit 2 ppm"}, {"rating": "sufficient"}]},
+        {"id": "boron_ppm", "unit": "ppm", "step": "0.01", "method": "Hot water", "classes": [{"below": 0.5, "rating": "deficient", "note": "Critical limit 0.5 ppm"}, {"rating": "sufficient"}]}
+      ]
+    },
+    "BR-PR": {
+      "name": "Embrapa Soja - phosphorus and potassium for soybean in Paraná (clay above 40%)",
+      "source": "Embrapa Soja, Tabela 1 (Sfredo et al., 1999): P and K indication for soybean in Paraná, Mehlich-1 extractant",
+      "source_url": "https://www.embrapa.br/en/agencia-de-informacao-tecnologica/cultivos/soja/producao/manejo-da-fertilidade-do-solo/exigencias-minerais-e-adubacao/adubacao/fosforo-e-potassio/parana",
+      "applies_if": {"parameter": "clay_percent", "min": 40,
+                     "note": "For clay below 40% Embrapa refers to its Cerrado sandy-soil tables, which are not encoded."},
+      "parameters": [
+        {"id": "clay_percent", "unit": "%", "step": "1"},
+        {"id": "organic_matter_g_dm3", "unit": "g/dm³", "step": "0.1"},
+        {"id": "phosphorus_mehlich_mg_dm3", "unit": "mg/dm³", "step": "0.1", "method": "Mehlich-1", "classes": [
+          {"below": 3.0, "rating": "low", "doses": {"soybean": {"P2O5": 100}}},
+          {"upto": 6.0, "rating": "medium", "doses": {"soybean": {"P2O5": 80}}},
+          {"rating": "high", "doses": {"soybean": {"P2O5": 60}}}]},
+        {"id": "potassium_mg_dm3", "unit": "mg/dm³", "step": "1", "method": "Mehlich-1", "classes": [
+          {"below": 31, "rating": "very_low", "doses": {"soybean": {"K2O": 90}},
+           "note": "Very low K: also apply 140 kg/ha K2O broadcast as a corrective dose, besides the maintenance dose at sowing."},
+          {"below": 40, "rating": "low", "doses": {"soybean": {"K2O": 90}}},
+          {"upto": 80, "rating": "medium", "doses": {"soybean": {"K2O": 70}}},
+          {"upto": 120, "rating": "high", "doses": {"soybean": {"K2O": 50}}},
+          {"rating": "very_high", "doses": {"soybean": {"K2O": 40}}}]}
+      ],
+      "notes": ["Soybean nitrogen should come from seed inoculation (no N fertiliser).",
+                "Up to 10 kg/ha less P2O5 than indicated may be used."]
+    }
+  }
+}

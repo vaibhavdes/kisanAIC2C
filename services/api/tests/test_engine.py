@@ -210,10 +210,17 @@ def test_operations_without_forecast_are_explicitly_unavailable():
         "available": False, "message": "No forecast has been fetched yet for this farm."}
 
 
-def test_nutrient_ratings_only_where_the_country_scheme_is_known():
-    values = SoilValues(ph=5.4, nitrogen_kg_ha=150, phosphorus_kg_ha=8)
-    assert {r.parameter for r in rate_values(values, "IN")} == {"ph", "nitrogen_kg_ha", "phosphorus_kg_ha"}
-    assert {r.parameter for r in rate_values(values, "BR")} == {"ph"}  # Brazilian labs use other units and tables
+def test_soil_ratings_follow_the_regional_official_scheme():
+    india = SoilValues(ph=5.4, nitrogen_kg_ha=150, phosphorus_kg_ha=8)
+    assert {r.parameter for r in rate_values(india, "IN")} == {"ph", "nitrogen_kg_ha", "phosphorus_kg_ha"}
+    assert {r.parameter for r in rate_values(india, "BR")} == {"ph"}  # no Brazilian national scheme encoded
+
+    parana = SoilValues(ph=5.4, clay_percent=62, phosphorus_mehlich_mg_dm3=4.2, potassium_mg_dm3=28)
+    ratings = {r.parameter: r for r in rate_values(parana, "BR", "BR-PR")}
+    assert ratings["phosphorus_mehlich_mg_dm3"].rating == "medium" and ratings["phosphorus_mehlich_mg_dm3"].doses == {"soybean": {"P2O5": 80}}
+    assert ratings["potassium_mg_dm3"].rating == "very_low" and "140 kg/ha" in ratings["potassium_mg_dm3"].note
+    sandy = SoilValues(clay_percent=25, phosphorus_mehlich_mg_dm3=4.2)
+    assert {r.parameter for r in rate_values(sandy, "BR", "BR-PR")} == set()  # Embrapa table is only for clay above 40%
 
 
 def test_field_sub_basin_groundwater_overrides_the_state_category():

@@ -53,7 +53,7 @@ from .providers.translate import TranslationProvider, TranslationUnavailable, co
 from .providers.satellite import SatelliteProvider, SatelliteUnavailable
 from .providers.weather import WeatherProvider
 from .settings import PROJECT_ROOT, Settings, get_settings
-from .soil import effective_soil, rate_values
+from .soil import effective_soil, rate_values, scheme_parameters, soil_scheme
 from .store import DocumentStore, get_store
 
 POLICY_VERSION = "kisanai-engine-2.0.0"
@@ -188,7 +188,7 @@ class AppService:
             card_recommendations=result.card_recommendations,
             plain_explanation=result.plain_explanation,
             uncertain_fields=result.uncertain_fields,
-            ratings=rate_values(values, farm.country_code),
+            ratings=rate_values(values, farm.country_code, subdivision_code(farm.country_code, farm.state_code)),
             source=self.gemini.provider_name,
             model=self.settings.gemini_model,
         )
@@ -204,9 +204,17 @@ class AppService:
         if all(value is None for value in payload.values.model_dump().values()):
             raise ValueError("Enter at least one soil value")
         record = SoilTest(**payload.model_dump(), farm_id=farm_id, owner_subject=actor.subject, node_id=actor.node_id,
-                          ratings=rate_values(payload.values, farm.country_code))
+                          ratings=rate_values(payload.values, farm.country_code, subdivision_code(farm.country_code, farm.state_code)))
         self.store.put("soil_tests", record.id, record.model_dump(mode="json"))
         return record
+
+    def soil_scheme_for(self, actor: Actor, farm_id: str) -> dict[str, Any]:
+        """The soil-test fields and official interpretation scheme that apply to this farm's region."""
+        farm = self.farm(actor, farm_id)
+        code = subdivision_code(farm.country_code, farm.state_code)
+        scheme = soil_scheme(farm.country_code, code)
+        return {"parameters": scheme_parameters(farm.country_code, code),
+                "scheme": {key: scheme[key] for key in ("name", "source", "source_url", "notes", "applies_if") if key in scheme} if scheme else None}
 
     def latest_soil(self, farm_id: str) -> SoilTest | None:
         values = self.store.list("soil_tests", filters={"farm_id": farm_id}, limit=1)
@@ -275,7 +283,8 @@ class AppService:
         farm = self.farm(actor, farm_id)
         evidence = self._evidence_or_refresh(actor, farm)
         land = self.store.get("land_profiles", farm.id)
-        soil = effective_soil(farm.soil_type, self.latest_soil(farm.id), LandProfile.model_validate(land).soil if land else None, farm.country_code)
+        soil = effective_soil(farm.soil_type, self.latest_soil(farm.id), LandProfile.model_validate(land).soil if land else None, farm.country_code,
+                              subdivision_code(farm.country_code, farm.state_code))
         return operational_indicators(evidence, texture=soil["texture"], water_access=farm.water_access,
                                       crop_status=farm.crop_status, current_crop=farm.current_crop)
 

@@ -23,7 +23,9 @@ import calendar
 from datetime import date, timedelta
 from typing import Any
 
-from .knowledge import crop_catalog, crop_name, find_district, normalize_crop, practice_name, season_for_month, window_dates
+from .knowledge import (
+    crop_catalog, crop_name, find_district, normalize_crop, practice_name, season_for_month, subdivision_code, window_dates,
+)
 from .models import (
     CropOption, CropRecommendationResult, DataSource, DecisionFactor, Farm, LandProfile, PackRef, PracticeRef,
     SoilTest, SowingWindow,
@@ -107,7 +109,8 @@ class RecommendationEngine:
         self.evidence = evidence
         self.locale = locale
         self.today = today or date.today()
-        self.soil = effective_soil(farm.soil_type, soil_test, land.soil if land else None, farm.country_code)
+        self.soil = effective_soil(farm.soil_type, soil_test, land.soil if land else None, farm.country_code,
+                                   subdivision_code(farm.country_code, farm.state_code))
         self.district = find_district(pack, farm.district)
         # Most specific source first: a cited district value, the field's own sub-basin (WRI Aqueduct), then the state.
         basin = ((land.water_risk or {}) if land else {}).get("groundwater_category")

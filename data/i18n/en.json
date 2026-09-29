@@ -488,5 +488,13 @@
   "ws_1": "Low to medium",
   "ws_2": "Medium to high",
   "ws_3": "High",
-  "ws_4": "Extremely high"
+  "ws_4": "Extremely high",
+  "soil_clay_percent": "Clay",
+  "soil_organic_matter_g_dm3": "Organic matter",
+  "soil_phosphorus_mehlich_mg_dm3": "Phosphorus (Mehlich-1)",
+  "soil_potassium_mg_dm3": "Potassium (Mehlich-1)",
+  "rating_very_low": "Very low",
+  "rating_very_high": "Very high",
+  "dose_line": "{crop}: {dose}",
+  "soil_scheme_source": "Rated with: {name}"
 }

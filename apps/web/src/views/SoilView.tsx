@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { FileUp, FlaskConical, Pencil, Sparkles, Volume2 } from "lucide-react";
 import { api, speakText, upload } from "../api";
-import { invalidate, useResource } from "../hooks";
+import { invalidate, useCropName, useResource } from "../hooks";
 import { Json, Locale, T, View } from "../types";
 import { ErrorNote, formatDate, Loading, NeedFarm, SourceBadge, StageHeader } from "../components/ui";
 
@@ -12,24 +12,10 @@ interface Props {
   go: (v: View) => void;
 }
 
-const PARAMS: Array<{ key: string; unit: string; step: string }> = [
-  { key: "ph", unit: "", step: "0.1" },
-  { key: "ec_ds_m", unit: "dS/m", step: "0.01" },
-  { key: "organic_carbon_percent", unit: "%", step: "0.01" },
-  { key: "nitrogen_kg_ha", unit: "kg/ha", step: "1" },
-  { key: "phosphorus_kg_ha", unit: "kg/ha", step: "0.1" },
-  { key: "potassium_kg_ha", unit: "kg/ha", step: "1" },
-  { key: "sulphur_ppm", unit: "ppm", step: "0.1" },
-  { key: "zinc_ppm", unit: "ppm", step: "0.01" },
-  { key: "iron_ppm", unit: "ppm", step: "0.1" },
-  { key: "copper_ppm", unit: "ppm", step: "0.01" },
-  { key: "manganese_ppm", unit: "ppm", step: "0.1" },
-  { key: "boron_ppm", unit: "ppm", step: "0.01" },
-];
 
 const RATING_TONE: Record<string, string> = {
-  low: "warn", deficient: "warn", acidic: "warn", saline: "warn", strongly_alkaline: "warn",
-  medium: "good", neutral: "good", normal: "good", sufficient: "good", alkaline: "fair", high: "info",
+  very_low: "bad", low: "warn", deficient: "warn", acidic: "warn", saline: "warn", strongly_alkaline: "warn",
+  medium: "good", neutral: "good", normal: "good", sufficient: "good", alkaline: "fair", high: "info", very_high: "info",
 };
 
 type Values = Record<string, string>;
@@ -37,6 +23,11 @@ type Values = Record<string, string>;
 export function SoilView({ t, locale, farm, go }: Props) {
   const soil = useResource<Json | null>(farm ? `/api/v1/farms/${farm.id}/soil` : null);
   const land = useResource<Json | null>(farm ? `/api/v1/farms/${farm.id}/land-profile` : null);
+  // Fields and limits come from the official scheme for the farm's region (Soil Health Card, Embrapa, ...).
+  const scheme = useResource<Json>(farm ? `/api/v1/farms/${farm.id}/soil/scheme` : null);
+  const cropName = useCropName(locale);
+  const PARAMS: Array<{ key: string; unit: string; step: string }> =
+    ((scheme.data?.parameters || []) as Json[]).map((p) => ({ key: p.id, unit: p.unit === "pH" ? "" : p.unit, step: p.step || "0.1" }));
   const [mode, setMode] = useState<"view" | "upload" | "manual">("view");
   const [values, setValues] = useState<Values>({});
   const [extraction, setExtraction] = useState<Json | null>(null);
@@ -124,9 +115,15 @@ export function SoilView({ t, locale, farm, go }: Props) {
                     <small>{t(`soil_${r.parameter}`)}</small>
                     <b>{r.value} <span>{r.unit !== "pH" ? r.unit : ""}</span></b>
                     <span className={`status-pill tone-${RATING_TONE[r.rating] || "info"}`}>{t(`rating_${r.rating}`)}</span>
+                    {r.doses && Object.entries(r.doses as Record<string, Record<string, number>>).map(([crop, doses]) => (
+                      <small key={crop} className="dose-line">
+                        {t("dose_line", { crop: cropName(crop), dose: Object.entries(doses).map(([n, kg]) => `${n.replace("2O5", "₂O₅").replace("2O", "₂O")} ${kg} kg/ha`).join(", ") })}
+                      </small>
+                    ))}
                   </div>
                 ))}
               </div>
+              {scheme.data?.scheme && <p className="small-print">{t("soil_scheme_source", { name: scheme.data.scheme.name })}</p>}
               {saved.card_recommendations?.length > 0 && (
                 <div className="card-recs">
                   <h4>{t("card_recommendations")}</h4>

@@ -76,6 +76,10 @@ class SoilOutput(BaseModel):
     copper_ppm: float | None = None
     manganese_ppm: float | None = None
     boron_ppm: float | None = None
+    clay_percent: float | None = None
+    organic_matter_g_dm3: float | None = None
+    phosphorus_mehlich_mg_dm3: float | None = None
+    potassium_mg_dm3: float | None = None
     sample_date: str | None = None
     lab_name: str | None = None
     raw_text: str | None = None
@@ -232,7 +236,11 @@ Rules:
 
         prompt = f"""Read this soil test report / Soil Health Card.
 Extract only values that are printed on it. Return null for anything not printed. Do not convert units except:
-- pH, EC in dS/m, organic carbon in %, available N, P, K in kg/ha, S, Zn, Fe, Cu, Mn, B in ppm (mg/kg).
+- pH (in water), EC in dS/m, organic carbon in %, available N, P, K in kg/ha, S, Zn, Fe, Cu, Mn, B in ppm (mg/kg)
+  (India's Soil Health Card and similar reports).
+- Brazilian and other Mehlich-1 reports: clay in % (g/kg divided by 10), organic matter (M.O.) in g/dm3,
+  P Mehlich-1 in mg/dm3 (phosphorus_mehlich_mg_dm3), K in mg/dm3 (potassium_mg_dm3; if printed in cmolc/dm3
+  multiply by 391). Do not put Mehlich-1 values into the kg/ha fields.
 If a value is printed in a different unit than listed, leave it null and name the field in uncertain_fields.
 sample_date as YYYY-MM-DD if a date is printed. lab_name if printed.
 card_recommendations: copy the fertilizer / amendment / crop recommendations printed on the card as short items (keep doses exactly as printed).
