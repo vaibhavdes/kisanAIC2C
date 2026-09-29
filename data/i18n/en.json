@@ -496,5 +496,10 @@
   "rating_very_low": "Very low",
   "rating_very_high": "Very high",
   "dose_line": "{crop}: {dose}",
-  "soil_scheme_source": "Rated with: {name}"
+  "soil_scheme_source": "Rated with: {name}",
+  "net_title": "Nodes in this network",
+  "net_sub": "Each state or country runs its own node with its own crop calendar and languages. They share reviewed knowledge with each other. Open another node to try it.",
+  "net_this_node": "You are here",
+  "net_open": "Open",
+  "net_offline": "Offline"
 }

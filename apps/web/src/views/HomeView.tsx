@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { CloudRain, Droplets, FlaskConical, MapPin, Microscope, Pencil, Share2, Sprout, SprayCan, Trash2, Volume2 } from "lucide-react";
+import { CloudRain, Droplets, ExternalLink, FlaskConical, Globe2, MapPin, Microscope, Pencil, Share2, SprayCan, Sprout, Trash2, Volume2 } from "lucide-react";
 import { speakText } from "../api";
 import { useCropName, useResource } from "../hooks";
 import { Json, Locale, T, View } from "../types";
@@ -28,6 +28,7 @@ export function HomeView({ t, locale, farm, farms, loaded, go, onEdit, onDelete 
         </div>
       )}
       <HowItWorks t={t} />
+      <NetworkNodes t={t} locale={locale} />
       <DataSources t={t} />
     </>
   );
@@ -196,6 +197,47 @@ function DataSources({ t }: { t: T }) {
           <li key={s.key}><b>{s.name}</b><span>{t(s.key)}</span></li>
         ))}
       </ul>
+    </section>
+  );
+}
+
+/** Other AgriN nodes (states and countries) - each card opens that node's app. */
+function NetworkNodes({ t, locale }: { t: T; locale: Locale }) {
+  const network = useResource<Json>("/api/v1/network/nodes");
+  const nodes = (network.data?.nodes || []) as Json[];
+  if (nodes.length < 2) return null;
+  const names = (type: "region" | "language") => {
+    try {
+      return new Intl.DisplayNames([locale, "en"], { type });
+    } catch {
+      return null;
+    }
+  };
+  const countries = names("region");
+  const languages = names("language");
+  return (
+    <section className="card-block network-nodes">
+      <h3><Globe2 size={18} /> {t("net_title")}</h3>
+      <p className="muted">{t("net_sub")}</p>
+      <div className="node-grid">
+        {nodes.map((n) => {
+          const body = (
+            <>
+              <div className="block-head">
+                <b>{n.label}</b>
+                {n.current ? <span className="status-pill tone-good">{t("net_this_node")}</span>
+                  : n.status !== "online" && <span className="status-pill tone-warn">{t("net_offline")}</span>}
+              </div>
+              <small>{countries?.of(n.country_code) || n.country_code} · {(n.subdivisions || []).join(", ")}</small>
+              <small className="muted">{(n.languages || []).map((l: string) => languages?.of(l.split("-")[0]) || l).join(" · ")}</small>
+              {!n.current && n.url && <span className="node-open">{t("net_open")} <ExternalLink size={14} /></span>}
+            </>
+          );
+          return n.current || !n.url || n.status !== "online"
+            ? <div key={n.node_id || n.url} className={`node-card ${n.current ? "current" : ""}`}>{body}</div>
+            : <a key={n.node_id || n.url} className="node-card" href={n.url} target="_blank" rel="noopener noreferrer">{body}</a>;
+        })}
+      </div>
     </section>
   );
 }

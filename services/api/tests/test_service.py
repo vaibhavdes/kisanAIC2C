@@ -309,3 +309,22 @@ def test_google_geocoding_maps_to_state_and_district():
                                 "address_components": [comp("administrative_area_level_2", "Pato Branco"),
                                                        comp("administrative_area_level_1", "Paraná", "PR"), comp("country", "Brazil", "BR")]})
     assert (brazil["country_code"], brazil["state_code"], brazil["district"]) == ("BR", "PR", "Pato Branco")
+
+
+def test_public_network_directory_lists_this_node_and_peers(monkeypatch):
+    import kisanai_c2c.service as service_module
+
+    class Reply:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"node_id": "brazil-node-pr", "label": "Brazil - Paraná node", "country_code": "BR", "subdivisions": ["BR-PR"],
+                    "languages": ["pt-BR"], "app_url": "https://br.example"}
+
+    monkeypatch.setattr(service_module.requests, "get", lambda url, timeout: Reply())
+    service_module._NETWORK_CACHE.clear()
+    svc = AppService(MemoryStore(), MemoryMediaStore(), make_settings(peer_nodes="https://br.example", public_base_url="https://mh.example"))
+    nodes = svc.network_nodes()["nodes"]
+    assert [(n["current"], n["country_code"], n["url"]) for n in nodes] == [(True, "IN", "https://mh.example"), (False, "BR", "https://br.example")]
+    assert "packs" not in nodes[1] and nodes[1]["languages"] == ["pt-BR"]

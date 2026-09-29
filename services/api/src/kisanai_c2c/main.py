@@ -395,6 +395,12 @@ def network_practice(practice_id: str, svc: AppService = Depends(service)):
     return svc.public_practice(practice_id)
 
 
+@app.get("/api/v1/network/nodes")
+def network_nodes(svc: AppService = Depends(service)):
+    """Public list of this node and its peers, so farmers and testers can move between nodes."""
+    return svc.network_nodes()
+
+
 @app.get("/api/v1/network/signals")
 def network_signals(svc: AppService = Depends(service)):
     return svc.shared_signals()

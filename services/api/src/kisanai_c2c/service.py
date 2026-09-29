@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import time
 from collections import Counter, defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
@@ -57,6 +58,7 @@ from .soil import effective_soil, rate_values, scheme_parameters, soil_scheme
 from .store import DocumentStore, get_store
 
 POLICY_VERSION = "kisanai-engine-2.0.0"
+_NETWORK_CACHE: dict[str, tuple[float, dict[str, Any]]] = {}
 MIN_GROUP_SIZE = 5  # k-anonymity threshold for anything shared outside the node
 HANDWRITTEN_LOCALES = {"en-IN", "hi-IN", "mr-IN", "te-IN", "kn-IN"}  # dictionaries shipped with the web app
 
@@ -655,6 +657,8 @@ class AppService:
             "label": self.settings.node_label,
             "country_code": self.settings.node_country_code,
             "subdivisions": self.settings.node_subdivision_list,
+            "languages": self.settings.node_language_list,
+            "app_url": base or None,
             "schemas": {"agronomy_pack": "urn:kisanai-c2c:agronomy-pack:1.0.0", "practice_bundle": "urn:kisanai-c2c:practice-bundle:1.0.0"},
             "packs": [{"pack_id": p["pack_id"], "pack_version": p["pack_version"], "subdivision_code": p["region"]["subdivision_code"],
                        "name": p["region"]["name"], "crops": len(p["crops"]), "digest": _digest(p),
@@ -673,15 +677,34 @@ class AppService:
         return self.export_practice(system, practice_id)
 
     def peers(self) -> list[dict[str, Any]]:
-        out = []
-        for url in self.settings.peer_node_list:
+        def fetch(url: str) -> dict[str, Any]:
             try:
                 response = requests.get(f"{url}/.well-known/agrin-node", timeout=8)
                 response.raise_for_status()
-                out.append({"url": url, "status": "online", "manifest": response.json()})
+                return {"url": url, "status": "online", "manifest": response.json()}
             except Exception as exc:  # noqa: BLE001
-                out.append({"url": url, "status": "unreachable", "error": str(exc)[:160]})
-        return out
+                return {"url": url, "status": "unreachable", "error": str(exc)[:160]}
+
+        with ThreadPoolExecutor(max_workers=max(1, len(self.settings.peer_node_list))) as pool:
+            return list(pool.map(fetch, self.settings.peer_node_list))
+
+    def network_nodes(self) -> dict[str, Any]:
+        """Public directory of this node and its peers for the farmer app (no pack or practice details)."""
+        cached = _NETWORK_CACHE.get("nodes")
+        if cached and time.time() - cached[0] < 300:
+            return cached[1]
+
+        def card(manifest: dict[str, Any], url: str | None, status: str, current: bool) -> dict[str, Any]:
+            return {"node_id": manifest.get("node_id"), "label": manifest.get("label") or url, "country_code": manifest.get("country_code"),
+                    "subdivisions": manifest.get("subdivisions", []), "languages": manifest.get("languages", []),
+                    "url": manifest.get("app_url") or url, "status": status, "current": current}
+
+        own = self.node_manifest()
+        nodes = [card(own, own.get("app_url"), "online", True)]
+        nodes += [card(peer.get("manifest") or {}, peer["url"], peer["status"], False) for peer in self.peers()]
+        result = {"nodes": nodes}
+        _NETWORK_CACHE["nodes"] = (time.time(), result)
+        return result
 
     def peer_signals(self) -> list[dict[str, Any]]:
         """District crop-health signals published by allowlisted peers (already k-anonymous at the source)."""
