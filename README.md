@@ -48,7 +48,7 @@ Each state also keeps its knowledge to itself. When Punjab's groundwater crisis 
 
 ## Try the demo (10 minutes)
 
-Use a phone or a desktop browser. Everything below runs on the live nodes with live data.
+Use a phone or a desktop browser. Everything below runs on the live nodes with live data. Every node's home page has a **Nodes in this network** section that links to the other states and countries, so you can move between them in one tap.
 
 ### 1. A farmer in Maharashtra
 
