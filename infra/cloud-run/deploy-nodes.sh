@@ -8,6 +8,9 @@ set -euo pipefail
 #   kisanai-br-pr     Brazil, Paraná                  southamerica-east1 (São Paulo)
 # The earlier kisanai-c2c service is not touched.
 #
+# India nodes egress through static IPs (Cloud NAT) registered with IMD: asia-south1 34.93.240.120,
+# asia-south2 34.131.248.83.
+#
 # One-time resources per node (see infra/cloud-run/README.md): Firestore database kisanai-<node>,
 # bucket <project>-kisanai-<node>, secret kisanai-expert-code-<node>; service accounts kisanai-node and
 # kisanai-scheduler; the BigQuery dataset is created on first publish and listed in Analytics Hub.
@@ -34,12 +37,19 @@ deploy() {
   local node="$1" region="$2" url="$3" env="$4"
   [ "${ONLY}" = "all" ] || [ "${ONLY}" = "${node}" ] || return 0
   local dataset="agrin_${node//-/_}"
+  local secrets="EXPERT_ACCESS_TOKEN=kisanai-expert-code-${node}:latest,GOOGLE_MAPS_API_KEY=kisanai-maps-server-key:latest"
+  local network=()
+  if [[ "${node}" == in-* ]]; then
+    # India nodes: IMD serves only registered IPs, so traffic leaves through the region's static Cloud NAT IP.
+    secrets="${secrets},IMD_API_KEY=kisanai-imd-api-key:latest,IMD_EMAIL=kisanai-imd-email:latest,IMD_PASSWORD=kisanai-imd-password:latest"
+    network=(--network=default --subnet=default --vpc-egress=all-traffic)
+  fi
   echo "Deploying kisanai-${node} (${PROJECT_ID}, ${region})..."
   gcloud run deploy "kisanai-${node}" \
     --project="${PROJECT_ID}" --region="${region}" --source="." \
     --service-account="${NODE_SA}" --allow-unauthenticated --port=8080 \
     --memory=1Gi --cpu=1 --concurrency=40 --min-instances=1 --max-instances=3 --timeout=120 \
-    --set-secrets="EXPERT_ACCESS_TOKEN=kisanai-expert-code-${node}:latest,GOOGLE_MAPS_API_KEY=kisanai-maps-server-key:latest" \
+    --set-secrets="${secrets}" ${network[@]+"${network[@]}"} \
     --set-env-vars="^|^${COMMON}|FIRESTORE_DATABASE=kisanai-${node}|MEDIA_BUCKET=${PROJECT_ID}-kisanai-${node}|BIGQUERY_DATASET=${dataset}|BIGQUERY_LOCATION=${region}|PUBLIC_BASE_URL=${url}|${env}"
   local args=(--project="${PROJECT_ID}" --location="${region}" --schedule="15 2 * * *" --time-zone="UTC"
               --uri="${url}/api/v1/internal/publish" --http-method=POST
@@ -48,8 +58,8 @@ deploy() {
     || gcloud scheduler jobs update http "kisanai-${node}-publish" "${args[@]}"
 }
 
-deploy in-mh asia-south1 "${IN_MH_URL}" "NODE_ID=india-node-mh|NODE_LABEL=India - Maharashtra node|NODE_COUNTRY_CODE=IN|NODE_SUBDIVISIONS=IN-MH|NODE_LANGUAGES=mr-IN,hi-IN,en-IN|DEFAULT_LOCALE=mr-IN|VERTEX_LOCATION=asia-south1|IMD_ENABLED=true|PEER_NODES=${IN_NORTH_URL},${BR_PR_URL}"
-deploy in-north asia-south2 "${IN_NORTH_URL}" "NODE_ID=india-node-north|NODE_LABEL=India - Punjab and Uttar Pradesh node|NODE_COUNTRY_CODE=IN|NODE_SUBDIVISIONS=IN-PB,IN-UP|NODE_LANGUAGES=pa-IN,hi-IN,en-IN|DEFAULT_LOCALE=hi-IN|VERTEX_LOCATION=asia-south1|IMD_ENABLED=true|PEER_NODES=${IN_MH_URL},${BR_PR_URL}"
+deploy in-mh asia-south1 "${IN_MH_URL}" "NODE_ID=india-node-mh|NODE_LABEL=India - Maharashtra node|NODE_COUNTRY_CODE=IN|NODE_SUBDIVISIONS=IN-MH|NODE_LANGUAGES=mr-IN,hi-IN,en-IN|DEFAULT_LOCALE=mr-IN|VERTEX_LOCATION=asia-south1|IMD_ENABLED=true|IMD_AUTH_MODE=jwt|PEER_NODES=${IN_NORTH_URL},${BR_PR_URL}"
+deploy in-north asia-south2 "${IN_NORTH_URL}" "NODE_ID=india-node-north|NODE_LABEL=India - Punjab and Uttar Pradesh node|NODE_COUNTRY_CODE=IN|NODE_SUBDIVISIONS=IN-PB,IN-UP|NODE_LANGUAGES=pa-IN,hi-IN,en-IN|DEFAULT_LOCALE=hi-IN|VERTEX_LOCATION=asia-south1|IMD_ENABLED=true|IMD_AUTH_MODE=jwt|PEER_NODES=${IN_MH_URL},${BR_PR_URL}"
 deploy br-pr southamerica-east1 "${BR_PR_URL}" "NODE_ID=brazil-node-pr|NODE_LABEL=Brazil - Paraná node|NODE_COUNTRY_CODE=BR|NODE_SUBDIVISIONS=BR-PR|NODE_LANGUAGES=pt-BR,en-IN|DEFAULT_LOCALE=pt-BR|VERTEX_LOCATION=global|IMD_ENABLED=false|PEER_NODES=${IN_MH_URL},${IN_NORTH_URL}"
 
 echo "Nodes:"

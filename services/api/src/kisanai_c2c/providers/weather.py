@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -35,7 +36,7 @@ class WeatherProvider:
                     if attempt < attempts - 1:
                         time.sleep(1)
                     else:
-                        imd_error = str(exc)
+                        imd_error = self._redact(str(exc))
 
         # Ensure numerical 7-day precipitation, wind, humidity, and temperature are available via Open-Meteo
         has_numerical_forecast = any(
@@ -135,26 +136,35 @@ class WeatherProvider:
             raise WeatherUnavailable("IMD returned a non-JSON response")
         return response.json()
 
+    def _redact(self, text: str) -> str:
+        """Remove credentials from error text before it is logged or stored with the evidence."""
+        for secret in (self.settings.imd_api_key, self.settings.imd_password, self.settings.imd_jwt_token,
+                       *(token for token, _ in self._jwt_cache.values())):
+            if secret:
+                text = text.replace(secret, "<redacted>")
+        return re.sub(r"(api_key|key|token)=[^&\s]+", r"\1=<redacted>", text)
+
     def _fetch_imd(self, farm: Farm) -> list[EvidenceSnapshot]:
-        result = []
-        try:
-            result.extend(self._fetch_imd_forecast(farm))
-        except Exception:
-            pass
-
-        try:
-            result.extend(self._fetch_imd_warning(farm))
-        except Exception:
-            pass
-            
-        try:
-            result.extend(self._fetch_imd_nowcast(farm))
-        except Exception:
-            pass
-
+        result: list[EvidenceSnapshot] = []
+        errors: list[str] = []
+        for fetch in (self._fetch_imd_forecast, self._fetch_imd_warning, self._fetch_imd_nowcast):
+            try:
+                result.extend(fetch(farm))
+            except Exception as exc:  # noqa: BLE001 - each IMD product is optional
+                errors.append(self._imd_reason(exc))
         if not result:
-            raise WeatherUnavailable("Failed to fetch any data from IMD endpoints")
+            raise WeatherUnavailable(f"IMD: {errors[0] if errors else 'no data for this district'}")
         return result
+
+    def _imd_reason(self, exc: Exception) -> str:
+        """IMD's own error message (e.g. 'IP address ... not authorized') when it sent one."""
+        response = getattr(exc, "response", None)
+        if response is not None:
+            try:
+                return self._redact(f"{response.status_code} {response.json().get('error', '')}".strip())
+            except Exception:  # noqa: BLE001
+                return self._redact(f"{response.status_code}")
+        return self._redact(str(exc))[:200]
 
     def _fetch_imd_forecast(self, farm: Farm) -> list[EvidenceSnapshot]:
         state = farm.state_name.strip().upper()

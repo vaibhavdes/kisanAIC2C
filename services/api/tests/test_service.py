@@ -328,3 +328,11 @@ def test_public_network_directory_lists_this_node_and_peers(monkeypatch):
     nodes = svc.network_nodes()["nodes"]
     assert [(n["current"], n["country_code"], n["url"]) for n in nodes] == [(True, "IN", "https://mh.example"), (False, "BR", "https://br.example")]
     assert "packs" not in nodes[1] and nodes[1]["languages"] == ["pt-BR"]
+
+
+def test_imd_errors_never_carry_credentials():
+    from kisanai_c2c.providers.weather import WeatherProvider
+
+    provider = WeatherProvider(make_settings(imd_api_key="secret-key-123", imd_password="pw-456"))
+    text = provider._redact("401 for url https://api.imd.gov.in/api/v1/x?api_key=secret-key-123 password pw-456")
+    assert "secret-key-123" not in text and "pw-456" not in text and "api_key=<redacted>" in text
