@@ -1,14 +1,15 @@
 # KISANAI
 
-**Farm advice from satellite, soil and weather, in the farmer's language, on an open BRICS network that countries and their states can join.**
+**Farm advice from satellite, soil and weather, in the farmer's language, on an open network where Indian states, and BRICS partner countries, share agricultural knowledge.**
 
 Built for *Build with AI: Code for Communities, Second Edition*, Track 04 AgriN & Regenerative Agricultural Intelligence (BRICS theme: Cooperation).
 
-Two country nodes run on Google Cloud, each keeping its data in its own region:
+Three nodes run on Google Cloud: two Indian state nodes that cooperate with each other, and a Brazilian node that shows the same network working across borders. Each keeps its data in its own region.
 
 | Node | Region | Languages |
 |---|---|---|
 | [India, Maharashtra](https://kisanai-in-mh-313370978552.asia-south1.run.app) | `asia-south1` (Mumbai) | Marathi, Hindi, English |
+| [India, Punjab and Uttar Pradesh](https://kisanai-in-north-313370978552.asia-south2.run.app) | `asia-south2` (Delhi) | Hindi, Punjabi (machine-translated), English |
 | [Brazil, Paraná](https://kisanai-br-pr-313370978552.southamerica-east1.run.app) | `southamerica-east1` (São Paulo) | Portuguese, English |
 
 Licence: Apache-2.0.
@@ -44,18 +45,18 @@ Gemini explains, reads photos and writes in the farmer's language. Crop ranking,
 
 ## BRICS AgriN network
 
-Each deployment is a **node** for one country, serving one or more of its states or provinces (ISO 3166-2 codes such as `IN-MH` and `BR-PR`).
+Each deployment is a **node** run by an agriculture department for one or more states or provinces (ISO 3166-2 codes such as `IN-MH`, `IN-PB`, `BR-PR`). Indian states cooperate node to node, and the same protocol reaches BRICS partners.
 
 - **Agronomy packs** are regional crop calendars: sowing windows by season, irrigation needs, groundwater category, legal sowing dates and priority practices. They follow [`contracts/agronomy-pack.schema.json`](contracts/agronomy-pack.schema.json) (JSON Schema 2020-12, ISO codes, crop IDs plus scientific names), so any BRICS country can publish one.
-  - The **Maharashtra** pack comes from the state agricultural universities' packages of practice, with the CGWB groundwater category.
-  - The **Paraná** pack comes from the CONAB planting calendar, plus the MAPA/ADAPAR soybean sanitary-break dates that legally set when soybean may be sown.
-- Each node publishes a manifest at `/.well-known/agrin-node`. An officer on another node imports a pack **only from an allowlisted peer**; it is schema-validated, deduplicated by digest and **used only after local expert approval**. A Paraná farm registered on the India node switches from the global baseline to Paraná's calendar once the India expert approves the pack.
+  - The **Maharashtra**, **Punjab** and **Uttar Pradesh** packs come from the state agricultural universities' packages of practice, with the CGWB groundwater category and legal dates such as Punjab's paddy-transplanting date (Preservation of Subsoil Water Act 2009).
+  - The **Paraná** pack comes from the CONAB planting calendar. Each of Paraná's 399 municipalities (IBGE register) carries its legal soybean window from the MAPA/ADAPAR sanitary-break regions.
+- Each node publishes a manifest at `/.well-known/agrin-node`. An officer on another node imports a pack **only from an allowlisted peer**; it is schema-validated, deduplicated by digest and **used only after local expert approval**. A Punjab farm registered on the Maharashtra node switches from the global baseline to Punjab's calendar once the Maharashtra expert approves the pack; the same works for Paraná across borders.
 - **Practice bundles** ([`contracts/practice-bundle.schema.json`](contracts/practice-bundle.schema.json)) travel the same way.
   - Each node's write-ups ([`data/practices/practice_library.json`](data/practices/practice_library.json)) start as drafts and are published only after its expert reviews them.
   - A bundle outside its declared countries is flagged and can't be approved blindly; for example, Maharashtra's black-soil BBF is flagged in Brazil.
   - Field evidence is attached once at least 5 farmer outcomes exist.
 - **Signals** are district-level crop-health counts, published only for groups of 5 or more reports. Officers see their peers' signals in the expert workspace, which gives early warning across borders.
-- **Shared data on BigQuery:** every day, Cloud Scheduler asks each node to publish its k-anonymous calendars, signals and practice outcomes to a BigQuery dataset in its own region. The datasets are listed in **BigQuery Analytics Hub** exchanges (`brics_agrin_in`, `brics_agrin_br`) that other countries' agencies can subscribe to.
+- **Shared data on BigQuery:** every day, Cloud Scheduler asks each node to publish its k-anonymous calendars, signals and practice outcomes to a BigQuery dataset in its own region. The datasets are listed in **BigQuery Analytics Hub** exchanges (one per region: `brics_agrin_in`, `brics_agrin_in_north`, `brics_agrin_br`) that other countries' agencies can subscribe to.
 
 A farm outside any pack region, anywhere in the world, gets the **global baseline**: FAO EcoCrop climate and soil fit plus the water balance, with sowing dates found by temperature.
 
@@ -72,8 +73,8 @@ A node lists its farmer languages in `NODE_LANGUAGES`.
 |---|---|
 | Cloud Run | One service per country node, in that country's region; dedicated least-privilege service account |
 | Vertex AI Gemini 3.5 Flash | Plans, leaf diagnosis, soil report reading, chat, district brief (asia-south1; global endpoint for the Brazil node) |
-| Google Earth Engine | Sentinel-2 indices, SoilGrids, WorldCover, WorldClim fallback |
-| Cloud Firestore | One database per node in its region (`kisanai-in-mh`, `kisanai-br-pr`) |
+| Google Earth Engine | Sentinel-2 indices, SoilGrids, WorldCover, WRI Aqueduct water risk, WorldClim fallback |
+| Cloud Firestore | One database per node in its region (`kisanai-in-mh`, `kisanai-in-north`, `kisanai-br-pr`) |
 | Cloud Storage | Private buckets per node for leaf photos and soil reports |
 | Cloud Translation | Node languages without a hand-written dictionary |
 | Speech-to-Text / Text-to-Speech | Voice questions and read-aloud answers |
@@ -105,13 +106,15 @@ React + Vite (apps/web) ── same origin ──> FastAPI (services/api) on Clo
 | Source | Use | Licence / terms |
 |---|---|---|
 | FAO EcoCrop (via the OpenCLIM EcoCrop database) | Crop temperature, rainfall, pH and soil ranges | Open Government Licence v3 |
+| WRI Aqueduct 4.0 (Earth Engine) | Sub-basin water stress and groundwater-table decline for every field, in every country | CC-BY 4.0 |
 | ISRIC SoilGrids 2.0 (Earth Engine) | Estimated pH, organic carbon, clay and sand when no soil test exists (averaged within 300 m of the field, or 1.5 km where nearer cells are masked) | CC-BY 4.0 |
 | ESA WorldCover v200 (Earth Engine) | Land cover; nearby cropland for comparison | CC-BY 4.0 |
 | Copernicus Sentinel-2 SR (Earth Engine) | NDVI / NDMI / NDWI | Copernicus open licence |
 | Open-Meteo forecast and ERA5 archive | Hourly and daily forecast, 2015-2024 climate normals | CC-BY 4.0 |
 | India Meteorological Department | District warnings in India (when credentials are configured) | IMD terms |
-| Maharashtra agricultural universities' packages of practice; CGWB Dynamic Ground Water Resources assessment | Maharashtra sowing windows and groundwater category | Cited in the pack |
-| CONAB planting calendar; MAPA Portaria 1.579/2026 and ADAPAR soybean sanitary break; EMBRAPA | Paraná planting windows, legal soybean dates, no-till and inoculation practices | Cited in the pack and practices |
+| State agricultural universities' packages of practice (Maharashtra, Punjab, Uttar Pradesh); CGWB Dynamic Ground Water Resources assessment; Punjab Preservation of Subsoil Water Act 2009 | Sowing windows, state groundwater category, legal sowing dates | Cited in each pack |
+| India Soil Health Card (ICAR rating limits) | Soil test ratings in India | Cited in `data/soil/interpretation.json` |
+| CONAB planting calendar; MAPA Portaria 1.579/2026 and ADAPAR soybean sanitary break; IBGE municipality register; Embrapa Soja P and K table (Sfredo et al. 1999); EMBRAPA practices | Paraná planting windows, per-municipality legal soybean dates, soil ratings with soybean doses, no-till and inoculation | Cited in the pack, soil schemes and practices |
 | Esri World Imagery; OpenStreetMap / CARTO labels; Nominatim | Field-plotting map and place search | Esri, ODbL |
 | pincodeapi.in | Indian PIN code lookup | Service terms |
 
@@ -136,7 +139,7 @@ To rebuild the data from sources, run `python services/api/scripts/build_crop_ca
 
 ## Deploy
 
-[`infra/cloud-run/deploy-nodes.sh`](infra/cloud-run/deploy-nodes.sh) deploys both country nodes and their daily publish jobs. [`infra/cloud-run/README.md`](infra/cloud-run/README.md) lists the one-time resources and how to add a country. For a single node, start from [`config/cloud-run.example.yaml`](config/cloud-run.example.yaml).
+[`infra/cloud-run/deploy-nodes.sh`](infra/cloud-run/deploy-nodes.sh) deploys the three nodes and their daily publish jobs. [`infra/cloud-run/README.md`](infra/cloud-run/README.md) lists the one-time resources and how to add a state or a country. For a single node, start from [`config/cloud-run.example.yaml`](config/cloud-run.example.yaml).
 
 ## Main API
 
@@ -158,11 +161,11 @@ To rebuild the data from sources, run `python services/api/scripts/build_crop_ca
 
 ## Honest limitations
 
-- Both bundled packs are curated by the team from official sources and still need sign-off by regional experts (for example IDR-Paraná / EMBRAPA and the Maharashtra agricultural universities). The app labels them that way.
-- The Paraná pack gives the soybean window that is legal statewide (20 Sep–31 Dec); earlier regional dates are stated in its regulation note but not yet applied per municipality.
-- Brazil has no groundwater category comparable to India's CGWB, so the Paraná pack says "unknown".
-- Nutrient ratings (N, P, K, micronutrients) use India's Soil Health Card limits and are shown only for Indian farms. Brazilian lab units and interpretation tables are not yet encoded.
-- Portuguese UI text is machine-translated and marked as such; a native speaker should review it.
+- The bundled packs are curated by the team from official sources and still need sign-off by regional experts (the state agricultural universities, IDR-Paraná / EMBRAPA). The app labels them that way.
+- Paraná municipalities are assigned to the three ADAPAR soybean regions through their IBGE mesoregion, following ADAPAR's geographic description; the portaria's own municipality annex should be checked for border municipalities.
+- Paraná soil ratings use Embrapa's table for clay above 40%; lighter soils are shown unrated because Embrapa's Cerrado tables are not encoded.
+- WRI Aqueduct has no sub-basin value in some places; the state category (India) or "unknown" is then shown.
+- Punjabi and Portuguese UI text is machine-translated and marked as such; a native speaker should review it.
 - The global baseline is coarse. It can suggest crops that are climatically possible but not locally grown, and a regional pack fixes that.
 - IMD warnings need IMD API credentials. Without them the app uses Open-Meteo only.
 - Plant Doctor is screening, not a lab diagnosis. It never names pesticide products or doses.

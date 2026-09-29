@@ -2,9 +2,10 @@
 
 Each BRICS country node is its own Cloud Run service in its own region. [`deploy-nodes.sh`](deploy-nodes.sh) deploys:
 
-| Service | Country / state | Region | Firestore DB | Bucket | BigQuery dataset | Analytics Hub exchange |
+| Service | Serves | Region | Firestore DB | Bucket | BigQuery dataset | Analytics Hub exchange |
 |---|---|---|---|---|---|---|
 | `kisanai-in-mh` | India, Maharashtra (`IN-MH`) | asia-south1 | `kisanai-in-mh` | `<project>-kisanai-in-mh` | `agrin_in_mh` | `brics_agrin_in` |
+| `kisanai-in-north` | India, Punjab and Uttar Pradesh (`IN-PB`, `IN-UP`) | asia-south2 | `kisanai-in-north` | `<project>-kisanai-in-north` | `agrin_in_north` | `brics_agrin_in_north` |
 | `kisanai-br-pr` | Brazil, Paraná (`BR-PR`) | southamerica-east1 | `kisanai-br-pr` | `<project>-kisanai-br-pr` | `agrin_br_pr` | `brics_agrin_br` |
 
 ```bash
@@ -37,7 +38,7 @@ Service accounts:
 
 The BigQuery dataset is created by the node's first publish. Each dataset is then listed in its region's Analytics Hub exchange (Analytics Hub needs the exchange and the dataset in the same region).
 
-## Adding a country
+## Adding a state or a country
 
 1. Build its agronomy pack with official sources (see `services/api/scripts/build_agronomy_packs.py`) and add practice write-ups to `data/practices/practice_library.json`.
 2. Create the node's Firestore database, bucket and expert-code secret in the country's region.

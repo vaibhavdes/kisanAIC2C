@@ -10,10 +10,11 @@
 | `data/crops/global_crop_catalog.json` | ~36 crops: EcoCrop ranges, cycle, water class, N-fixing, names in 8 languages |
 | `data/practices/regenerative_practices.json` | Regenerative practice catalog with localized names (used by the engine) |
 | `data/practices/practice_library.json` | Detailed practice write-ups loaded into a node's library as drafts for expert review |
-| `data/packs/*.json` | Bundled regional agronomy packs (`IN-MH`, `BR-PR`) |
+| `data/packs/*.json` | Bundled regional agronomy packs (`IN-MH`, `IN-PB`, `IN-UP`, `BR-PR` with per-municipality soybean windows) |
+| `data/soil/interpretation.json` | Official soil-test interpretation schemes by region (Soil Health Card, Embrapa Paraná) |
 | `data/i18n/en.json` | English farmer UI strings, shared by the web app and the API translator |
 | `static/` | Built web app served by the API (`npm run build:static`) |
-| `infra/cloud-run/` | `deploy-nodes.sh` deploys the India-Maharashtra and Brazil-Paraná nodes with their Scheduler jobs |
+| `infra/cloud-run/` | `deploy-nodes.sh` deploys the Maharashtra, North India (Punjab + UP) and Paraná nodes with their Scheduler jobs |
 | `config/cloud-run.example.yaml` | Env-vars file template for one node |
 
 ## Backend (`services/api/src/kisanai_c2c/`)
@@ -25,14 +26,14 @@
 | `engine.py` | `RecommendationEngine`: sowing windows (pack or temperature search), water balance, EcoCrop temperature fit, soil pH/texture, groundwater, rotation, regenerative score, rejection reasons |
 | `operations.py` | Weekly operational indicators from the forecast: sowing readiness, spray window, irrigation, drainage, temperature extremes, disease-risk weather, IMD warnings |
 | `knowledge.py` | Loads the crop catalog, practices and packs; crop aliases in local scripts; ISO subdivision codes; season helpers |
-| `soil.py` | Soil Health Card ratings and the effective soil (measured > farmer > estimate) |
+| `soil.py` | Soil ratings from the regional scheme and the effective soil (measured > farmer > estimate) |
 | `models.py` | Pydantic models shared by API and store |
 | `store.py` | Document store: SQLite (filters in SQL) or Firestore |
 | `media.py` | Upload storage: local directory or GCS |
 | `auth.py` | Anonymous device actors (`X-Actor-Id`) and expert access code (`X-Expert-Token`) |
 | `settings.py` | Environment configuration (see `.env.example`) |
 | `providers/weather.py` | Open-Meteo daily + hourly forecast, IMD district warnings (India only) |
-| `providers/land.py` | Climate normals (Open-Meteo ERA5, fallback WorldClim + Hargreaves PET), SoilGrids soil and WorldCover land cover |
+| `providers/land.py` | Climate normals (Open-Meteo ERA5, fallback WorldClim + Hargreaves PET), SoilGrids soil, WorldCover land cover, WRI Aqueduct water risk |
 | `providers/satellite.py` | Sentinel-2 indices, zone areas, neighbour comparison, server-rendered thumbnails |
 | `providers/gemini.py` | Vertex AI Gemini: plan writing, photo diagnosis, Soil Health Card extraction, chat, district brief |
 | `providers/voice.py` | Google Speech-to-Text and Text-to-Speech (best voice per language discovered automatically) |
