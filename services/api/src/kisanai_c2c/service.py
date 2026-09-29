@@ -639,6 +639,9 @@ class AppService:
             "practices": [{"bundle_id": p.id, "title": p.title, "url": f"{base}/api/v1/network/practices/{p.id}"}
                           for p in practices if p.review_status == "reviewed" and not p.created_by.startswith("imported:")],
             "signals_url": f"{base}/api/v1/network/signals",
+            "data_sharing": {"bigquery_dataset": f"{self.settings.google_cloud_project}.{self.settings.bigquery_dataset}",
+                             "location": self.settings.bigquery_location, "refresh": "daily",
+                             "via": "BigQuery Analytics Hub"} if self.settings.bigquery_dataset else None,
             "privacy": "No farmer identity, location or field geometry is published. Aggregates are suppressed below 5 records.",
         }
 

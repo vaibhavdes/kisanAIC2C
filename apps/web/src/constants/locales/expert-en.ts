@@ -73,6 +73,7 @@ export const expertEn: Record<string, string> = {
   col_state: "Region",
   col_farms: "Farms",
   ex_peers: "Peer nodes",
+  ex_data_sharing: "Shares daily anonymous data in BigQuery: {dataset} ({location}), listed in Analytics Hub.",
   ex_no_peers: "No peer nodes configured for this node.",
   peer_online: "Online",
   peer_unreachable: "Unreachable",

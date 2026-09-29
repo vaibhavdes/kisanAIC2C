@@ -266,7 +266,10 @@ class SatelliteProvider:
         classified = classified.updateMask(layer.mask()).clip(geometry.buffer(40))
         outline = ee.Image().byte().paint(featureCollection=ee.FeatureCollection([ee.Feature(geometry)]), color=1, width=2)
         preview = classified.visualize(min=0, max=len(classes) - 1, palette=palette).blend(outline.visualize(palette=["#ffffff"]))
-        url = preview.getThumbURL({"region": geometry.buffer(60).bounds(), "dimensions": 640, "format": "png"})
+        try:
+            url = preview.getThumbURL({"region": geometry.buffer(60).bounds(), "dimensions": 640, "format": "png"})
+        except ee.EEException as exc:
+            raise SatelliteUnavailable(f"Earth Engine could not render the field image: {exc}") from exc
         for attempt in range(2):
             try:
                 response = requests.get(url, timeout=25)

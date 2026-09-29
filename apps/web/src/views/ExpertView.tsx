@@ -397,6 +397,9 @@ function NetworkTab({ t, locale }: { t: T; locale: Locale }) {
                 </ul>
               </>
             )}
+            {peer.manifest?.data_sharing && (
+              <p className="muted">{t("ex_data_sharing", { dataset: peer.manifest.data_sharing.bigquery_dataset, location: peer.manifest.data_sharing.location })}</p>
+            )}
             {peer.error && <p className="muted">{peer.error}</p>}
           </div>
         ))}
