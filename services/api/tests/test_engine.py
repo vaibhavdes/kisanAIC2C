@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 from datetime import date, datetime, timedelta
 
@@ -16,8 +17,8 @@ from tests.conftest import PARANA, VIDARBHA, land_profile, make_farm
 TODAY = date(2026, 9, 28)
 
 
-def _engine(farm, pack_code: str | None = "IN-MH", rows=VIDARBHA, soil_test=None, soil_estimate=None, evidence=None):
-    pack = bundled_packs().get(pack_code) if pack_code else None
+def _engine(farm, pack_code: str | None = "IN-MH", rows=VIDARBHA, soil_test=None, soil_estimate=None, evidence=None, pack=None):
+    pack = pack or (bundled_packs().get(pack_code) if pack_code else None)
     ref = PackRef(pack_id=pack["pack_id"], pack_version=pack["pack_version"], name=pack["region"]["name"],
                   subdivision_code=pack_code, review_status=pack["review"]["status"], origin="bundled") if pack else None
     return RecommendationEngine(farm, pack=pack, pack_ref=ref, land=land_profile(farm, rows, soil_estimate), soil_test=soil_test,
@@ -55,7 +56,7 @@ def test_bundled_packs_match_contract_and_catalog():
     schema = json.loads((PROJECT_ROOT / "contracts" / "agronomy-pack.schema.json").read_text())
     validator = Draft202012Validator(schema, format_checker=FormatChecker())
     catalog = crop_catalog()
-    assert {"IN-MH", "IN-PB", "IN-UP"} <= set(bundled_packs())
+    assert {"IN-MH", "BR-PR"} <= set(bundled_packs())
     for pack in bundled_packs().values():
         assert not list(validator.iter_errors(pack))
         for entry in pack["crops"]:
@@ -113,13 +114,25 @@ def test_estimated_ph_informs_but_measured_ph_can_reject():
     assert "soil_ph" in chickpea.rejection_codes
 
 
-def test_groundwater_stress_penalises_water_hungry_crops_in_punjab():
-    farm = make_farm(state_code="PB", state_name="Punjab", district="Ludhiana", water_access="irrigated", soil_type="alluvial", previous_crop="wheat")
-    result = _engine(farm, pack_code="IN-PB")
+def test_groundwater_stress_penalises_water_hungry_crops():
+    stressed = copy.deepcopy(bundled_packs()["IN-MH"])
+    stressed["groundwater"] = {"category": "over_exploited", "scope": "state"}
+    farm = make_farm(water_access="irrigated", previous_crop="soybean")
+    result = _engine(farm, pack=stressed)
     options = {o.crop: o for o in result.sow_now + result.upcoming + result.not_suitable}
     sugarcane = options["sugarcane"]
     assert any(f.id == "groundwater" and f.status in ("limiting", "blocking") for f in sugarcane.factors)
     assert options["chickpea"].regenerative_score > sugarcane.regenerative_score
+
+
+def test_parana_pack_follows_the_soybean_sanitary_break():
+    farm = make_farm(country_code="BR", state_code="PR", state_name="Paraná", district="Cascavel",
+                     location={"latitude": -24.9, "longitude": -53.4}, soil_type="unknown", previous_crop="wheat")
+    result = _engine(farm, pack_code="BR-PR", rows=PARANA)
+    assert result.knowledge_mode == "regional_pack" and result.context["season_now"] == "safra"
+    soybean = next(o for o in result.sow_now if o.crop == "soybean")
+    assert soybean.sowing.start >= date(2026, 9, 20)  # statewide legal start after the vazio sanitário
+    assert "wheat" not in [o.crop for o in result.sow_now]  # a winter crop, not sown in spring
 
 
 # --- engine: global baseline (no regional pack) -------------------------------------------------
@@ -188,3 +201,9 @@ def test_heavy_rain_blocks_spraying_and_flags_drainage_and_blight():
 def test_operations_without_forecast_are_explicitly_unavailable():
     assert operational_indicators([], texture=None, water_access="rainfed", crop_status="planning", current_crop=None) == {
         "available": False, "message": "No forecast has been fetched yet for this farm."}
+
+
+def test_nutrient_ratings_only_where_the_country_scheme_is_known():
+    values = SoilValues(ph=5.4, nitrogen_kg_ha=150, phosphorus_kg_ha=8)
+    assert {r.parameter for r in rate_values(values, "IN")} == {"ph", "nitrogen_kg_ha", "phosphorus_kg_ha"}
+    assert {r.parameter for r in rate_values(values, "BR")} == {"ph"}  # Brazilian labs use other units and tables

@@ -12,7 +12,10 @@ import requests
 from jsonschema import Draft202012Validator, FormatChecker
 
 from .engine import RecommendationEngine, top_options
-from .knowledge import bundled_packs, crop_catalog, crop_name, normalize_crop, practice_catalog, practice_library, subdivision_code
+from .knowledge import (
+    bundled_packs, crop_catalog, crop_name, has_names, normalize_crop, practice_catalog, practice_library, register_names,
+    subdivision_code, ui_source_strings,
+)
 from .media import MediaStore, get_media_store
 from .models import (
     ActionUpdate,
@@ -44,7 +47,9 @@ from .models import (
 )
 from .operations import operational_indicators
 from .providers.gemini import GeminiProvider
+from .providers.bigquery import BigQueryPublisher
 from .providers.land import LAND_PROFILE_METHOD, LandProfileProvider, LandProfileUnavailable
+from .providers.translate import TranslationProvider, TranslationUnavailable, content_hash, placeholders_match
 from .providers.satellite import SatelliteProvider, SatelliteUnavailable
 from .providers.weather import WeatherProvider
 from .settings import PROJECT_ROOT, Settings, get_settings
@@ -53,6 +58,7 @@ from .store import DocumentStore, get_store
 
 POLICY_VERSION = "kisanai-engine-2.0.0"
 MIN_GROUP_SIZE = 5  # k-anonymity threshold for anything shared outside the node
+HANDWRITTEN_LOCALES = {"en-IN", "hi-IN", "mr-IN", "te-IN", "kn-IN"}  # dictionaries shipped with the web app
 
 
 def _schema(name: str) -> dict[str, Any]:
@@ -75,6 +81,7 @@ class AppService:
         self.media_store = media_store or get_media_store()
         self.settings = settings or get_settings()
         self.gemini = GeminiProvider(self.settings)
+        self.translator = TranslationProvider(self.settings)
 
     # ------------------------------------------------------------------ farms
     def create_farm(self, actor: Actor, payload: FarmCreate) -> Farm:
@@ -153,7 +160,7 @@ class AppService:
         return MediaRecord.model_validate(value)
 
     def extract_soil(self, actor: Actor, farm_id: str, media_id: str, locale: str) -> SoilExtraction:
-        self.farm(actor, farm_id)
+        farm = self.farm(actor, farm_id)
         media = self.media(actor, media_id)
         if media.purpose != "soil_card":
             raise ValueError("Upload the file as a soil card")
@@ -167,7 +174,7 @@ class AppService:
             card_recommendations=result.card_recommendations,
             plain_explanation=result.plain_explanation,
             uncertain_fields=result.uncertain_fields,
-            ratings=rate_values(values),
+            ratings=rate_values(values, farm.country_code),
             source=self.gemini.provider_name,
             model=self.settings.gemini_model,
         )
@@ -177,13 +184,13 @@ class AppService:
         return extraction
 
     def save_soil_test(self, actor: Actor, farm_id: str, payload: SoilTestCreate) -> SoilTest:
-        self.farm(actor, farm_id)
+        farm = self.farm(actor, farm_id)
         if not payload.confirmed:
             raise ValueError("Only values you have checked can be saved")
         if all(value is None for value in payload.values.model_dump().values()):
             raise ValueError("Enter at least one soil value")
         record = SoilTest(**payload.model_dump(), farm_id=farm_id, owner_subject=actor.subject, node_id=actor.node_id,
-                          ratings=rate_values(payload.values))
+                          ratings=rate_values(payload.values, farm.country_code))
         self.store.put("soil_tests", record.id, record.model_dump(mode="json"))
         return record
 
@@ -254,7 +261,7 @@ class AppService:
         farm = self.farm(actor, farm_id)
         evidence = self._evidence_or_refresh(actor, farm)
         land = self.store.get("land_profiles", farm.id)
-        soil = effective_soil(farm.soil_type, self.latest_soil(farm.id), LandProfile.model_validate(land).soil if land else None)
+        soil = effective_soil(farm.soil_type, self.latest_soil(farm.id), LandProfile.model_validate(land).soil if land else None, farm.country_code)
         return operational_indicators(evidence, texture=soil["texture"], water_access=farm.water_access,
                                       crop_status=farm.crop_status, current_crop=farm.current_crop)
 
@@ -308,6 +315,7 @@ class AppService:
     # ------------------------------------------------------------------ recommendations & advisory
     def crop_recommendations(self, actor: Actor, farm_id: str, locale: str = "en-IN") -> CropRecommendationResult:
         farm = self.farm(actor, farm_id)
+        self.localize_names(locale)
         evidence = self._evidence_or_refresh(actor, farm)
         pack, pack_ref = self.pack_for(farm)
         engine = RecommendationEngine(farm, pack=pack, pack_ref=pack_ref, land=self.land_profile(farm),
@@ -728,6 +736,7 @@ class AppService:
 
     # ------------------------------------------------------------------ catalog
     def crop_catalog_view(self, locale: str, country_code: str | None, state_code: str | None) -> dict[str, Any]:
+        self.localize_names(locale)
         code = subdivision_code(country_code, state_code)
         pack = bundled_packs().get(code or "")
         regional = {entry["crop_id"] for entry in pack["crops"]} if pack else set()
@@ -737,15 +746,90 @@ class AppService:
         crops.sort(key=lambda c: (not c["regional"], c["group"], c["name"]))
         return {"subdivision_code": code, "has_regional_pack": bool(pack), "crops": crops}
 
+    # ------------------------------------------------------------------ BRICS AgriN data sharing
+    def publish_shared_data(self) -> dict[str, int]:
+        """Daily snapshot of this node's k-anonymous, shareable data to BigQuery (Analytics Hub listing)."""
+        now = datetime.now(UTC).isoformat()
+        node = self.settings.node_id
+        signals = self.shared_signals()
+        calendars = []
+        for code, pack in bundled_packs().items():
+            if code not in self.settings.node_subdivision_list:
+                continue
+            for crop in pack["crops"]:
+                for window in crop["sowing_windows"]:
+                    calendars.append({"node_id": node, "pack_id": pack["pack_id"], "pack_version": pack["pack_version"],
+                                      "subdivision_code": code, "region_name": pack["region"]["name"], "crop_id": crop["crop_id"],
+                                      "scientific_name": crop["scientific_name"], "season": window["season"],
+                                      "sowing_start": window["start"], "sowing_end": window["end"],
+                                      "irrigation_required": bool(window.get("irrigation_required")),
+                                      "review_status": pack["review"]["status"], "published_at": now})
+        outcomes = [{"node_id": node, "practice_code": code, "outcomes_reported": counts["outcomes"], "worked": counts["worked"],
+                     "partly": counts["partly"], "did_not_work": counts["did_not_work"], "published_at": now}
+                    for code, counts in self.practice_outcomes(node).items() if code and counts["outcomes"] >= MIN_GROUP_SIZE]
+        rows = {"crop_health_signals": [item | {"node_id": node, "window_days": signals["window_days"], "published_at": now}
+                                        for item in signals["signals"]],
+                "crop_calendars": calendars, "practice_outcomes": outcomes}
+        return BigQueryPublisher(self.settings).publish(rows)
+
+    # ------------------------------------------------------------------ languages
+    def node_info(self) -> dict[str, Any]:
+        """What the web app needs to adapt to this node: country, regions and farmer languages."""
+        return {
+            "node_id": self.settings.node_id, "label": self.settings.node_label, "country_code": self.settings.node_country_code,
+            "subdivisions": self.settings.node_subdivision_list, "default_locale": self.settings.default_locale,
+            "languages": [{"locale": code, "name": self.translator.native_name(code),
+                           "machine_translated": code not in HANDWRITTEN_LOCALES} for code in self.settings.node_language_list],
+        }
+
+    def ui_strings(self, locale: str) -> dict[str, Any]:
+        """Farmer UI strings for a node language without a hand-written dictionary (Cloud Translation, cached)."""
+        if locale not in self.settings.node_language_list:
+            raise LookupError("This language is not offered by this node")
+        source = ui_source_strings()
+        doc_id = f"ui_{locale}_{content_hash(source)}"
+        cached = self.store.get("translations", doc_id)
+        if not cached:
+            keys = list(source)
+            values = self.translator.translate([source[key] for key in keys], locale)
+            # A string whose {placeholders} did not survive translation is kept in English rather than shown broken.
+            strings = {key: value if placeholders_match(source[key], value) else source[key] for key, value in zip(keys, values)}
+            cached = {"id": doc_id, "kind": "ui", "locale": locale, "provider": "Google Cloud Translation v3",
+                      "strings": strings, "created_at": datetime.now(UTC).isoformat()}
+            self.store.put("translations", doc_id, cached)
+        return {"locale": locale, "machine_translated": True, "provider": cached["provider"], "strings": cached["strings"]}
+
+    def localize_names(self, locale: str) -> None:
+        """Make crop and practice names available in a language the catalogs do not cover."""
+        lang = locale.split("-")[0]
+        if lang == "en":
+            return
+        for kind, catalog in (("crop", crop_catalog()), ("practice", practice_catalog())):
+            if has_names(kind, lang):
+                continue
+            missing = {item_id: item["names"]["en"] for item_id, item in catalog.items() if lang not in item["names"]}
+            doc_id = f"names_{kind}_{lang}_{content_hash(missing)}"
+            cached = self.store.get("translations", doc_id) if missing else {"strings": {}}
+            if not cached:
+                try:
+                    values = self.translator.translate(list(missing.values()), locale)
+                except TranslationUnavailable:
+                    continue  # English names are shown until translation is available
+                cached = {"id": doc_id, "kind": f"{kind}_names", "locale": locale, "strings": dict(zip(missing, values)),
+                          "created_at": datetime.now(UTC).isoformat()}
+                self.store.put("translations", doc_id, cached)
+            register_names(kind, lang, cached["strings"])
+
     # ------------------------------------------------------------------ seed data
     def seed_default_practices_if_empty(self) -> None:
         """Load the knowledge-base practices for this node's states as drafts for local expert review."""
         if self.store.list("practices", filters={"node_id": self.settings.node_id}, limit=1):
             return
-        served = {code.split("-", 1)[-1] for code in self.settings.node_subdivision_list}
+        served = set(self.settings.node_subdivision_list)
         for item in practice_library():
-            if served and not served & set(item["state_codes"]):
+            codes = {f"{country}-{state}" for country in item["country_codes"] for state in item["state_codes"]}
+            if served and not served & codes:
                 continue
-            practice = Practice(**item, country_codes=["IN"], license="CC-BY-4.0", node_id=self.settings.node_id,
+            practice = Practice(**item, license="CC-BY-4.0", node_id=self.settings.node_id,
                                 created_by="knowledge-base", review_status="draft")
             self.store.put("practices", practice.id, practice.model_dump(mode="json"))

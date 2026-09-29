@@ -45,7 +45,7 @@ class MemoryMediaStore:
 
 
 def make_settings(**overrides) -> Settings:
-    base = dict(_env_file=None, node_id="node-mh", node_label="Test MH node", node_subdivisions="IN-MH,IN-UP",
+    base = dict(_env_file=None, node_id="node-mh", node_label="Test MH node", node_subdivisions="IN-MH",
                 earth_engine_enabled=False, imd_enabled=False, open_meteo_enabled=False, ai_enabled=False,
                 google_cloud_project=None, expert_access_token=None, peer_nodes="")
     base.update(overrides)

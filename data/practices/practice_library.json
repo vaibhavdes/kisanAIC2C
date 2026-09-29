@@ -38,6 +38,9 @@
       ],
       "source_urls": [
         "https://www.icrisat.org/"
+      ],
+      "country_codes": [
+        "IN"
       ]
     },
     {
@@ -72,6 +75,9 @@
       ],
       "source_urls": [
         "https://cicr.org.in/"
+      ],
+      "country_codes": [
+        "IN"
       ]
     },
     {
@@ -114,6 +120,88 @@
       ],
       "source_urls": [
         "https://www.fao.org/conservation-agriculture/en/"
+      ],
+      "country_codes": [
+        "IN"
+      ]
+    },
+    {
+      "id": "practice_no_till_straw",
+      "practice_code": "reduced-disturbance",
+      "title": "No-till on straw (plantio direto)",
+      "summary": "Sow directly into the previous crop's straw without ploughing, keep the soil covered all year and rotate crops. It cuts erosion, holds soil moisture and builds organic matter; it is the standard grain system in Paraná.",
+      "state_codes": [
+        "PR"
+      ],
+      "country_codes": [
+        "BR"
+      ],
+      "crops": [
+        "soybean",
+        "maize",
+        "wheat",
+        "oats",
+        "dry_bean"
+      ],
+      "seasons": [
+        "safra",
+        "safrinha",
+        "inverno"
+      ],
+      "water_contexts": [
+        "rainfed",
+        "supplemental_irrigation",
+        "irrigated"
+      ],
+      "steps": [
+        "Keep the previous crop's straw on the surface; do not plough or harrow.",
+        "Sow with a no-till planter that cuts through the straw.",
+        "Follow soybean or maize with a winter cover or grain crop (for example black oat or wheat) so the soil is never bare.",
+        "Rotate crop families across years."
+      ],
+      "contraindications": [
+        "Compacted or badly eroded fields may need one-time correction (subsoiling, terracing, liming) before starting."
+      ],
+      "source_urls": [
+        "https://www.embrapa.br/en/tema-plantio-direto",
+        "https://febrapdp.org.br/"
+      ]
+    },
+    {
+      "id": "practice_soy_inoculation",
+      "practice_code": "rhizobium-inoculation",
+      "title": "Bradyrhizobium seed inoculation for soybean",
+      "summary": "Inoculating soybean seed with Bradyrhizobium lets the crop fix most of its own nitrogen, so no nitrogen fertiliser is needed on soybean.",
+      "state_codes": [
+        "PR",
+        "MH"
+      ],
+      "country_codes": [
+        "BR",
+        "IN"
+      ],
+      "crops": [
+        "soybean"
+      ],
+      "seasons": [
+        "safra",
+        "kharif"
+      ],
+      "water_contexts": [
+        "rainfed",
+        "supplemental_irrigation",
+        "irrigated"
+      ],
+      "steps": [
+        "Use a registered Bradyrhizobium inoculant within its expiry date.",
+        "Treat seed in the shade just before sowing and sow the same day.",
+        "Re-inoculate every season, also in fields where soybean was grown before."
+      ],
+      "contraindications": [
+        "Keep inoculant away from seed treatment chemicals that are not compatible; follow the label."
+      ],
+      "source_urls": [
+        "https://www.embrapa.br/en/soja"
       ]
     }
   ]

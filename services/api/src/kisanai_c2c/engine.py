@@ -106,7 +106,7 @@ class RecommendationEngine:
         self.evidence = evidence
         self.locale = locale
         self.today = today or date.today()
-        self.soil = effective_soil(farm.soil_type, soil_test, land.soil if land else None)
+        self.soil = effective_soil(farm.soil_type, soil_test, land.soil if land else None, farm.country_code)
         self.district = find_district(pack, farm.district)
         self.groundwater = (self.district or {}).get("groundwater_category") or ((pack or {}).get("groundwater") or {}).get("category") or "unknown"
         self.previous = normalize_crop(farm.previous_crop) if farm.previous_crop else ""
@@ -473,9 +473,10 @@ class RecommendationEngine:
         ids = list(crop.get("practices", []))
         if self.soil["oc_rating"] == "low" and self.soil["oc_source"] == "measured":
             ids.append("compost-fym")
-        if self.soil["texture"] == "heavy" and crop["group"] in {"oilseed", "pulse", "fibre"} and "broad-bed-furrow" not in ids:
-            ids.append("broad-bed-furrow")
         priority = (self.pack or {}).get("priority_practices", [])
+        # Broad bed and furrow suits heavy, waterlogging-prone soils where the regional pack recommends it.
+        if self.soil["texture"] == "heavy" and crop["group"] in {"oilseed", "pulse", "fibre"} and "broad-bed-furrow" in priority:
+            ids.append("broad-bed-furrow")
         ordered = [pid for pid in ids if pid in priority] + [pid for pid in ids if pid not in priority]
         seen: list[str] = []
         for pid in ordered:
@@ -511,13 +512,13 @@ class RecommendationEngine:
         sources.append(DataSource(id="forecast", name="Open-Meteo 7-day forecast", kind="forecast",
                                   status="live" if weather else "unavailable", as_of=str(weather.get("fetched_at"))[:16] if weather else None))
         if self.land:
-            sources.append(DataSource(id="climate", name="TerraClimate 1991-2020 normals" if self.land.climate_source == "terraclimate" else "Open-Meteo ERA5 2015-2024 normals",
+            sources.append(DataSource(id="climate", name="WorldClim 1960-1990 normals" if self.land.climate_source == "worldclim_1_4" else "Open-Meteo ERA5 2015-2024 normals",
                                       kind="estimated", status="estimated", detail=self.land.climate_period))
             sources.append(DataSource(id="soil_model", name="ISRIC SoilGrids 2.0", kind="estimated",
                                       status="estimated" if self.land.soil else "unavailable"))
         else:
             sources.append(DataSource(id="climate", name="Climate normals", kind="estimated", status="unavailable"))
-        sources.append(DataSource(id="soil_test", name="Soil test / Soil Health Card", kind="measured",
+        sources.append(DataSource(id="soil_test", name="Soil test report", kind="measured",
                                   status="live" if self.soil_test else "not_provided",
                                   as_of=self.soil_test.sample_date.isoformat() if self.soil_test and self.soil_test.sample_date else None))
         sat = latest_snapshot(self.evidence, "satellite_observation")

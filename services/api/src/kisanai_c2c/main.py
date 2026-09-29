@@ -8,7 +8,7 @@ from typing import Any
 from uuid import uuid4
 
 import requests
-from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile, status
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -24,6 +24,8 @@ from .models import (
 )
 from .providers.gemini import GeminiProvider, GeminiUnavailable
 from .providers.satellite import SatelliteProvider, SatelliteUnavailable
+from .providers.bigquery import BigQueryUnavailable
+from .providers.translate import TranslationUnavailable
 from .providers.voice import VoiceProvider, VoiceUnavailable
 from .providers.weather import WeatherUnavailable
 from .service import AppService
@@ -84,7 +86,7 @@ async def provider_unavailable(_: Request, exc: Exception):
     return _error(status.HTTP_503_SERVICE_UNAVAILABLE, "provider_unavailable", str(exc), True)
 
 
-for _exc in (GeminiUnavailable, VoiceUnavailable, WeatherUnavailable, SatelliteUnavailable):
+for _exc in (GeminiUnavailable, VoiceUnavailable, WeatherUnavailable, SatelliteUnavailable, TranslationUnavailable, BigQueryUnavailable):
     app.add_exception_handler(_exc, provider_unavailable)
 
 
@@ -106,6 +108,34 @@ def health():
 def me(actor: Actor = Depends(current_actor)):
     return {"subject": actor.subject, "roles": sorted(role.value for role in actor.roles), "node_id": actor.node_id,
             "node_label": settings.node_label, "expert_access_required": bool(settings.expert_access_token)}
+
+
+@app.post("/api/v1/internal/publish")
+def publish_shared_data(request: Request, authorization: str | None = Header(default=None), svc: AppService = Depends(service)):
+    """Called daily by Cloud Scheduler with a Google-signed OIDC token: publishes shareable data to BigQuery."""
+    from google.auth.transport import requests as google_requests
+    from google.oauth2 import id_token
+
+    if not settings.job_service_account or not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Scheduler identity token required")
+    audience = f"{(settings.public_base_url or str(request.base_url)).rstrip('/')}/api/v1/internal/publish"
+    try:
+        claims = id_token.verify_oauth2_token(authorization.removeprefix("Bearer ").strip(), google_requests.Request(), audience=audience)
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid identity token") from exc
+    if claims.get("email") != settings.job_service_account or not claims.get("email_verified"):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "This identity may not run the publish job")
+    return {"node_id": settings.node_id, "published": svc.publish_shared_data()}
+
+
+@app.get("/api/v1/node")
+def node_info(svc: AppService = Depends(service)):
+    return svc.node_info()
+
+
+@app.get("/api/v1/i18n/{locale}")
+def ui_strings(locale: str, svc: AppService = Depends(service)):
+    return svc.ui_strings(locale)
 
 
 @app.get("/api/v1/catalog/crops")

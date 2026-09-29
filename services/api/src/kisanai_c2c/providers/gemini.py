@@ -16,11 +16,6 @@ from pydantic import BaseModel, Field
 from ..models import AdvisoryAction
 from ..settings import Settings, get_settings
 
-LANGUAGE_NAMES = {
-    "en-IN": "English (India)", "hi-IN": "Hindi", "mr-IN": "Marathi", "te-IN": "Telugu", "kn-IN": "Kannada",
-    "ta-IN": "Tamil", "bn-IN": "Bengali", "gu-IN": "Gujarati", "pa-IN": "Punjabi",
-    "pt-BR": "Brazilian Portuguese", "ru-RU": "Russian", "zh-CN": "Simplified Chinese", "en-ZA": "English (South Africa)",
-}
 
 
 class GeminiUnavailable(RuntimeError):
@@ -147,7 +142,10 @@ class GeminiProvider:
 
     @staticmethod
     def _language(locale: str) -> str:
-        return LANGUAGE_NAMES.get(locale, locale)
+        from .translate import TranslationProvider
+
+        name = TranslationProvider().language_name(locale)
+        return f"{name} ({locale})" if name != locale else f"the language with BCP-47 tag {locale}"
 
     # --- field plan ------------------------------------------------------------------------
     def create_plan(

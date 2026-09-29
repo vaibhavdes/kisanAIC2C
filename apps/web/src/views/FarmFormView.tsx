@@ -47,7 +47,7 @@ export function FarmFormView({ t, locale, editing, onSaved, onCancel }: FarmForm
   const [form, setForm] = useState(() => ({
     name: editing?.name || "",
     area_value: editing ? String(editing.area_value) : "",
-    area_unit: editing?.area_unit || "acre",
+    area_unit: editing?.area_unit || (locale.endsWith("-IN") ? "acre" : "hectare"),
     water_access: editing?.water_access || "rainfed",
     soil_type: editing?.soil_type || "unknown",
     crop_status: editing?.crop_status || "planning",

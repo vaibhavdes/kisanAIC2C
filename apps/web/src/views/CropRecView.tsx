@@ -73,7 +73,7 @@ export function CropRecView({ t, locale, farm, go }: Props) {
             <div className="source-chips">
               {(r.data_sources as Json[]).map((s) => (
                 <span key={s.id} className={`source-chip st-${s.status}`}>
-                  {s.name} · {t(`ds_status_${s.status}`)}{s.as_of ? ` (${s.as_of})` : ""}
+                  {t(`srcname_${s.id}`) !== `srcname_${s.id}` ? t(`srcname_${s.id}`) : s.name} · {t(`ds_status_${s.status}`)}{s.as_of ? ` (${s.as_of})` : ""}
                 </span>
               ))}
             </div>
@@ -131,7 +131,7 @@ function CropCard({ t, o, locale, highlight = false }: { t: T; o: Json; locale: 
       {w && (
         <p className="window-line">
           {w.status === "open" ? t("window_open_until", { date: formatDate(w.end, locale) }) : t("window_opens", { date: formatDate(w.start, locale), days: w.days_until_start })}
-          {w.label && locale === "en-IN" ? ` · ${w.label}` : ""}
+          {w.label && locale.startsWith("en") ? ` · ${w.label}` : ""}
           {w.irrigation_required ? ` · ${t("needs_irrigation")}` : ""}
         </p>
       )}

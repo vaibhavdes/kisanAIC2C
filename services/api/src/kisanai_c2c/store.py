@@ -102,18 +102,34 @@ class SQLiteDocumentStore:
 
 
 class FirestoreDocumentStore:
+    """Cloud Firestore (Native mode). Each document keeps the full record as JSON in `_doc` (Firestore
+    cannot hold nested arrays such as field boundaries) plus its top-level scalar fields for filtering."""
+
+    SCAN_LIMIT = 500
+
     def __init__(self, settings: Settings):
         from google.cloud import firestore
 
         self.client = firestore.Client(project=settings.google_cloud_project, database=settings.firestore_database)
 
+    @staticmethod
+    def _encode(value: dict[str, Any]) -> dict[str, Any]:
+        scalars = {key: item for key, item in value.items() if isinstance(item, (str, int, float, bool)) and len(str(item)) < 1400}
+        return scalars | {"_doc": json.dumps(value, ensure_ascii=False, default=str)}
+
+    @staticmethod
+    def _decode(data: dict[str, Any] | None) -> dict[str, Any] | None:
+        if data is None:
+            return None
+        return json.loads(data["_doc"]) if "_doc" in data else data
+
     def put(self, collection: str, document_id: str, value: dict[str, Any]) -> dict[str, Any]:
-        self.client.collection(collection).document(document_id).set(value)
+        self.client.collection(collection).document(document_id).set(self._encode(value))
         return value
 
     def get(self, collection: str, document_id: str) -> dict[str, Any] | None:
         snapshot = self.client.collection(collection).document(document_id).get()
-        return snapshot.to_dict() if snapshot.exists else None
+        return self._decode(snapshot.to_dict()) if snapshot.exists else None
 
     def list(self, collection: str, *, filters: dict[str, Any] | None = None, limit: int = 100) -> list[dict[str, Any]]:
         from google.cloud.firestore_v1.base_query import FieldFilter
@@ -121,8 +137,10 @@ class FirestoreDocumentStore:
         query = self.client.collection(collection)
         for key, value in (filters or {}).items():
             query = query.where(filter=FieldFilter(key, "==", value))
-        items = [snapshot.to_dict() for snapshot in query.limit(min(max(limit, 1), 500)).stream()]
-        return sorted(items, key=lambda item: str(item.get("updated_at") or item.get("created_at") or item.get("fetched_at") or ""), reverse=True)
+        # Equality filters need no composite index; newest-first ordering is applied before the limit.
+        items = [self._decode(snapshot.to_dict()) for snapshot in query.limit(self.SCAN_LIMIT).stream()]
+        items.sort(key=lambda item: str(item.get("updated_at") or item.get("created_at") or item.get("fetched_at") or ""), reverse=True)
+        return items[:max(limit, 1)]
 
     def delete(self, collection: str, document_id: str) -> bool:
         reference = self.client.collection(collection).document(document_id)

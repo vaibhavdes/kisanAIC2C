@@ -1,9 +1,11 @@
 # ---- Stage 1: Build React frontend ----
 FROM node:20-alpine AS web-builder
-WORKDIR /app/web
+WORKDIR /repo/apps/web
 COPY apps/web/package.json apps/web/package-lock.json ./
 RUN npm ci --legacy-peer-deps
 COPY apps/web/ ./
+# Shared English UI strings (also read by the API for machine translation)
+COPY data/i18n /repo/data/i18n
 RUN npm run build
 
 # ---- Stage 2: Python API + static frontend ----
@@ -24,7 +26,7 @@ COPY data ./data
 RUN uv pip install --system --no-cache -e .
 
 # Copy built frontend into static/
-COPY --from=web-builder /app/web/dist ./static
+COPY --from=web-builder /repo/apps/web/dist ./static
 
 # Create work dir for local media (dev only; Cloud Run uses GCS)
 RUN mkdir -p /app/work/media

@@ -21,11 +21,18 @@ class Settings(BaseSettings):
     app_env: Literal["development", "test", "production"] = "development"
     node_id: str = "india-node"
     node_country_code: str = "IN"
-    node_label: str = "KISANAI India node"
-    node_subdivisions: str = "IN-MH,IN-PB,IN-UP"
+    node_label: str = "KISANAI Maharashtra node"
+    node_subdivisions: str = "IN-MH"
+    # Farmer languages offered by this node; ones without a hand-written dictionary are machine-translated.
+    node_languages: str = "en-IN,hi-IN,mr-IN,te-IN,kn-IN"
     public_base_url: str | None = None
     peer_nodes: str = ""
     expert_access_token: str | None = None
+    # Service account whose Google-signed OIDC token Cloud Scheduler sends to /api/v1/internal/publish.
+    job_service_account: str | None = None
+    # BigQuery dataset (in this node's region) for BRICS AgriN data sharing via Analytics Hub.
+    bigquery_dataset: str | None = None
+    bigquery_location: str = "asia-south1"
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 
     store_provider: Literal["sqlite", "firestore"] = "sqlite"
@@ -74,6 +81,10 @@ class Settings(BaseSettings):
     @property
     def peer_node_list(self) -> list[str]:
         return [item.strip().rstrip("/") for item in self.peer_nodes.split(",") if item.strip()]
+
+    @property
+    def node_language_list(self) -> list[str]:
+        return [item.strip() for item in self.node_languages.split(",") if item.strip()]
 
     @property
     def node_subdivision_list(self) -> list[str]:

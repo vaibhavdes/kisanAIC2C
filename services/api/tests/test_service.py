@@ -111,40 +111,48 @@ def test_seeded_practices_export_and_import_between_nodes(expert: Actor):
     node_a.seed_default_practices_if_empty()
     with pytest.raises(ValueError):
         node_a.export_practice(expert, "practice_bbf_drainage")  # knowledge-base drafts need local review first
-    node_a.review_practice(expert, "practice_bbf_drainage", PracticeReview(approve=True, note="Checked"))
+    for practice_id in ("practice_bbf_drainage", "practice_soy_inoculation"):
+        node_a.review_practice(expert, practice_id, PracticeReview(approve=True, note="Checked"))
     assert "practice_bbf_drainage" in [p["bundle_id"] for p in node_a.node_manifest()["practices"]]
-    bundle = node_a.export_practice(expert, "practice_bbf_drainage")
-    assert bundle["practice_code"] == "broad-bed-furrow" and "field_evidence" not in bundle
+    bbf = node_a.export_practice(expert, "practice_bbf_drainage")
+    assert bbf["practice_code"] == "broad-bed-furrow" and "field_evidence" not in bbf
 
-    node_b = AppService(store=MemoryStore(), media_store=MemoryMediaStore(), settings=make_settings(node_id="node-pb", node_subdivisions="IN-PB"))
-    expert_b = Actor(subject="dev-expert-pb00001", node_id="node-pb", roles={Role.expert})
-    record = node_b.import_bundle(expert_b, bundle)
+    node_b = AppService(store=MemoryStore(), media_store=MemoryMediaStore(), settings=make_settings(node_id="node-br-pr", node_country_code="BR", node_subdivisions="BR-PR"))
+    expert_b = Actor(subject="dev-expert-br00001", node_id="node-br-pr", roles={Role.expert})
+    flagged = node_b.import_bundle(expert_b, bbf)
+    assert flagged.compatibility_findings  # an Indian black-soil practice is not auto-approvable in Brazil
+    with pytest.raises(ValueError):
+        node_b.review_import(expert_b, flagged.id, ExchangeReview(approve=True, note="Try"))
+
+    inoculation = node_a.export_practice(expert, "practice_soy_inoculation")
+    record = node_b.import_bundle(expert_b, inoculation)
     assert record.bundle_type == "practice" and record.compatibility_findings == []
     with pytest.raises(RuntimeError):
-        node_b.import_bundle(expert_b, bundle)
-    node_b.review_import(expert_b, record.id, ExchangeReview(approve=True, note="Checked for Punjab black-soil pockets"))
+        node_b.import_bundle(expert_b, inoculation)
+    node_b.review_import(expert_b, record.id, ExchangeReview(approve=True, note="Checked for Paraná conditions"))
     assert any(p.created_by == "imported:node-mh" for p in node_b.practices(expert_b))
 
 
-def test_state_pack_exchange_switches_a_farm_from_global_baseline_to_regional_pack():
-    pb_node = AppService(store=MemoryStore(), media_store=MemoryMediaStore(), settings=make_settings(node_id="node-pb", node_subdivisions="IN-PB"))
+def test_cross_country_pack_exchange_switches_a_farm_from_global_baseline_to_regional_pack():
+    br_node = AppService(store=MemoryStore(), media_store=MemoryMediaStore(), settings=make_settings(node_id="node-br-pr", node_country_code="BR", node_subdivisions="BR-PR"))
     mh_node = AppService(store=MemoryStore(), media_store=MemoryMediaStore(), settings=make_settings(node_id="node-mh", node_subdivisions="IN-MH"))
-    farmer = Actor(subject="dev-farmer-pb0001", node_id="node-mh", roles={Role.farmer})
+    farmer = Actor(subject="dev-farmer-br0001", node_id="node-mh", roles={Role.farmer})
     mh_expert = Actor(subject="dev-expert-mh0001", node_id="node-mh", roles={Role.expert})
-    farm = mh_node.create_farm(farmer, _payload(state_code="PB", state_name="Punjab", district="Ludhiana", water_access="irrigated", previous_crop="rice"))
+    farm = mh_node.create_farm(farmer, _payload(country_code="BR", state_code="PR", state_name="Paraná", district="Cascavel",
+                                                location=Location(latitude=-24.9, longitude=-53.4), previous_crop="wheat"))
 
     assert mh_node.crop_recommendations(farmer, farm.id).knowledge_mode == "global_baseline"
     with pytest.raises(LookupError):
-        mh_node.export_pack("pack_in_punjab")  # a node only publishes packs for regions it serves
+        mh_node.export_pack("pack_br_parana")  # a node only publishes packs for regions it serves
 
-    record = mh_node.import_bundle(mh_expert, pb_node.export_pack("pack_in_punjab"))
+    record = mh_node.import_bundle(mh_expert, br_node.export_pack("pack_br_parana"))
     assert record.bundle_type == "agronomy_pack" and record.compatibility_findings == []
     assert mh_node.crop_recommendations(farmer, farm.id).knowledge_mode == "global_baseline"  # not active until reviewed
 
-    mh_node.review_import(mh_expert, record.id, ExchangeReview(approve=True, note="Reviewed PAU calendar"))
+    mh_node.review_import(mh_expert, record.id, ExchangeReview(approve=True, note="Reviewed CONAB calendar"))
     result = mh_node.crop_recommendations(farmer, farm.id)
     assert result.knowledge_mode == "regional_pack"
-    assert result.pack.origin == "imported" and result.pack.origin_node == "node-pb"
+    assert result.pack.origin == "imported" and result.pack.origin_node == "node-br-pr"
 
 
 def test_invalid_pack_is_rejected(service: AppService, expert: Actor):
@@ -156,7 +164,7 @@ def test_node_manifest_publishes_no_personal_data(service: AppService, farmer: A
     service.create_farm(farmer, _payload())
     service.seed_default_practices_if_empty()
     manifest = service.node_manifest()
-    assert {p["subdivision_code"] for p in manifest["packs"]} == {"IN-MH", "IN-UP"}
+    assert {p["subdivision_code"] for p in manifest["packs"]} == {"IN-MH"}
     text = str(manifest)
     assert "Shivar" not in text and "20.43" not in text and farmer.subject not in text
 
@@ -206,10 +214,10 @@ def test_practice_review_toggle(service: AppService, expert: Actor):
 
 
 def test_seeded_practices_match_the_node_states():
-    punjab = AppService(MemoryStore(), MemoryMediaStore(), make_settings(node_id="node-pb", node_subdivisions="IN-PB"))
-    punjab.seed_default_practices_if_empty()
-    codes = {p["practice_code"] for p in punjab.store.list("practices", filters={"node_id": "node-pb"}, limit=10)}
-    assert codes == {"residue-retention"}
+    parana = AppService(MemoryStore(), MemoryMediaStore(), make_settings(node_id="node-br-pr", node_country_code="BR", node_subdivisions="BR-PR"))
+    parana.seed_default_practices_if_empty()
+    ids = {p["id"] for p in parana.store.list("practices", filters={"node_id": "node-br-pr"}, limit=10)}
+    assert ids == {"practice_no_till_straw", "practice_soy_inoculation"}  # no Indian black-soil BBF in Brazil
 
 
 def test_soil_health_card_ph_classes():
@@ -240,12 +248,35 @@ def test_peer_signals_come_only_from_allowlisted_peers_and_respect_k(monkeypatch
             pass
 
         def json(self):
-            return {"node_id": "node-pb", "window_days": 30, "signals": [
-                {"subdivision_code": "IN-PB", "district": "Ludhiana", "crop": "wheat", "category": "disease", "reports": 7},
-                {"subdivision_code": "IN-PB", "district": "Patiala", "crop": "rice", "category": "pest", "reports": 2}]}
+            return {"node_id": "node-br-pr", "window_days": 30, "signals": [
+                {"subdivision_code": "BR-PR", "district": "Cascavel", "crop": "soybean", "category": "disease", "reports": 7},
+                {"subdivision_code": "BR-PR", "district": "Toledo", "crop": "maize", "category": "pest", "reports": 2}]}
 
     monkeypatch.setattr(service_module.requests, "get", lambda url, timeout: calls.append(url) or Reply())
-    svc = AppService(MemoryStore(), MemoryMediaStore(), make_settings(peer_nodes="https://pb.example"))
+    svc = AppService(MemoryStore(), MemoryMediaStore(), make_settings(peer_nodes="https://br.example"))
     signals = svc.peer_signals()
-    assert calls == ["https://pb.example/api/v1/network/signals"]
-    assert [(s["district"], s["reports"]) for s in signals] == [("Ludhiana", 7)]
+    assert calls == ["https://br.example/api/v1/network/signals"]
+    assert [(s["district"], s["reports"]) for s in signals] == [("Cascavel", 7)]
+
+
+def test_node_languages_are_machine_translated_once_and_cached():
+    svc = AppService(MemoryStore(), MemoryMediaStore(), make_settings(node_id="node-br-pr", node_country_code="BR",
+                                                                       node_subdivisions="BR-PR", node_languages="pt-BR,en-IN"))
+    calls = []
+    svc.translator.translate = lambda texts, locale: calls.append(len(texts)) or [f"[{locale}] {t}" for t in texts]
+    first = svc.ui_strings("pt-BR")
+    assert first["machine_translated"] and first["strings"]["go_home"] == "[pt-BR] Home"
+    svc.ui_strings("pt-BR")
+    assert len(calls) == 1  # second request served from the store
+    with pytest.raises(LookupError):
+        svc.ui_strings("fr-FR")  # only languages the node offers
+
+    from kisanai_c2c.knowledge import practice_name
+    svc.localize_names("pt-BR")
+    assert practice_name("legume-rotation", "pt-BR").startswith("[pt-BR]")  # no hand-written Portuguese practice names
+    assert crop_name_pt("soybean") == "Soja"  # catalog names win over machine translation
+
+
+def crop_name_pt(crop_id: str) -> str:
+    from kisanai_c2c.knowledge import crop_name
+    return crop_name(crop_id, "pt-BR")

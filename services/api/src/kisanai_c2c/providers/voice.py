@@ -7,13 +7,9 @@ class VoiceUnavailable(RuntimeError):
     pass
 
 
-VOICE_NAMES = {
-    "en-IN": "en-IN-Neural2-A",
-    "hi-IN": "hi-IN-Neural2-A",
-    "mr-IN": "mr-IN-Wavenet-A",
-    "te-IN": "te-IN-Standard-A",
-    "kn-IN": "kn-IN-Wavenet-A",
-}
+# Preferred voice families, best first; the concrete voice is discovered per language.
+VOICE_QUALITY = ("Chirp3-HD", "Neural2", "Wavenet", "Standard")
+_VOICE_CACHE: dict[str, str | None] = {}
 
 
 class VoiceProvider:
@@ -49,13 +45,23 @@ class VoiceProvider:
             raise VoiceUnavailable("Google Text-to-Speech is disabled")
         from google.cloud import texttospeech
 
-        voice_name = VOICE_NAMES.get(locale)
-        if not voice_name:
-            raise VoiceUnavailable(f"No reviewed voice is configured for {locale}")
         client = texttospeech.TextToSpeechClient()
+        voice_name = self._voice(client, locale)
         response = client.synthesize_speech(
             input=texttospeech.SynthesisInput(text=text),
             voice=texttospeech.VoiceSelectionParams(language_code=locale, name=voice_name),
             audio_config=texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.MP3),
         )
         return response.audio_content, "audio/mpeg"
+
+    @staticmethod
+    def _voice(client, locale: str) -> str:
+        """Best available Google voice for the language, so a new node language needs no configuration."""
+        if locale not in _VOICE_CACHE:
+            voices = [voice.name for voice in client.list_voices(language_code=locale).voices
+                      if any(code == locale for code in voice.language_codes)]
+            ranked = sorted(voices, key=lambda name: next((i for i, q in enumerate(VOICE_QUALITY) if q in name), len(VOICE_QUALITY)))
+            _VOICE_CACHE[locale] = ranked[0] if ranked else None
+        if not _VOICE_CACHE[locale]:
+            raise VoiceUnavailable(f"Google Text-to-Speech has no voice for {locale}")
+        return _VOICE_CACHE[locale]

@@ -1,0 +1,185 @@
+{
+  "schema_version": "1.0.0",
+  "pack_id": "pack_br_parana",
+  "pack_version": 1,
+  "region": {
+    "country_code": "BR",
+    "subdivision_code": "BR-PR",
+    "name": "Paraná"
+  },
+  "license": "CC-BY-4.0",
+  "review": {
+    "status": "curated_pending_review",
+    "reviewer": null,
+    "reviewed_at": null,
+    "note": "Planting months from the CONAB state planting calendar; soybean dates follow the MAPA/ADAPAR sanitary-break regulation. Awaiting review by a Paraná agronomist (IDR-Paraná / EMBRAPA)."
+  },
+  "sources": [
+    {
+      "title": "CONAB - Calendário de plantio e colheita de grãos no Brasil (Paraná rows)",
+      "url": "https://www.gov.br/conab/pt-br/acesso-a-informacao/institucional/publicacoes/arquivos-de-paginas/calendariozplantiozezcolheitazjunz2022.pdf"
+    },
+    {
+      "title": "ADAPAR - Períodos do vazio sanitário da soja, safra 2026/2027 (MAPA Portaria nº 1.579/2026)",
+      "url": "https://www.adapar.pr.gov.br/Noticia/Periodos-do-vazio-sanitario-da-Soja-para-safra-de-20262027-comecam-em-junho"
+    }
+  ],
+  "seasons": [
+    {
+      "id": "safra",
+      "months": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        1
+      ]
+    },
+    {
+      "id": "safrinha",
+      "months": [
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "id": "inverno",
+      "months": [
+        4,
+        5,
+        6,
+        7,
+        8
+      ]
+    }
+  ],
+  "groundwater": {
+    "category": "unknown",
+    "scope": "state",
+    "note": "No state groundwater stress category is published in the same form as India's CGWB assessment."
+  },
+  "crops": [
+    {
+      "crop_id": "soybean",
+      "scientific_name": "Glycine max",
+      "sowing_windows": [
+        {
+          "season": "safra",
+          "start": "09-20",
+          "end": "12-31",
+          "irrigation_required": false
+        }
+      ],
+      "note": "Legal sowing starts 1 Sep in the North/Northwest/Centre-West/West, 11 Sep in the Southwest and 20 Sep in the South/East/Campos Gerais; 20 Sep-31 Dec is open statewide."
+    },
+    {
+      "crop_id": "maize",
+      "scientific_name": "Zea mays",
+      "sowing_windows": [
+        {
+          "season": "safra",
+          "start": "09-11",
+          "end": "12-31",
+          "irrigation_required": false,
+          "label": "1st crop"
+        },
+        {
+          "season": "safrinha",
+          "start": "01-01",
+          "end": "04-30",
+          "irrigation_required": false,
+          "label": "2nd crop (safrinha)"
+        }
+      ]
+    },
+    {
+      "crop_id": "dry_bean",
+      "scientific_name": "Phaseolus vulgaris",
+      "sowing_windows": [
+        {
+          "season": "safra",
+          "start": "08-01",
+          "end": "11-30",
+          "irrigation_required": false,
+          "label": "1st crop (wet season)"
+        },
+        {
+          "season": "safrinha",
+          "start": "01-01",
+          "end": "03-31",
+          "irrigation_required": false,
+          "label": "2nd crop (dry season)"
+        }
+      ]
+    },
+    {
+      "crop_id": "wheat",
+      "scientific_name": "Triticum aestivum",
+      "sowing_windows": [
+        {
+          "season": "inverno",
+          "start": "04-01",
+          "end": "07-31",
+          "irrigation_required": false
+        }
+      ]
+    },
+    {
+      "crop_id": "oats",
+      "scientific_name": "Avena sativa",
+      "sowing_windows": [
+        {
+          "season": "inverno",
+          "start": "04-01",
+          "end": "07-31",
+          "irrigation_required": false
+        }
+      ],
+      "note": "Black oat is also the main winter cover crop for no-till."
+    },
+    {
+      "crop_id": "barley",
+      "scientific_name": "Hordeum vulgare",
+      "sowing_windows": [
+        {
+          "season": "inverno",
+          "start": "05-01",
+          "end": "07-31",
+          "irrigation_required": false
+        }
+      ]
+    },
+    {
+      "crop_id": "rapeseed_canola",
+      "scientific_name": "Brassica napus",
+      "sowing_windows": [
+        {
+          "season": "inverno",
+          "start": "04-01",
+          "end": "06-30",
+          "irrigation_required": false
+        }
+      ]
+    }
+  ],
+  "districts": [],
+  "priority_practices": [
+    "reduced-disturbance",
+    "residue-retention",
+    "rhizobium-inoculation",
+    "legume-rotation",
+    "green-manure",
+    "field-scouting"
+  ],
+  "regulations": [
+    {
+      "crop_id": "soybean",
+      "earliest_sowing": "09-01",
+      "text": "Soybean sanitary break (vazio sanitário) against Asian soybean rust: sowing is allowed 1 Sep-31 Dec (Region 2: North, Northwest, Centre-West, West), 11 Sep-10 Jan (Region 3: Southwest) and 20 Sep-20 Jan (Region 1: South, East, Campos Gerais, coast).",
+      "source": "MAPA Portaria nº 1.579/2026; ADAPAR"
+    }
+  ]
+}

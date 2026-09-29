@@ -79,12 +79,25 @@ def normalize_crop(value: str | None) -> str:
     return slug
 
 
+# Machine-translated names for languages the catalogs do not cover, registered by the service
+# from the Cloud Translation cache: {("crop" | "practice", lang): {id: name}}.
+_TRANSLATED_NAMES: dict[tuple[str, str], dict[str, str]] = {}
+
+
+def register_names(kind: str, lang: str, names: dict[str, str]) -> None:
+    _TRANSLATED_NAMES[(kind, lang)] = names
+
+
+def has_names(kind: str, lang: str) -> bool:
+    return (kind, lang) in _TRANSLATED_NAMES
+
+
 def crop_name(crop_id: str, locale: str = "en-IN") -> str:
     crop = crop_catalog().get(crop_id)
     if not crop:
         return crop_id.replace("_", " ").title()
     lang = locale.split("-")[0]
-    return crop["names"].get(lang) or crop["names"]["en"]
+    return crop["names"].get(lang) or _TRANSLATED_NAMES.get(("crop", lang), {}).get(crop_id) or crop["names"]["en"]
 
 
 def practice_name(practice_id: str, locale: str = "en-IN") -> str:
@@ -92,7 +105,12 @@ def practice_name(practice_id: str, locale: str = "en-IN") -> str:
     if not practice:
         return practice_id.replace("-", " ").title()
     lang = locale.split("-")[0]
-    return practice["names"].get(lang) or practice["names"]["en"]
+    return practice["names"].get(lang) or _TRANSLATED_NAMES.get(("practice", lang), {}).get(practice_id) or practice["names"]["en"]
+
+
+def ui_source_strings() -> dict[str, str]:
+    """English farmer-facing UI strings shared with the web app (data/i18n/en.json)."""
+    return _read(DATA_DIR / "i18n" / "en.json")
 
 
 def subdivision_code(country_code: str | None, state_code: str | None) -> str | None:

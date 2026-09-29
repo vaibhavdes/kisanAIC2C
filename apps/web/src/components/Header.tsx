@@ -1,18 +1,11 @@
 import React from "react";
 import { BookOpen, Languages, Microscope, Sprout } from "lucide-react";
-import { Json, Locale, T, View } from "../types";
+import { Json, T, View } from "../types";
 
-export const LANGUAGE_LABELS: Record<Locale, string> = {
-  "en-IN": "English",
-  "hi-IN": "हिन्दी",
-  "mr-IN": "मराठी",
-  "te-IN": "తెలుగు",
-  "kn-IN": "ಕನ್ನಡ",
-};
 
 interface HeaderProps {
   t: T;
-  locale: Locale;
+  languageName: string;
   view: View;
   setView: (v: View) => void;
   openLanguage: () => void;
@@ -21,7 +14,7 @@ interface HeaderProps {
   onSelect: (id: string) => void;
 }
 
-export function Header({ t, locale, view, setView, openLanguage, farms, selected, onSelect }: HeaderProps) {
+export function Header({ t, languageName, view, setView, openLanguage, farms, selected, onSelect }: HeaderProps) {
   return (
     <header>
       <button className="brand" onClick={() => setView("home")} aria-label={t("go_home")}>
@@ -43,7 +36,7 @@ export function Header({ t, locale, view, setView, openLanguage, farms, selected
         </button>
         <button className="lang-toggle-btn" onClick={openLanguage} aria-label={t("change_language")}>
           <Languages size={15} />
-          <span>{LANGUAGE_LABELS[locale]}</span>
+          <span>{languageName}</span>
         </button>
         <button className={`expert-link ${view === "expert" ? "active" : ""}`} onClick={() => setView("expert")}>
           <BookOpen size={16} />

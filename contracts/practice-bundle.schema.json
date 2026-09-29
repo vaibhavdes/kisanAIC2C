@@ -131,11 +131,9 @@
           "minItems": 1,
           "uniqueItems": true,
           "items": {
-            "enum": [
-              "kharif",
-              "rabi",
-              "summer"
-            ]
+            "type": "string",
+            "pattern": "^[a-z_]{2,20}$",
+            "description": "Season id as used by the region's agronomy pack (e.g. kharif, rabi, safra, safrinha)"
           }
         },
         "water_contexts": {

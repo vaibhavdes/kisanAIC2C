@@ -39,7 +39,12 @@ def ph_rating(ph: float) -> str:
     return "strongly_alkaline"
 
 
-def rate_values(values: SoilValues) -> list[SoilRating]:
+# Countries whose nutrient rating limits (and units) are encoded below. Elsewhere only pH and salinity,
+# which do not depend on the lab method, are rated.
+NUTRIENT_LIMIT_COUNTRIES = {"IN"}
+
+
+def rate_values(values: SoilValues, country_code: str = "IN") -> list[SoilRating]:
     ratings: list[SoilRating] = []
     if values.ph is not None:
         ratings.append(SoilRating(parameter="ph", value=values.ph, unit="pH", rating=ph_rating(values.ph)))
@@ -47,6 +52,8 @@ def rate_values(values: SoilValues) -> list[SoilRating]:
         ratings.append(SoilRating(parameter="ec_ds_m", value=values.ec_ds_m, unit="dS/m",
                                   rating="normal" if values.ec_ds_m < 1.0 else "saline",
                                   note=None if values.ec_ds_m < 1.0 else "Above 1 dS/m can affect germination of sensitive crops"))
+    if country_code not in NUTRIENT_LIMIT_COUNTRIES:
+        return ratings
     for field, (unit, low, high) in MACRO_LIMITS.items():
         value = getattr(values, field)
         if value is None:
@@ -70,7 +77,7 @@ def rating_for(ratings: list[SoilRating], parameter: str) -> str | None:
 FARM_SOIL_TEXTURE = {"black": "heavy", "clay": "heavy", "alluvial": "medium", "loam": "medium", "red": "medium", "sandy": "light"}
 
 
-def effective_soil(farm_soil_type: str, test: SoilTest | None, estimate: SoilEstimate | None) -> dict:
+def effective_soil(farm_soil_type: str, test: SoilTest | None, estimate: SoilEstimate | None, country_code: str = "IN") -> dict:
     """Merge measured, farmer-declared and modelled soil information with provenance."""
     texture = FARM_SOIL_TEXTURE.get(farm_soil_type)
     texture_source = "farmer" if texture else None
@@ -89,7 +96,7 @@ def effective_soil(farm_soil_type: str, test: SoilTest | None, estimate: SoilEst
     elif estimate and estimate.organic_carbon_percent is not None:
         oc, oc_source = estimate.organic_carbon_percent, "estimated"
 
-    ratings = test.ratings if test and test.ratings else (rate_values(test.values) if test else [])
+    ratings = test.ratings if test and test.ratings else (rate_values(test.values, country_code) if test else [])
     return {
         "texture": texture, "texture_source": texture_source,
         "ph": ph, "ph_source": ph_source,
