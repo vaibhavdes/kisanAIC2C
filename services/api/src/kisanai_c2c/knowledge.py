@@ -7,6 +7,7 @@ expert are stored in the document store and take part in lookups through `active
 from __future__ import annotations
 
 import json
+import unicodedata
 from datetime import date
 from functools import lru_cache
 from pathlib import Path
@@ -125,12 +126,17 @@ def subdivision_code(country_code: str | None, state_code: str | None) -> str | 
 def find_district(pack: dict[str, Any] | None, district: str | None) -> dict[str, Any] | None:
     if not pack or not district:
         return None
-    wanted = district.strip().lower().replace(" district", "")
+    wanted = _plain(district).replace(" district", "")
     for item in pack.get("districts", []):
         names = [item["name"], *item.get("aliases", [])]
-        if any(name.strip().lower() == wanted for name in names):
+        if any(_plain(name) == wanted for name in names):
             return item
     return None
+
+
+def _plain(text: str) -> str:
+    """Case- and accent-insensitive form of a place name ("Foz do Iguaçu" == "foz do iguacu")."""
+    return "".join(ch for ch in unicodedata.normalize("NFKD", text.strip().lower()) if not unicodedata.combining(ch))
 
 
 def _mmdd_to_date(mmdd: str, year: int) -> date:

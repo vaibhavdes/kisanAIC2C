@@ -123,7 +123,10 @@ class RecommendationEngine:
     def run(self) -> CropRecommendationResult:
         catalog = crop_catalog()
         if self.pack:
-            candidates = [(entry["crop_id"], entry) for entry in self.pack["crops"] if entry["crop_id"] in catalog]
+            # A district (municipality) can carry its own legal or agronomic windows for a crop.
+            overrides = {item["crop_id"]: item for item in (self.district or {}).get("sowing_overrides", [])}
+            candidates = [(entry["crop_id"], {**entry, **overrides[entry["crop_id"]]} if entry["crop_id"] in overrides else entry)
+                          for entry in self.pack["crops"] if entry["crop_id"] in catalog]
         else:
             candidates = [(crop_id, None) for crop_id, crop in catalog.items() if crop["group"] not in {"green_manure", "fodder"}]
 

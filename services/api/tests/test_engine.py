@@ -56,7 +56,7 @@ def test_bundled_packs_match_contract_and_catalog():
     schema = json.loads((PROJECT_ROOT / "contracts" / "agronomy-pack.schema.json").read_text())
     validator = Draft202012Validator(schema, format_checker=FormatChecker())
     catalog = crop_catalog()
-    assert {"IN-MH", "BR-PR"} <= set(bundled_packs())
+    assert {"IN-MH", "IN-PB", "IN-UP", "BR-PR"} <= set(bundled_packs())
     for pack in bundled_packs().values():
         assert not list(validator.iter_errors(pack))
         for entry in pack["crops"]:
@@ -131,7 +131,14 @@ def test_parana_pack_follows_the_soybean_sanitary_break():
     result = _engine(farm, pack_code="BR-PR", rows=PARANA)
     assert result.knowledge_mode == "regional_pack" and result.context["season_now"] == "safra"
     soybean = next(o for o in result.sow_now if o.crop == "soybean")
-    assert soybean.sowing.start >= date(2026, 9, 20)  # statewide legal start after the vazio sanitário
+    assert soybean.sowing.start == date(2026, 9, 1)  # Cascavel is in ADAPAR Região 2: sowing legal from 1 Sep
+
+    ponta_grossa = make_farm(country_code="BR", state_code="PR", state_name="Paraná", district="Ponta Grossa",
+                             location={"latitude": -25.1, "longitude": -50.2}, soil_type="unknown", previous_crop="wheat")
+    early = RecommendationEngine(ponta_grossa, pack=bundled_packs()["BR-PR"], pack_ref=None, land=land_profile(ponta_grossa, PARANA),
+                                 soil_test=None, evidence=[], today=date(2026, 9, 12)).run()
+    soy = next(o for o in early.sow_now + early.upcoming if o.crop == "soybean")
+    assert soy.sowing.status != "open" and soy.sowing.start == date(2026, 9, 20)  # Região 1 still in the sanitary break
     assert "wheat" not in [o.crop for o in result.sow_now]  # a winter crop, not sown in spring
 
 
