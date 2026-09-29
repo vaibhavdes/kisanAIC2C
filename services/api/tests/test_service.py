@@ -280,3 +280,15 @@ def test_node_languages_are_machine_translated_once_and_cached():
 def crop_name_pt(crop_id: str) -> str:
     from kisanai_c2c.knowledge import crop_name
     return crop_name(crop_id, "pt-BR")
+
+
+def test_deleting_a_farm_erases_its_records_and_photos(service: AppService, farmer: Actor):
+    farm = service.create_farm(farmer, _payload())
+    media = service.save_media(farmer, b"\x89PNG leaf", "image/png", "crop_diagnosis")
+    service.store.put("diagnoses", "d1", {"id": "d1", "farm_id": farm.id, "owner_subject": farmer.subject, "media_id": media.id})
+    service.store.put("expert_cases", "c1", {"id": "c1", "farm_id": farm.id, "owner_subject": farmer.subject, "diagnosis_id": "d1"})
+    service.save_soil_test(farmer, farm.id, SoilTestCreate(values=SoilValues(ph=6.8)))
+    service.delete_farm(farmer, farm.id)
+    for collection in ("farms", "diagnoses", "expert_cases", "soil_tests", "media"):
+        assert service.store.list(collection, filters={}, limit=10) == [], collection
+    assert service.media_store.media == {}  # the photo file itself is gone

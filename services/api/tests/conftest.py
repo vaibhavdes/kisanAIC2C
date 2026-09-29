@@ -43,6 +43,9 @@ class MemoryMediaStore:
     def read(self, storage_uri: str) -> bytes:
         return self.media[storage_uri]
 
+    def delete(self, storage_uri: str) -> None:
+        self.media.pop(storage_uri, None)
+
 
 def make_settings(**overrides) -> Settings:
     base = dict(_env_file=None, node_id="node-mh", node_label="Test MH node", node_subdivisions="IN-MH",

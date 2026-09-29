@@ -136,7 +136,21 @@ class AppService:
         return updated
 
     def delete_farm(self, actor: Actor, farm_id: str) -> bool:
+        """Deletes the farm and everything recorded for it, including uploaded photos and reports."""
         self.farm(actor, farm_id)
+        media_ids: set[str] = set()
+        for collection in ("soil_tests", "soil_extractions", "advisories", "diagnoses", "expert_cases"):
+            for item in self.store.list(collection, filters={"farm_id": farm_id}, limit=500):
+                if item.get("media_id"):
+                    media_ids.add(item["media_id"])
+                if collection == "soil_extractions" and str(item.get("id", "")).startswith("extract_"):
+                    media_ids.add(item["id"].removeprefix("extract_"))
+                self.store.delete(collection, item["id"])
+        for media_id in media_ids:
+            value = self.store.get("media", media_id)
+            if value and value.get("owner_subject") == actor.subject:
+                self.media_store.delete(value["storage_uri"])
+                self.store.delete("media", media_id)
         self.store.delete("land_profiles", farm_id)
         self._prune_evidence(farm_id, keep_ids=set())
         return self.store.delete("farms", farm_id)

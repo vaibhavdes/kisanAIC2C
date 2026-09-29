@@ -53,6 +53,20 @@ class MediaStore:
         return path.read_bytes()
 
 
+    def delete(self, storage_uri: str) -> None:
+        if storage_uri.startswith("gs://"):
+            from google.cloud import storage
+
+            bucket_name, object_name = storage_uri.removeprefix("gs://").split("/", 1)
+            blob = storage.Client(project=self.settings.google_cloud_project).bucket(bucket_name).blob(object_name)
+            if blob.exists():
+                blob.delete()
+            return
+        path = Path(storage_uri).resolve()
+        if Path(self.settings.media_directory).resolve() in path.parents and path.exists():
+            path.unlink()
+
+
 @lru_cache
 def get_media_store() -> MediaStore:
     return MediaStore()
