@@ -1,7 +1,7 @@
 import React, { FormEvent, useEffect, useState } from "react";
 import { BarChart3, BookOpen, ClipboardList, KeyRound, Network, RefreshCw } from "lucide-react";
 import { api, apiBlob, expertCode, setExpertCode } from "../api";
-import { useCropName } from "../hooks";
+import { invalidate, useCropName } from "../hooks";
 import { Json, Locale, T } from "../types";
 import { ErrorNote, formatDate, Loading, StageHeader, StatusPill } from "../components/ui";
 
@@ -342,8 +342,10 @@ function NetworkTab({ t, locale }: { t: T; locale: Locale }) {
     setDrafting("");
   };
   const review = (id: string, approve: boolean) =>
-    run(() => api(`/api/v1/expert/exchange/imports/${id}`, { method: "PATCH", body: JSON.stringify({ approve, note: approve ? "Approved after local review" : "Rejected after local review" }) }, true),
-      approve ? t("ex_approved") : t("ex_rejected"));
+    run(async () => {
+      await api(`/api/v1/expert/exchange/imports/${id}`, { method: "PATCH", body: JSON.stringify({ approve, note: approve ? "Approved after local review" : "Rejected after local review" }) }, true);
+      if (approve) invalidate("/api/v1/farms/");  // an approved calendar or practice changes farms' crop advice
+    }, approve ? t("ex_approved") : t("ex_rejected"));
 
   return (
     <div>
