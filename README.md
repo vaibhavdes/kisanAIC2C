@@ -62,18 +62,6 @@ The farmer app needs no login. The **Expert** workspace asks for its node's offi
 
 These codes are published only for judging. The officer workspaces hold no personal data, and the codes will be rotated in Secret Manager after judging.
 
-### Ready-made public farms
-
-Each node has one public example farm, so every feature can be seen straight away without adding a field: it opens on the home page of a new browser.
-
-| Node | Farm | What it shows |
-|---|---|---|
-| Maharashtra | Zadgaon soybean field, Yavatmal | Rain-fed black soil after soybean; Soil Health Card ratings; plan in Marathi |
-| North India | Ludhiana rice-wheat field, Punjab | Irrigated alluvial soil after rice; Punjab calendar; plan in Hindi |
-| Paraná | Lavoura de soja, Pato Branco | Clay soil rated with Embrapa's table; legal soybean window; plan in Portuguese |
-
-Soil values are typical of each region, not a real farmer's report. Anyone can view these farms; only their owner can change them, so add your own farm to try the full flow below. They are created by [`seed_public_farms.py`](services/api/scripts/seed_public_farms.py).
-
 ### 1. A farmer in Maharashtra
 
 1. Open the **[Maharashtra node](https://kisanai-in-mh-313370978552.asia-south1.run.app)** and pick **मराठी** or **English**.
