@@ -634,4 +634,5 @@ if static_dir:
         file_path = (static_dir / full_path).resolve()
         if full_path and static_dir.resolve() in file_path.parents and file_path.is_file():
             return FileResponse(file_path)
-        return FileResponse(static_dir / "index.html")
+        # Asset file names change with every build; the page itself must be revalidated so a deploy reaches browsers at once.
+        return FileResponse(static_dir / "index.html", headers={"Cache-Control": "no-cache"})
