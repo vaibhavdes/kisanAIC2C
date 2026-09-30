@@ -102,25 +102,33 @@ class AppService:
         return farm
 
     def farms(self, actor: Actor) -> list[Farm]:
-        items = self.store.list("farms", filters={"node_id": actor.node_id, "owner_subject": actor.subject})
-        farms = [Farm.model_validate(item) for item in items]
-        for farm in farms:
+        """The device's own farms, then the farms other farmers on this node have made public."""
+        own = [Farm.model_validate(item) for item in self.store.list("farms", filters={"node_id": actor.node_id, "owner_subject": actor.subject})]
+        for farm in own:
             farm.is_mine = True
-        return farms
+        shared = [Farm.model_validate(item) for item in self.store.list("farms", filters={"node_id": actor.node_id, "visibility": "public"})
+                  if item.get("owner_subject") != actor.subject]
+        for farm in shared:
+            farm.is_mine = False
+        return own + shared
 
-    def farm(self, actor: Actor, farm_id: str, *, expert_allowed: bool = False) -> Farm:
+    def farm(self, actor: Actor, farm_id: str, *, expert_allowed: bool = False, write: bool = False) -> Farm:
+        """A farm the actor may use. Public farms can be viewed by anyone on the node; only the owner can change them."""
         value = self.store.get("farms", farm_id)
         if not value or value.get("node_id") != actor.node_id:
             raise LookupError("Farm not found")
         is_owner = value.get("owner_subject") == actor.subject
         if not is_owner and not (expert_allowed and Role.expert in actor.roles):
-            raise LookupError("Farm not found")
+            if value.get("visibility") != "public":
+                raise LookupError("Farm not found")
+            if write:
+                raise PermissionError("Only the farmer who added this farm can change it")
         farm = Farm.model_validate(value)
         farm.is_mine = is_owner
         return farm
 
     def update_farm(self, actor: Actor, farm_id: str, payload: FarmCreate, expected_version: int) -> Farm:
-        current = self.farm(actor, farm_id)
+        current = self.farm(actor, farm_id, write=True)
         if current.version != expected_version:
             raise RuntimeError("Farm was changed elsewhere; reload and try again")
         area_ha = payload.area_value if payload.area_unit == "hectare" else payload.area_value * 0.40468564224
@@ -141,7 +149,7 @@ class AppService:
 
     def delete_farm(self, actor: Actor, farm_id: str) -> bool:
         """Deletes the farm and everything recorded for it, including uploaded photos and reports."""
-        self.farm(actor, farm_id)
+        self.farm(actor, farm_id, write=True)
         media_ids: set[str] = set()
         for collection in ("soil_tests", "soil_extractions", "advisories", "diagnoses", "expert_cases"):
             for item in self.store.list(collection, filters={"farm_id": farm_id}, limit=500):
@@ -178,7 +186,7 @@ class AppService:
         return MediaRecord.model_validate(value)
 
     def extract_soil(self, actor: Actor, farm_id: str, media_id: str, locale: str) -> SoilExtraction:
-        farm = self.farm(actor, farm_id)
+        farm = self.farm(actor, farm_id, write=True)
         media = self.media(actor, media_id)
         if media.purpose != "soil_card":
             raise ValueError("Upload the file as a soil card")
@@ -202,7 +210,7 @@ class AppService:
         return extraction
 
     def save_soil_test(self, actor: Actor, farm_id: str, payload: SoilTestCreate) -> SoilTest:
-        farm = self.farm(actor, farm_id)
+        farm = self.farm(actor, farm_id, write=True)
         if not payload.confirmed:
             raise ValueError("Only values you have checked can be saved")
         if all(value is None for value in payload.values.model_dump().values()):

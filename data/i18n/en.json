@@ -501,5 +501,11 @@
   "net_sub": "Each state or country runs its own node with its own crop calendar and languages. They share reviewed knowledge with each other. Open another node to try it.",
   "net_this_node": "You are here",
   "net_open": "Open",
-  "net_offline": "Offline"
+  "net_offline": "Offline",
+  "farm_visibility": "Who can see this farm",
+  "visibility_private": "Only me",
+  "visibility_public": "Everyone",
+  "visibility_hint": "Only me: the farm stays on this phone. Everyone: anyone using this app in your region can see the farm, its map and its advice, but only you can change it.",
+  "farm_public": "Public farm",
+  "farm_view_only": "Shared by another farmer. You can see everything, but only they can change this farm or its soil test."
 }

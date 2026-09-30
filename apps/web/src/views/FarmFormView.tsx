@@ -54,6 +54,7 @@ export function FarmFormView({ t, locale, editing, onSaved, onCancel }: FarmForm
     current_crop: editing?.current_crop || "",
     sowing_date: editing?.sowing_date || "",
     previous_crop: editing?.previous_crop || "",
+    visibility: editing?.visibility || "private",
   }));
 
   const node = useResource<Json>("/api/v1/node");
@@ -174,6 +175,7 @@ export function FarmFormView({ t, locale, editing, onSaved, onCancel }: FarmForm
       current_crop: form.crop_status === "planted" ? form.current_crop || null : null,
       sowing_date: form.crop_status === "planted" && form.sowing_date ? form.sowing_date : null,
       previous_crop: form.previous_crop || null,
+      visibility: form.visibility,
     };
     try {
       const saved = editing
@@ -287,6 +289,16 @@ export function FarmFormView({ t, locale, editing, onSaved, onCancel }: FarmForm
             </button>
           ))}
         </div>
+
+        <div className="form-section-title">{t("farm_visibility")}</div>
+        <div className="chip-group">
+          {["private", "public"].map((v) => (
+            <button type="button" key={v} className={`chip ${form.visibility === v ? "active" : ""}`} onClick={() => setForm({ ...form, visibility: v })}>
+              {t(`visibility_${v}`)}
+            </button>
+          ))}
+        </div>
+        <p className="hint">{t("visibility_hint")}</p>
 
         <div className="form-section-title">{t("crop_now")}</div>
         <div className="chip-group">

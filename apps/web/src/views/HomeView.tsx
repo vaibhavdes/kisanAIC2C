@@ -89,7 +89,9 @@ function TodayCard({ t, locale, farm, go, onEdit, onDelete }: { t: T; locale: Lo
             <span>· {farm.area_value} {t(`unit_${farm.area_unit}`)}</span>
             <span>· {t(`water_${farm.water_access}`)}</span>
             {farm.current_crop && <span>· {t("standing_crop")}: {cropName(farm.current_crop)}</span>}
+            {farm.visibility === "public" && <span className="status-pill tone-good">{t("farm_public")}</span>}
           </p>
+          {farm.is_mine === false && <p className="hint">{t("farm_view_only")}</p>}
         </div>
         <div className="today-tools">
           {lines.length > 0 && (
@@ -97,8 +99,12 @@ function TodayCard({ t, locale, farm, go, onEdit, onDelete }: { t: T; locale: Lo
               <Volume2 size={18} /> <span>{t("listen")}</span>
             </button>
           )}
-          <button className="icon-btn" onClick={() => onEdit(farm)} aria-label={t("edit_farm")}><Pencil size={16} /></button>
-          <button className="icon-btn danger" onClick={remove} disabled={deleting} aria-label={t("delete_farm")}><Trash2 size={16} /></button>
+          {farm.is_mine !== false && (
+            <>
+              <button className="icon-btn" onClick={() => onEdit(farm)} aria-label={t("edit_farm")}><Pencil size={16} /></button>
+              <button className="icon-btn danger" onClick={remove} disabled={deleting} aria-label={t("delete_farm")}><Trash2 size={16} /></button>
+            </>
+          )}
         </div>
       </div>
 

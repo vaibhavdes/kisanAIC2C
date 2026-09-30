@@ -113,6 +113,8 @@ class FarmCreate(BaseModel):
     previous_crop: str | None = Field(default=None, max_length=80)
     sowing_date: date | None = None
     crop_status: Literal["planning", "planted", "harvested"] = "planning"
+    # Private farms are seen only by the device that added them; the owner can make one public so anyone on the node can view it.
+    visibility: Literal["private", "public"] = "private"
 
     @field_validator("country_code", "state_code")
     @classmethod

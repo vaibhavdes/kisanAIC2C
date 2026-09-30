@@ -158,6 +158,7 @@ export function SoilView({ t, locale, farm, go }: Props) {
 
           {land.data && !estimate && !saved && <p className="muted">{t("soil_estimate_none")}</p>}
 
+          {farm.is_mine === false ? <p className="hint">{t("farm_view_only")}</p> : (
           <div className="choice-row">
             <label className="choice-card">
               <FileUp size={22} />
@@ -172,6 +173,7 @@ export function SoilView({ t, locale, farm, go }: Props) {
               <span>{t("soil_manual_desc")}</span>
             </button>
           </div>
+          )}
         </>
       )}
 

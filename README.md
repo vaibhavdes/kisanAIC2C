@@ -62,6 +62,18 @@ The farmer app needs no login. The **Expert** workspace asks for its node's offi
 
 These codes are published only for judging. The officer workspaces hold no personal data, and the codes will be rotated in Secret Manager after judging.
 
+### Ready-made public farms
+
+Each node has one public example farm, so every feature can be seen straight away without adding a field: it opens on the home page of a new browser.
+
+| Node | Farm | What it shows |
+|---|---|---|
+| Maharashtra | Zadgaon soybean field, Yavatmal | Rain-fed black soil after soybean; Soil Health Card ratings; plan in Marathi |
+| North India | Ludhiana rice-wheat field, Punjab | Irrigated alluvial soil after rice; Punjab calendar; plan in Hindi |
+| Paraná | Lavoura de soja, Pato Branco | Clay soil rated with Embrapa's table; legal soybean window; plan in Portuguese |
+
+Soil values are typical of each region, not a real farmer's report. Anyone can view these farms; only their owner can change them, so add your own farm to try the full flow below. They are created by [`seed_public_farms.py`](services/api/scripts/seed_public_farms.py).
+
 ### 1. A farmer in Maharashtra
 
 1. Open the **[Maharashtra node](https://kisanai-in-mh-313370978552.asia-south1.run.app)** and pick **मराठी** or **English**.
@@ -109,7 +121,7 @@ These codes are published only for judging. The officer workspaces hold no perso
 - Choose a language, add the field once (search, PIN or GPS, then tap the corners), and go through the five steps: *Farm → Weather → Soil → Crops → Plan*.
 - The **Home** card always shows today's status: sow, spray, irrigate, rain.
 - **Plant Doctor** is always one tap away.
-- Nothing asks for a name or phone number. The farm is private to that device and can be deleted any time; deletion erases its records and photos.
+- Nothing asks for a name or phone number. A farm is private to that device unless the farmer sets **Who can see this farm** to *Everyone*; a public farm can be viewed by anyone on that node but changed only by its owner. A farm can be deleted any time; deletion erases its records and photos.
 
 **Agriculture officers**
 - Open **Expert** with the node's access code.
@@ -311,7 +323,7 @@ The protocol is this project's own, not an official AgriN or BRICS standard; see
 
 ## Privacy and safety
 
-- No login and no phone number. Each device gets an anonymous ID, and farms are private to it. Deleting a farm erases its records and photos.
+- No login and no phone number. Each device gets an anonymous ID, and farms are private to it by default. A farmer can choose to make a farm public; others can then view it but only the owner can change it. Deleting a farm erases its records and photos.
 - Chat is not stored; it is wiped after 5 minutes.
 - Nodes and BigQuery share only district-level counts from groups of at least 5 reports, never a farmer, a farm or a location.
 - Each state's or country's data stays in its own cloud region.
