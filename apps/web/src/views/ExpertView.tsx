@@ -71,6 +71,12 @@ function AccessGate({ t, onDone }: { t: T; onDone: () => void }) {
         </label>
         {error && <ErrorNote t={t} message={error} />}
         <button className="primary" type="submit">{t("ex_enter")}</button>
+        <p className="muted small-print">
+          {t("ex_judges_hint")}{" "}
+          <a href="https://github.com/vaibhavdes/kisanAIC2C/tree/test/agrin-track4-improvements#officer-access-for-judges" target="_blank" rel="noreferrer">
+            {t("ex_judges_link")}
+          </a>
+        </p>
       </form>
     </section>
   );

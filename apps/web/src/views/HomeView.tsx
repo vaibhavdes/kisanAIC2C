@@ -215,6 +215,15 @@ function NetworkNodes({ t, locale }: { t: T; locale: Locale }) {
   };
   const countries = names("region");
   const languages = names("language");
+  // An offline peer may come back without a country or language code; DisplayNames.of() throws on those.
+  const nameOf = (display: Intl.DisplayNames | null, code?: string) => {
+    if (!code) return "";
+    try {
+      return display?.of(code) || code;
+    } catch {
+      return code;
+    }
+  };
   return (
     <section className="card-block network-nodes">
       <h3><Globe2 size={18} /> {t("net_title")}</h3>
@@ -228,8 +237,8 @@ function NetworkNodes({ t, locale }: { t: T; locale: Locale }) {
                 {n.current ? <span className="status-pill tone-good">{t("net_this_node")}</span>
                   : n.status !== "online" && <span className="status-pill tone-warn">{t("net_offline")}</span>}
               </div>
-              <small>{countries?.of(n.country_code) || n.country_code} · {(n.subdivisions || []).join(", ")}</small>
-              <small className="muted">{(n.languages || []).map((l: string) => languages?.of(l.split("-")[0]) || l).join(" · ")}</small>
+              <small>{nameOf(countries, n.country_code)} · {(n.subdivisions || []).join(", ")}</small>
+              <small className="muted">{(n.languages || []).map((l: string) => nameOf(languages, l.split("-")[0])).join(" · ")}</small>
               {!n.current && n.url && <span className="node-open">{t("net_open")} <ExternalLink size={14} /></span>}
             </>
           );

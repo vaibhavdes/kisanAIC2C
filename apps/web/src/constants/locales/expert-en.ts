@@ -4,6 +4,8 @@ export const expertEn: Record<string, string> = {
   expert_sub: "Review farmer cases, curate practices and exchange crop calendars with nodes in other regions and countries.",
   ex_gate_desc: "Enter the access code given to your extension office.",
   ex_access_code: "Access code",
+  ex_judges_hint: "Evaluating this project? The officer access code for each node is in the README:",
+  ex_judges_link: "Officer access for judges",
   ex_enter: "Enter",
   ex_sign_out: "Sign out",
   ex_tab_dashboard: "Dashboard",
