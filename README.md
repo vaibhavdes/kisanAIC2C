@@ -50,6 +50,18 @@ Each state also keeps its knowledge to itself. When Punjab's groundwater crisis 
 
 Use a phone or a desktop browser. Everything below runs on the live nodes with live data. Every node's home page has a **Nodes in this network** section that links to the other states and countries, so you can move between them in one tap.
 
+### Officer access for judges
+
+The farmer app needs no login. The **Expert** workspace asks for its node's officer access code:
+
+| Node | Officer access code |
+|---|---|
+| Maharashtra | `a4c561f9f35bf3fd2ad9f1816cd9abfd` |
+| North India (Punjab + UP) | `e1ec8eff81108022f509d56430025154` |
+| Paraná | `1acfc13efae92dd1b7baa693bbbd77f5` |
+
+These codes are published only for judging. The officer workspaces hold no personal data, and the codes will be rotated in Secret Manager after judging.
+
 ### 1. A farmer in Maharashtra
 
 1. Open the **[Maharashtra node](https://kisanai-in-mh-313370978552.asia-south1.run.app)** and pick **मराठी** or **English**.
@@ -70,7 +82,7 @@ Use a phone or a desktop browser. Everything below runs on the live nodes with l
 1. On the Maharashtra node, add a second farm in **Ludhiana, Punjab**. It gets only the *global baseline* (climate suitability), because Maharashtra has no Punjab calendar.
 
    Notice the groundwater line: *over-exploited, falling ~13 cm a year*. That is WRI Aqueduct data for that field's sub-basin, and it penalises rice and sugarcane.
-2. Open **Expert** (top right) and enter the node's access code. The codes are given in the submission form; they are kept in Secret Manager.
+2. Open **Expert** (top right) and enter the node's access code from [Officer access for judges](#officer-access-for-judges).
 3. In **Network**, the North India node appears online. Import its **Punjab crop calendar**, review it and **Approve**.
 4. Go back to the Ludhiana farm's **Crops**. It now follows Punjab's official calendar: Punjab-specific crops and dates, and the paddy-transplanting date set by the Punjab Preservation of Subsoil Water Act.
 5. **A region with no calendar anywhere:** add a farm in, for example, `Dharwad, Karnataka`. In **Expert → Network**, *Regions without a crop calendar* lists Karnataka. Tap **Draft with AI**: Gemini searches official sources (2–3 minutes) and the draft appears in the review queue with every sowing window and its sources. Approve it and the Dharwad farm switches to the regional calendar.
