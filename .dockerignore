@@ -12,3 +12,5 @@
 **/*.log
 work
 .DS_Store
+.claude
+apps/web/dist

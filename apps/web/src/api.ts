@@ -2,12 +2,30 @@ export type Json = Record<string, any>;
 
 const base = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 
+/** Random id kept in this browser; the server uses it to know which farms you created. */
+export function deviceId(): string {
+  try {
+    let id = localStorage.getItem("kisanai_device_id");
+    if (!id) {
+      id = typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+      localStorage.setItem("kisanai_device_id", id);
+    }
+    return id;
+  } catch {
+    return "";
+  }
+}
+
 export async function api<T = Json>(path: string, options: RequestInit = {}, expert = false): Promise<T> {
   const headers = new Headers(options.headers);
   if (!(options.body instanceof FormData)) headers.set("Content-Type", "application/json");
   // Local headers are ignored when Firebase authentication is enabled in production.
   headers.set("X-Actor-Id", expert ? "local-expert" : "local-farmer");
   headers.set("X-Actor-Role", expert ? "expert" : "farmer");
+  const device = deviceId();
+  if (device) headers.set("X-Device-Id", device);
   const response = await fetch(`${base}${path}`, {...options, headers});
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));

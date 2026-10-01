@@ -14,6 +14,32 @@ class WeatherUnavailable(RuntimeError):
     pass
 
 
+# Open-Meteo daily variable -> (evidence value prefix, unit). Values are stored as "<prefix>_<YYYY-MM-DD>".
+OPEN_METEO_DAILY: dict[str, tuple[str, str]] = {
+    "precipitation_sum": ("rainfall", "mm/day"),
+    "precipitation_probability_max": ("rain_probability", "percent"),
+    "temperature_2m_max": ("temp_max", "C"),
+    "temperature_2m_min": ("temp_min", "C"),
+    "relative_humidity_2m_mean": ("humidity_mean", "percent"),
+    "wind_speed_10m_max": ("wind_max", "km/h"),
+    "wind_gusts_10m_max": ("gust_max", "km/h"),
+    "et0_fao_evapotranspiration": ("et0", "mm/day"),
+    "weather_code": ("weather_code", "wmo"),
+}
+
+# Open-Meteo hourly variable -> (evidence prefix, unit), for the next 72 hours.
+# Stored as "hourly_<prefix>_<YYYY-MM-DDTHH:MM>" in the farm's local time.
+OPEN_METEO_HOURLY: dict[str, tuple[str, str]] = {
+    "temperature_2m": ("temp", "C"),
+    "relative_humidity_2m": ("humidity", "percent"),
+    "precipitation": ("rain", "mm"),
+    "precipitation_probability": ("rain_prob", "percent"),
+    "wind_speed_10m": ("wind", "km/h"),
+    "soil_moisture_3_to_9cm": ("soil_moisture_top", "m3/m3"),
+    "soil_moisture_9_to_27cm": ("soil_moisture_root", "m3/m3"),
+}
+
+
 class WeatherProvider:
     def __init__(self, settings: Settings | None = None):
         self.settings = settings or get_settings()
@@ -241,8 +267,12 @@ class WeatherProvider:
             "latitude": farm.location.latitude,
             "longitude": farm.location.longitude,
             "current": "temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m",
-            "daily": "precipitation_sum,precipitation_probability_max,temperature_2m_max,temperature_2m_min,et0_fao_evapotranspiration",
+            "daily": ",".join(OPEN_METEO_DAILY),
+            "hourly": ",".join(OPEN_METEO_HOURLY),
+            "forecast_hours": 72,
+            "past_hours": 0,
             "forecast_days": 7,
+            "past_days": 7,
             "timezone": "auto",
         }
         response = requests.get(self.settings.open_meteo_base_url, params=params, timeout=12)
@@ -254,11 +284,20 @@ class WeatherProvider:
             raise WeatherUnavailable("Open-Meteo returned no daily forecast")
         
         values: list[EvidenceValue] = []
-        for index, value in enumerate(daily.get("precipitation_sum") or []):
-            values.append(EvidenceValue(name=f"rainfall_{dates[index]}", value=value, unit="mm/day"))
-        for index, value in enumerate(daily.get("precipitation_probability_max") or []):
-            values.append(EvidenceValue(name=f"rain_probability_{dates[index]}", value=value, unit="percent"))
+        for field, (prefix, unit) in OPEN_METEO_DAILY.items():
+            for index, value in enumerate(daily.get(field) or []):
+                if index < len(dates):
+                    values.append(EvidenceValue(name=f"{prefix}_{dates[index]}", value=value, unit=unit))
+        hourly = data.get("hourly") or {}
+        hours = hourly.get("time") or []
+        for field, (prefix, unit) in OPEN_METEO_HOURLY.items():
+            for index, value in enumerate(hourly.get(field) or []):
+                if index < len(hours):
+                    values.append(EvidenceValue(name=f"hourly_{prefix}_{hours[index]}", value=value, unit=unit))
         current = data.get("current") or {}
+        # Days before this local date are observed (past_days); the rest are forecast.
+        forecast_start = str(current.get("time") or "")[:10] or datetime.now(UTC).date().isoformat()
+        values.append(EvidenceValue(name="forecast_start_date", value=forecast_start))
         values.extend(
             [
                 EvidenceValue(name="current_temperature", value=current.get("temperature_2m"), unit="C"),

@@ -1,5 +1,5 @@
 import { Json, Locale } from "../types";
-import { STATUS_TRANSLATIONS } from "../constants/statusTranslations";
+import { SIMPLE_STATUS, STATUS_TRANSLATIONS } from "../constants/statusTranslations";
 
 export interface WeatherSummary {
   temp: string;
@@ -122,6 +122,12 @@ export interface SatelliteMetrics {
   waterStress: string;
   vegStatus: string;
   moistStatus: string;
+  rawStress: string;
+  // Plain-language versions of the three statuses.
+  vegSimple: string;
+  moistSimple: string;
+  stressSimple: string;
+  observedAt: string;
   hasData: boolean;
 }
 
@@ -134,13 +140,17 @@ export function parseSatelliteMetrics(evidence: Json[], locale: Locale): Satelli
   let waterStress = "";
   let vegStatus = "";
   let moistStatus = "";
+  let rawStress = "";
+  let observedAt = "";
   let hasData = false;
 
   const tr = STATUS_TRANSLATIONS[locale] || STATUS_TRANSLATIONS["en-IN"];
+  const simple = SIMPLE_STATUS[locale] || SIMPLE_STATUS["en-IN"];
 
   for (const snap of evidence) {
-    if (snap.kind === "satellite_indices" || snap.kind === "satellite_observation") {
+    if ((snap.kind === "satellite_indices" || snap.kind === "satellite_observation") && snap.mode !== "missing") {
       hasData = true;
+      observedAt = (snap.observed_at as string) || "";
       const vals = (snap.values as Json[]) || [];
       for (const v of vals) {
         const name = (v.name as string) || "";
@@ -152,8 +162,8 @@ export function parseSatelliteMetrics(evidence: Json[], locale: Locale): Satelli
         } else if (name === "ndmi_median" || name === "ndmi") {
           if (val !== null && val !== undefined) ndmi = Number(val).toFixed(2);
         } else if (name === "water_stress") {
-          const sVal = String(val).toLowerCase();
-          waterStress = tr[sVal] || sVal.replace("_", " ");
+          rawStress = String(val).toLowerCase();
+          waterStress = tr[rawStress] || rawStress.replace("_", " ");
         } else if (name === "vegetation_status") {
           rawVeg = String(val).toLowerCase();
           vegStatus = tr[rawVeg] || rawVeg.replace("_", " ");
@@ -165,7 +175,10 @@ export function parseSatelliteMetrics(evidence: Json[], locale: Locale): Satelli
     }
   }
 
-  return { ndvi, ndwi, ndmi, rawMoist, rawVeg, waterStress, vegStatus, moistStatus, hasData };
+  return {
+    ndvi, ndwi, ndmi, rawMoist, rawVeg, waterStress, vegStatus, moistStatus, rawStress, observedAt, hasData,
+    vegSimple: simple[rawVeg] || "", moistSimple: simple[rawMoist] || "", stressSimple: simple[rawStress] || "",
+  };
 }
 
 export function getImdWarningLevel(

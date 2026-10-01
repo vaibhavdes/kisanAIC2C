@@ -1,11 +1,11 @@
-import React, { useState, useRef, FormEvent } from "react";
+import { useState, FormEvent } from "react";
 import { MapPin, Info, RefreshCw, CheckCircle2, ArrowRight } from "lucide-react";
 import { api } from "../api";
 import { Json } from "../types";
 import { MAHARASHTRA_CROPS } from "../constants/crops";
 import { MAHARASHTRA_DISTRICTS } from "../constants/districts";
 import { calculateGeodesicAcres } from "../utils/geo";
-import { SoilCardSection } from "./SoilCardSection";
+import { FieldMap } from "../components/FieldMap";
 
 export interface FarmFormViewProps {
   t: Record<string, string>;
@@ -33,7 +33,6 @@ export function FarmFormView({ t, done }: FarmFormViewProps) {
   });
 
   const [boundaryCoords, setBoundaryCoords] = useState<Array<[number, number]>>([]);
-  const [savedFarmId, setSavedFarmId] = useState("");
   const [busy, setBusy] = useState(false);
   const [pincodeLoading, setPincodeLoading] = useState(false);
   const [pincodeMsg, setPincodeMsg] = useState("");
@@ -50,24 +49,21 @@ export function FarmFormView({ t, done }: FarmFormViewProps) {
     office_type?: string;
   }>>([]);
 
-  const [zoomLevel, setZoomLevel] = useState(1);
-  const svgRef = useRef<SVGSVGElement | null>(null);
-
   const latNum = parseFloat(formData.latitude) || 19.75;
   const lonNum = parseFloat(formData.longitude) || 75.71;
 
-  // Coordinate viewport window for plotting canvas (scaled with zoomLevel)
-  const dLon = 0.008 / zoomLevel;
-  const dLat = 0.006 / zoomLevel;
-  const minLon = lonNum - dLon;
-  const maxLon = lonNum + dLon;
-  const minLat = latNum - dLat;
-  const maxLat = latNum + dLat;
+  // Tapping or dragging corners on the map updates the field and its area.
+  const updateBoundary = (coords: Array<[number, number]>) => {
+    setBoundaryCoords(coords);
+    if (coords.length >= 3) {
+      setFormData(prev => ({ ...prev, area_value: String(calculateGeodesicAcres(coords, latNum, lonNum)) }));
+    }
+  };
 
   const handlePincodeLookup = async () => {
     const clean = formData.pincode.trim();
     if (clean.length !== 6 || !/^\d+$/.test(clean)) {
-      alert("Please enter a valid 6-digit Indian PIN code (e.g. 431203)");
+      alert("Please type a 6-digit PIN code, for example 445001.");
       return;
     }
     setPincodeLoading(true);
@@ -87,13 +83,13 @@ export function FarmFormView({ t, done }: FarmFormViewProps) {
         longitude: String(Number(geo.longitude).toFixed(4))
       }));
       if (offices.length > 1) {
-        setPincodeMsg(`✓ Found ${offices.length} village post offices in ${geo.district}, ${geo.state_name}. Choose your exact village from the dropdown below.`);
+        setPincodeMsg(`✓ ${offices.length} post offices found in ${geo.district}. Pick your village below.`);
       } else {
-        setPincodeMsg(`✓ Matched: ${geo.district}, ${geo.state_name} (${Number(geo.latitude).toFixed(2)}°N, ${Number(geo.longitude).toFixed(2)}°E)`);
+        setPincodeMsg(`✓ Found: ${geo.district}, ${geo.state_name}`);
       }
       setBoundaryCoords([]);
     } catch (e: any) {
-      setPincodeMsg("❌ " + (e.message || "PIN code lookup failed. Please select your district from the dropdown."));
+      setPincodeMsg("❌ " + (e.message || "Couldn't find that PIN code. Please pick your district from the list."));
     } finally {
       setPincodeLoading(false);
     }
@@ -117,7 +113,7 @@ export function FarmFormView({ t, done }: FarmFormViewProps) {
 
   const locate = () => {
     setGeocoding(true);
-    setGeoAddress("Detecting GPS coordinates & resolving district...");
+    setGeoAddress("Finding your location…");
 
     const applyCoordsAndReverse = async (lat: number, lon: number, sourceLabel: string) => {
       setFormData(prev => ({
@@ -151,7 +147,7 @@ export function FarmFormView({ t, done }: FarmFormViewProps) {
 
     const tryIpFallback = async () => {
       try {
-        setGeoAddress("GPS unavailable on device. Detecting network location...");
+        setGeoAddress("GPS isn't available, trying your network location…");
         const ipGeo = await api<any>("/api/v1/geo/ip");
         if (ipGeo && ipGeo.latitude && ipGeo.longitude) {
           const lat = Number(ipGeo.latitude);
@@ -167,13 +163,13 @@ export function FarmFormView({ t, done }: FarmFormViewProps) {
             pincode: ipGeo.pincode || prev.pincode,
           }));
           const labelParts = [ipGeo.village, ipGeo.district, ipGeo.state_name].filter(Boolean);
-          setGeoAddress(`📍 Network Location Detected: ${labelParts.join(", ")} (${lat.toFixed(3)}°N, ${lon.toFixed(3)}°E)`);
+          setGeoAddress(`📍 Approximate location from your network: ${labelParts.join(", ")}. Please check it on the map.`);
           return;
         }
       } catch {
         // Continue to gentle guidance
       }
-      setGeoAddress("⚠️ GPS signal unavailable on this device. Please enter your 6-digit PIN code or choose your district from the dropdown below.");
+      setGeoAddress("⚠️ Couldn't get your location. Please type your PIN code or pick your district below.");
     };
 
     if (!navigator.geolocation) {
@@ -184,19 +180,19 @@ export function FarmFormView({ t, done }: FarmFormViewProps) {
     // 1. Try High Accuracy hardware GPS (10s timeout matching original morning setting)
     navigator.geolocation.getCurrentPosition(
       pos => {
-        applyCoordsAndReverse(pos.coords.latitude, pos.coords.longitude, "GPS Location Detected");
+        applyCoordsAndReverse(pos.coords.latitude, pos.coords.longitude, "Found you by GPS");
       },
       err => {
         // If permission was denied by user
         if (err.code === 1) {
-          setGeoAddress("Location permission not granted. Detecting network location...");
+          setGeoAddress("Location permission was not given, trying your network location…");
           tryIpFallback().finally(() => setGeocoding(false));
           return;
         }
         // 2. High accuracy unavailable or timed out -> Fallback to low accuracy (Wi-Fi/Cellular/Cache)
         navigator.geolocation.getCurrentPosition(
           pos => {
-            applyCoordsAndReverse(pos.coords.latitude, pos.coords.longitude, "Location Detected");
+            applyCoordsAndReverse(pos.coords.latitude, pos.coords.longitude, "Location found");
           },
           () => {
             // 3. Both browser options failed -> Fallback to backend IP Geolocation
@@ -207,43 +203,6 @@ export function FarmFormView({ t, done }: FarmFormViewProps) {
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
     );
-  };
-
-  const handleZoomIn = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    setZoomLevel(prev => Math.min(Number((prev * 1.4).toFixed(2)), 5));
-  };
-
-  const handleZoomOut = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    setZoomLevel(prev => Math.max(Number((prev / 1.4).toFixed(2)), 0.4));
-  };
-
-  const handleCanvasClick = (e: React.MouseEvent<SVGSVGElement>) => {
-    if (!svgRef.current) return;
-    const rect = svgRef.current.getBoundingClientRect();
-    const relX = (e.clientX - rect.left) / rect.width;
-    const relY = (e.clientY - rect.top) / rect.height;
-
-    // Guard: ignore clicks in the top-left area where zoom buttons sit to avoid accidental plotting under buttons
-    if (relX < 0.12 && relY < 0.22) {
-      return;
-    }
-
-    if (boundaryCoords.length >= 5) {
-      alert("Maximum 5 boundary corner points allowed");
-      return;
-    }
-    const clickedLon = minLon + relX * (2 * dLon);
-    const clickedLat = maxLat - relY * (2 * dLat);
-    const newCoords = [...boundaryCoords, [Number(clickedLat.toFixed(5)), Number(clickedLon.toFixed(5))] as [number, number]];
-    setBoundaryCoords(newCoords);
-    if (newCoords.length >= 3) {
-      const acres = calculateGeodesicAcres(newCoords, latNum, lonNum);
-      setFormData(prev => ({ ...prev, area_value: String(acres) }));
-    }
   };
 
   const autoPlot1Acre = () => {
@@ -278,8 +237,12 @@ export function FarmFormView({ t, done }: FarmFormViewProps) {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (!formData.district) {
+      alert("Please choose your district, or find your farm by PIN code or GPS.");
+      return;
+    }
     setBusy(true);
-    setProgressStep("Registering field boundary & syncing coordinates...");
+    setProgressStep("Saving your farm…");
 
     try {
       const cropToSave = formData.current_crop === "custom" ? formData.custom_crop : formData.current_crop;
@@ -291,7 +254,7 @@ export function FarmFormView({ t, done }: FarmFormViewProps) {
           country_code: "IN",
           state_code: formData.state_code || "MH",
           state_name: formData.state_name || "Maharashtra",
-          district: formData.district || "Default District",
+          district: formData.district,
           village: formData.village || null,
           area_value: Number(formData.area_value) || 1,
           area_unit: formData.area_unit,
@@ -309,15 +272,7 @@ export function FarmFormView({ t, done }: FarmFormViewProps) {
           crop_status: cropToSave ? "planted" : "planning"
         })
       });
-      setSavedFarmId(f.id);
       localStorage.setItem("kisanai_cached_farm", JSON.stringify(f));
-      try {
-        const myIds = JSON.parse(localStorage.getItem("kisanai_my_farm_ids") || "[]");
-        if (!myIds.includes(f.id)) {
-          myIds.push(f.id);
-          localStorage.setItem("kisanai_my_farm_ids", JSON.stringify(myIds));
-        }
-      } catch {}
       done(f.id);
     } catch (err) {
       alert((err as Error).message);
@@ -340,18 +295,12 @@ export function FarmFormView({ t, done }: FarmFormViewProps) {
     { id: "irrigated", label: "🚿 Canal / Drip Irrigated (कॅनल / ठिबक)" }
   ];
 
-  const svgPoints = boundaryCoords.map(([ptLat, ptLon]) => {
-    const x = ((ptLon - minLon) / (2 * dLon)) * 1000;
-    const y = ((maxLat - ptLat) / (2 * dLat)) * 600;
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  }).join(" ");
-
   return (
     <section className="panel narrow">
       <div className="section-title">
         <MapPin />
         <div>
-          <small>PIPELINE STAGE 1 OF 5</small>
+          <small>{t.home_add_farm}</small>
           <h2>{t.farm}</h2>
         </div>
       </div>
@@ -359,24 +308,24 @@ export function FarmFormView({ t, done }: FarmFormViewProps) {
       <div className="explainer-banner">
         <div className="explainer-icon"><Info size={20} /></div>
         <div className="explainer-content">
-          <h4>{t.farm_explainer_title || "Farm Location & Plot Corner Plotter"}</h4>
-          <p>{t.farm_explainer_desc || "Enter your 6-digit Indian PIN code to locate your district, or tap GPS. Click on the map to plot 3 to 5 field corners to compute exact boundary acreage."}</p>
+          <h4>{t.farm_explainer_title}</h4>
+          <p>{t.farm_explainer_desc}</p>
         </div>
       </div>
 
-      {!savedFarmId ? (
+      {(
         <form onSubmit={submit}>
           {/* PIN Code Quick Search Box */}
           <div className="pincode-search-box">
             <span style={{ fontWeight: 700, fontSize: "13px", color: "var(--green-950)", display: "flex", alignItems: "center", gap: "6px" }}>
               <MapPin size={16} color="var(--green-700)" />
-              {t.pincode_label || "PIN Code"}:
+              {t.pincode_label}:
             </span>
             <input
               type="text"
               maxLength={6}
               className="pincode-input"
-              placeholder={t.pincode_placeholder || "Enter 6-digit Indian PIN (e.g. 431203)"}
+              placeholder={t.pincode_placeholder}
               value={formData.pincode}
               onChange={e => setFormData({ ...formData, pincode: e.target.value })}
             />
@@ -387,7 +336,7 @@ export function FarmFormView({ t, done }: FarmFormViewProps) {
               onClick={handlePincodeLookup}
             >
               <RefreshCw size={13} className={pincodeLoading ? "spin" : ""} />
-              {pincodeLoading ? (t.pincode_searching || "Searching...") : (t.pincode_btn || "Find Location")}
+              {pincodeLoading ? (t.pincode_searching) : (t.pincode_btn)}
             </button>
             <button
               type="button"
@@ -395,7 +344,7 @@ export function FarmFormView({ t, done }: FarmFormViewProps) {
               disabled={geocoding}
               onClick={locate}
               style={{ padding: "8px 12px", fontSize: "13px" }}
-              title="Auto-detect via GPS"
+              title="Use GPS"
             >
               <MapPin size={14} className={geocoding ? "spin" : ""} />
               GPS
@@ -457,139 +406,33 @@ export function FarmFormView({ t, done }: FarmFormViewProps) {
             <div className="plot-toolbar">
               <div className="plot-toolbar-title">
                 <MapPin size={15} color="var(--lime-400)" />
-                <span>{t.plot_farm_boundary || "Interactive Farm Boundary Plotter"}</span>
+                <span>{t.plot_farm_boundary}</span>
               </div>
               <div className="plot-toolbar-actions">
                 <button type="button" className="plot-btn" onClick={autoPlot1Acre}>
-                  📐 {t.plot_auto_1ac || "1-Acre Box"}
+                  📐 {t.plot_auto_1ac}
                 </button>
                 <button type="button" className="plot-btn" onClick={autoPlot25Acres}>
-                  📐 {t.plot_auto_2ac || "2.5-Acre Box"}
+                  📐 {t.plot_auto_2ac}
                 </button>
                 {boundaryCoords.length > 0 && (
                   <button type="button" className="plot-btn" onClick={clearPoints}>
-                    ↺ {t.plot_clear || "Clear"}
+                    ↺ {t.plot_clear}
                   </button>
                 )}
               </div>
             </div>
 
-            <div className="plot-interactive-stage" style={{ position: "relative" }}>
-              {/* Isolated Canvas Zoom Controls */}
-              <div
-                className="map-zoom-controls"
-                style={{
-                  position: "absolute",
-                  top: "12px",
-                  left: "12px",
-                  zIndex: 35,
-                  display: "flex",
-                  flexDirection: "column",
-                  borderRadius: "6px",
-                  overflow: "hidden",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.35)",
-                  border: "1px solid #64748b",
-                  background: "#ffffff"
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={handleZoomIn}
-                  onMouseDown={e => e.stopPropagation()}
-                  title="Zoom In (+)"
-                  style={{
-                    width: "32px",
-                    height: "32px",
-                    background: "#ffffff",
-                    color: "#0f172a",
-                    border: "none",
-                    borderBottom: "1px solid #cbd5e1",
-                    fontSize: "20px",
-                    fontWeight: "bold",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    cursor: "pointer",
-                    padding: 0,
-                    lineHeight: 1
-                  }}
-                >
-                  +
-                </button>
-                <button
-                  type="button"
-                  onClick={handleZoomOut}
-                  onMouseDown={e => e.stopPropagation()}
-                  title="Zoom Out (−)"
-                  style={{
-                    width: "32px",
-                    height: "32px",
-                    background: "#ffffff",
-                    color: "#0f172a",
-                    border: "none",
-                    fontSize: "20px",
-                    fontWeight: "bold",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    cursor: "pointer",
-                    padding: 0,
-                    lineHeight: 1
-                  }}
-                >
-                  −
-                </button>
-              </div>
-
-              <iframe
-                className="plot-map-frame"
-                title="Field Location Basemap"
-                src={`https://www.openstreetmap.org/export/embed.html?bbox=${minLon},${minLat},${maxLon},${maxLat}&layer=mapnik`}
-              />
-              <svg
-                ref={svgRef}
-                className="plot-svg-overlay"
-                viewBox="0 0 1000 600"
-                onClick={handleCanvasClick}
-              >
-                {boundaryCoords.length >= 3 && (
-                  <polygon
-                    points={svgPoints}
-                    fill="rgba(34, 197, 94, 0.35)"
-                    stroke="#16a34a"
-                    strokeWidth="3"
-                    strokeDasharray="6 3"
-                  />
-                )}
-                {boundaryCoords.length === 2 && (
-                  <polyline
-                    points={svgPoints}
-                    fill="none"
-                    stroke="#16a34a"
-                    strokeWidth="3"
-                    strokeDasharray="6 3"
-                  />
-                )}
-                {boundaryCoords.map(([ptLat, ptLon], idx) => {
-                  const x = ((ptLon - minLon) / (2 * dLon)) * 1000;
-                  const y = ((maxLat - ptLat) / (2 * dLat)) * 600;
-                  return (
-                    <g key={idx}>
-                      <circle cx={x} cy={y} r="14" fill="#eab308" stroke="#ffffff" strokeWidth="3" />
-                      <text x={x} y={y + 4} textAnchor="middle" fill="#000000" fontSize="12" fontWeight="bold">
-                        {idx + 1}
-                      </text>
-                    </g>
-                  );
-                })}
-                {/* Center marker */}
-                <circle cx={500} cy={300} r="6" fill="#ef4444" stroke="#ffffff" strokeWidth="2" />
-              </svg>
-            </div>
+            <FieldMap
+              center={[latNum, lonNum]}
+              boundary={boundaryCoords}
+              onBoundaryChange={updateBoundary}
+              recenterKey={`${formData.latitude},${formData.longitude}`}
+            />
 
             <div className="plot-info-bar">
               <span>
-                📍 {boundaryCoords.length > 0 ? `Corners: ${boundaryCoords.length} / 5 points plotted` : (t.plot_helper_tip || "Click map to plot 3-5 corners")}
+                📍 {boundaryCoords.length > 0 ? t.plot_corners.replace("{n}", String(boundaryCoords.length)) : t.plot_helper_tip}
               </span>
               <span className="plot-acreage-badge">
                 {formData.area_value} {formData.area_unit}s ({boundaryCoords.length >= 3 ? "✓ Plotted" : "Estimated"})
@@ -678,7 +521,7 @@ export function FarmFormView({ t, done }: FarmFormViewProps) {
               <input
                 value={formData.village}
                 onChange={e => setFormData({ ...formData, village: e.target.value })}
-                placeholder={t.village_placeholder || "Enter village or taluka"}
+                placeholder={t.village_placeholder}
               />
             </label>
           </div>
@@ -720,12 +563,12 @@ export function FarmFormView({ t, done }: FarmFormViewProps) {
           {/* Crop Dropdowns */}
           <div className="form-grid" style={{ marginTop: "10px" }}>
             <label className="field">
-              <span>{t.current_crop_label || "Current Standing Crop"}</span>
+              <span>{t.current_crop_label}</span>
               <select
                 value={formData.current_crop}
                 onChange={e => setFormData({ ...formData, current_crop: e.target.value })}
               >
-                <option value="">{t.select_crop_empty || "-- Select (None / Planning New Crop) --"}</option>
+                <option value="">{t.select_crop_empty}</option>
                 {MAHARASHTRA_CROPS.map(group => (
                   <optgroup label={group.category} key={group.category}>
                     {group.crops.map(c => (
@@ -733,17 +576,17 @@ export function FarmFormView({ t, done }: FarmFormViewProps) {
                     ))}
                   </optgroup>
                 ))}
-                <option value="custom">{t.custom_crop_opt || "✍️ Other / Custom Crop..."}</option>
+                <option value="custom">{t.custom_crop_opt}</option>
               </select>
             </label>
 
             <label className="field">
-              <span>{t.previous_crop_label || "Previous Season Crop (For Crop Rotation Plan)"}</span>
+              <span>{t.previous_crop_label}</span>
               <select
                 value={formData.previous_crop}
                 onChange={e => setFormData({ ...formData, previous_crop: e.target.value })}
               >
-                <option value="">{t.select_prev_crop_empty || "-- Select (None / Fallow) --"}</option>
+                <option value="">{t.select_prev_crop_empty}</option>
                 {MAHARASHTRA_CROPS.map(group => (
                   <optgroup label={group.category} key={group.category}>
                     {group.crops.map(c => (
@@ -751,7 +594,7 @@ export function FarmFormView({ t, done }: FarmFormViewProps) {
                     ))}
                   </optgroup>
                 ))}
-                <option value="none">{t.fallow_opt || "None / Fallow"}</option>
+                <option value="none">{t.fallow_opt}</option>
               </select>
             </label>
           </div>
@@ -787,12 +630,10 @@ export function FarmFormView({ t, done }: FarmFormViewProps) {
             style={{ width: "100%", padding: "16px", marginTop: "20px", fontSize: "16px" }}
           >
             <CheckCircle2 size={18} />
-            {t.save || "Save & Proceed to Weather"}
+            {t.save}
             <ArrowRight size={18} />
           </button>
         </form>
-      ) : (
-        <SoilCardSection t={t} farmId={savedFarmId} />
       )}
     </section>
   );

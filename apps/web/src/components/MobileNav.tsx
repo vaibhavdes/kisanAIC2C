@@ -3,12 +3,13 @@ import { Activity, CloudRain, Leaf, MapPin, Microscope, Sprout } from "lucide-re
 import { Json, View } from "../types";
 
 interface MobileNavProps {
+  t: Record<string, string>;
   view: View;
   setView: (v: View) => void;
   farm?: Json;
 }
 
-export const MobileNav: React.FC<MobileNavProps> = ({ view, setView, farm }) => {
+export const MobileNav: React.FC<MobileNavProps> = ({ t, view, setView, farm }) => {
   return (
     <nav className="mobile-nav">
       <button
@@ -16,14 +17,14 @@ export const MobileNav: React.FC<MobileNavProps> = ({ view, setView, farm }) => 
         onClick={() => setView("home")}
       >
         <Leaf />
-        <span>Home</span>
+        <span>{t.nav_home}</span>
       </button>
       <button
         className={view === "farm" ? "active" : ""}
         onClick={() => setView("farm")}
       >
         <MapPin />
-        <span>Plot</span>
+        <span>{t.nav_farm}</span>
       </button>
       <button
         className={view === "weather" ? "active" : ""}
@@ -31,7 +32,7 @@ export const MobileNav: React.FC<MobileNavProps> = ({ view, setView, farm }) => 
         onClick={() => setView("weather")}
       >
         <CloudRain />
-        <span>Weather</span>
+        <span>{t.nav_weather}</span>
       </button>
       <button
         className={view === "crops" ? "active" : ""}
@@ -39,7 +40,7 @@ export const MobileNav: React.FC<MobileNavProps> = ({ view, setView, farm }) => 
         onClick={() => setView("crops")}
       >
         <Sprout />
-        <span>Crops</span>
+        <span>{t.nav_crops}</span>
       </button>
       <button
         className={view === "advice" ? "active" : ""}
@@ -47,14 +48,14 @@ export const MobileNav: React.FC<MobileNavProps> = ({ view, setView, farm }) => 
         onClick={() => setView("advice")}
       >
         <Activity />
-        <span>Plan</span>
+        <span>{t.nav_plan}</span>
       </button>
       <button
         className={view === "diagnose" ? "active" : ""}
         onClick={() => setView("diagnose")}
       >
         <Microscope />
-        <span>Doctor</span>
+        <span>{t.nav_doctor}</span>
       </button>
     </nav>
   );

@@ -11,6 +11,7 @@ ALLOWED_CONTENT_TYPES = {
     "image/jpeg": ".jpg",
     "image/png": ".png",
     "image/webp": ".webp",
+    "application/pdf": ".pdf",
     "audio/webm": ".webm",
     "audio/mp4": ".m4a",
     "audio/mpeg": ".mp3",

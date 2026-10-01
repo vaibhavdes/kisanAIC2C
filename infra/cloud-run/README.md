@@ -1,24 +1,13 @@
-# Cloud Run Deployment (`infra/cloud-run`)
-
-Deployment automation for the KISANAI C2C unified container service on Google Cloud Run.
-
-## Live Deployment Info
-
-- **Service**: `kisanai-c2c`
-- **Current Live Revision**: `kisanai-c2c-00008-8r4`
-- **Live Service URL**: `https://kisanai-c2c-313370978552.asia-south1.run.app`
-- **GCP Project**: `project-52e7ca23-228b-4cfd-879`
-- **Region**: `asia-south1` (Mumbai)
-- **Container Port**: `8080`
-- **Memory**: `1Gi`, **CPU**: `1`
-- **Concurrency**: `8`, **Max Instances**: `3`
-
-## Deploy Script
-
-Deploy the application from source using:
+# Cloud Run deployment
 
 ```bash
 bash infra/cloud-run/deploy.sh project-52e7ca23-228b-4cfd-879 asia-south1
 ```
 
-The script builds the multi-stage `Dockerfile` (React build + Python runtime) in Cloud Build, pushes the container image to Google Artifact Registry, and deploys it to Cloud Run with full environment variables configured.
+Builds the root `Dockerfile` with Cloud Build and deploys the `kisanai-c2c` service. Settings are passed as environment variables in the script. Notes:
+
+- Data lives in Firestore database `kisanai-ag02` (asia-south1) and uploaded photos in bucket `<project>-kisanai-ag02`, so nothing is lost on a new revision.
+- The runtime service account has `roles/datastore.user` limited by an IAM condition to that one database.
+- Session affinity keeps a farmer's Krishi Mitra chat on the same instance (chat memory is in-process and expires after 5 minutes).
+- IMD warnings are off until IMD API credentials are added.
+- The service account needs Vertex AI, Earth Engine and Speech/Text-to-Speech access.

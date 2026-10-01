@@ -76,22 +76,23 @@ class SQLiteDocumentStore:
 
     def list(self, collection: str, *, filters: dict[str, Any] | None = None, limit: int = 100) -> list[dict[str, Any]]:
         filters = filters or {}
-        supported = {"node_id", "owner_subject"}
+        columns = {"node_id", "owner_subject"}
         sql = "SELECT body FROM documents WHERE collection=?"
         params: list[Any] = [collection]
-        for key in supported:
-            if key in filters:
+        # Every filter is applied in SQL, before LIMIT; filtering afterwards drops matching rows.
+        for key, expected in filters.items():
+            if key in columns:
                 sql += f" AND {key}=?"
-                params.append(filters[key])
+            elif key.isidentifier():
+                sql += f" AND json_extract(body, '$.{key}')=?"
+            else:
+                raise ValueError(f"Unsupported filter key: {key}")
+            params.append(expected)
         sql += " ORDER BY COALESCE(updated_at, created_at) DESC LIMIT ?"
         params.append(min(max(limit, 1), 500))
         with self._connect() as connection:
             rows = connection.execute(sql, params).fetchall()
-        values = [json.loads(row["body"]) for row in rows]
-        for key, expected in filters.items():
-            if key not in supported:
-                values = [value for value in values if value.get(key) == expected]
-        return values
+        return [json.loads(row["body"]) for row in rows]
 
     def delete(self, collection: str, document_id: str) -> bool:
         with self.lock, self._connect() as connection:
@@ -101,6 +102,28 @@ class SQLiteDocumentStore:
         return result.rowcount > 0
 
 
+_NESTED = "nested_list"  # Firestore reserves names wrapped in double underscores
+
+
+def _to_firestore(value: Any) -> Any:
+    """Firestore rejects arrays inside arrays (e.g. boundary [[lat, lon], ...]); wrap inner lists."""
+    if isinstance(value, dict):
+        return {key: _to_firestore(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [{_NESTED: _to_firestore(item)} if isinstance(item, list) else _to_firestore(item) for item in value]
+    return value
+
+
+def _from_firestore(value: Any) -> Any:
+    if isinstance(value, dict):
+        if set(value) == {_NESTED}:
+            return _from_firestore(value[_NESTED])
+        return {key: _from_firestore(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_from_firestore(item) for item in value]
+    return value
+
+
 class FirestoreDocumentStore:
     def __init__(self, settings: Settings):
         from google.cloud import firestore
@@ -108,12 +131,12 @@ class FirestoreDocumentStore:
         self.client = firestore.Client(project=settings.google_cloud_project, database=settings.firestore_database)
 
     def put(self, collection: str, document_id: str, value: dict[str, Any]) -> dict[str, Any]:
-        self.client.collection(collection).document(document_id).set(value)
+        self.client.collection(collection).document(document_id).set(_to_firestore(value))
         return value
 
     def get(self, collection: str, document_id: str) -> dict[str, Any] | None:
         snapshot = self.client.collection(collection).document(document_id).get()
-        return snapshot.to_dict() if snapshot.exists else None
+        return _from_firestore(snapshot.to_dict()) if snapshot.exists else None
 
     def list(self, collection: str, *, filters: dict[str, Any] | None = None, limit: int = 100) -> list[dict[str, Any]]:
         from google.cloud.firestore_v1.base_query import FieldFilter
@@ -121,7 +144,11 @@ class FirestoreDocumentStore:
         query = self.client.collection(collection)
         for key, value in (filters or {}).items():
             query = query.where(filter=FieldFilter(key, "==", value))
-        return [snapshot.to_dict() for snapshot in query.limit(min(max(limit, 1), 500)).stream()]
+        # Equality filters only, so no composite index is needed; newest-first ordering (as in
+        # SQLite) is applied here. Collections per farm are small, so 500 rows is a safe ceiling.
+        rows = [_from_firestore(snapshot.to_dict()) for snapshot in query.limit(500).stream()]
+        rows.sort(key=lambda row: str(row.get("updated_at") or row.get("created_at") or row.get("fetched_at") or ""), reverse=True)
+        return rows[: min(max(limit, 1), 500)]
 
     def delete(self, collection: str, document_id: str) -> bool:
         reference = self.client.collection(collection).document(document_id)

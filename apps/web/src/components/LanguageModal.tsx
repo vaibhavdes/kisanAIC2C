@@ -27,10 +27,9 @@ export const LanguageModal: React.FC<LanguageModalProps> = ({
         <div className="lang-modal-header">
           <Languages size={28} color="var(--green-700)" />
           <div>
-            <h3>{t.select_lang_title || "Choose Your Language"}</h3>
+            <h3>{t.select_lang_title}</h3>
             <p>
-              {t.select_lang_sub ||
-                "Select your preferred language for advice, weather alerts & voice guidance."}
+              {t.select_lang_sub}
             </p>
           </div>
         </div>

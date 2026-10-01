@@ -1,5 +1,9 @@
 import { Locale } from "../types";
 
+// Satellite status keys from the API: moisture (very_dry, dry, adequate, moist),
+// vigour (poor, moderate, healthy), water stress (low, medium, high).
+
+// Agronomic wording, shown as the label.
 export const STATUS_TRANSLATIONS: Record<Locale, Record<string, string>> = {
   "en-IN": {
     very_dry: "Very Dry",
@@ -12,7 +16,7 @@ export const STATUS_TRANSLATIONS: Record<Locale, Record<string, string>> = {
     low: "Low Stress",
     medium: "Medium Stress",
     high: "High Stress",
-    unknown: "Normal"
+    unknown: "Not known"
   },
   "hi-IN": {
     very_dry: "अत्यधिक शुष्क",
@@ -25,7 +29,7 @@ export const STATUS_TRANSLATIONS: Record<Locale, Record<string, string>> = {
     low: "कम तनाव",
     medium: "मध्यम तनाव",
     high: "उच्च तनाव",
-    unknown: "सामान्य"
+    unknown: "पता नहीं"
   },
   "mr-IN": {
     very_dry: "अति कोरडे",
@@ -38,7 +42,7 @@ export const STATUS_TRANSLATIONS: Record<Locale, Record<string, string>> = {
     low: "कमी ताण",
     medium: "मध्यम ताण",
     high: "अधिक ताण",
-    unknown: "सामान्य"
+    unknown: "माहिती नाही"
   },
   "te-IN": {
     very_dry: "చాలా పొడిగా ఉంది",
@@ -51,7 +55,7 @@ export const STATUS_TRANSLATIONS: Record<Locale, Record<string, string>> = {
     low: "తక్కువ ఒత్తిడి",
     medium: "మధ్యస్థ ఒత్తిడి",
     high: "ఎక్కువ ఒత్తిడి",
-    unknown: "సాధారణం"
+    unknown: "తెలియదు"
   },
   "kn-IN": {
     very_dry: "ಬಹಳ ಒಣಗಿದೆ",
@@ -64,6 +68,75 @@ export const STATUS_TRANSLATIONS: Record<Locale, Record<string, string>> = {
     low: "ಕಡಿಮೆ ಒತ್ತಡ",
     medium: "ಮಧ್ಯಮ ಒತ್ತಡ",
     high: "ಹೆಚ್ಚು ಒತ್ತಡ",
-    unknown: "ಸಾಮಾನ್ಯ"
+    unknown: "ತಿಳಿದಿಲ್ಲ"
   }
+};
+
+// The same statuses in plain farmer language, shown next to the agronomic label.
+export const SIMPLE_STATUS: Record<Locale, Record<string, string>> = {
+  "en-IN": {
+    very_dry: "Very dry, crop needs water",
+    dry: "Dry",
+    adequate: "Enough water",
+    moist: "Wet",
+    poor: "Weak crop",
+    moderate: "Average crop",
+    healthy: "Healthy crop",
+    low: "Crop has enough water",
+    medium: "Crop slightly thirsty",
+    high: "Crop is thirsty",
+    unknown: "Not known",
+  },
+  "hi-IN": {
+    very_dry: "बहुत सूखा, फसल को पानी चाहिए",
+    dry: "सूखा",
+    adequate: "पर्याप्त पानी",
+    moist: "गीला",
+    poor: "कमज़ोर फसल",
+    moderate: "औसत फसल",
+    healthy: "स्वस्थ फसल",
+    low: "फसल को पर्याप्त पानी",
+    medium: "फसल थोड़ी प्यासी",
+    high: "फसल प्यासी है",
+    unknown: "पता नहीं",
+  },
+  "mr-IN": {
+    very_dry: "खूप कोरडे, पिकाला पाणी हवे",
+    dry: "कोरडे",
+    adequate: "पुरेसे पाणी",
+    moist: "ओले",
+    poor: "कमजोर पीक",
+    moderate: "मध्यम पीक",
+    healthy: "निरोगी पीक",
+    low: "पिकाला पुरेसे पाणी",
+    medium: "पीक थोडे तहानलेले",
+    high: "पीक तहानलेले आहे",
+    unknown: "माहिती नाही",
+  },
+  "te-IN": {
+    very_dry: "చాలా పొడి, పంటకు నీరు కావాలి",
+    dry: "పొడి",
+    adequate: "తగినంత నీరు",
+    moist: "తడి",
+    poor: "బలహీన పంట",
+    moderate: "సాధారణ పంట",
+    healthy: "ఆరోగ్యకరమైన పంట",
+    low: "పంటకు తగినంత నీరు",
+    medium: "పంటకు కొంచెం దాహం",
+    high: "పంటకు దాహంగా ఉంది",
+    unknown: "తెలియదు",
+  },
+  "kn-IN": {
+    very_dry: "ತುಂಬಾ ಒಣ, ಬೆಳೆಗೆ ನೀರು ಬೇಕು",
+    dry: "ಒಣ",
+    adequate: "ಸಾಕಷ್ಟು ನೀರು",
+    moist: "ಒದ್ದೆ",
+    poor: "ದುರ್ಬಲ ಬೆಳೆ",
+    moderate: "ಸಾಧಾರಣ ಬೆಳೆ",
+    healthy: "ಆರೋಗ್ಯಕರ ಬೆಳೆ",
+    low: "ಬೆಳೆಗೆ ಸಾಕಷ್ಟು ನೀರು",
+    medium: "ಬೆಳೆಗೆ ಸ್ವಲ್ಪ ಬಾಯಾರಿಕೆ",
+    high: "ಬೆಳೆಗೆ ಬಾಯಾರಿಕೆ",
+    unknown: "ತಿಳಿದಿಲ್ಲ",
+  },
 };

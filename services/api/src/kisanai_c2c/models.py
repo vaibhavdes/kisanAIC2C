@@ -129,6 +129,7 @@ class Farm(FarmCreate):
     area_ha: float
     version: int = 1
     creator_ip: str | None = None
+    creator_device: str | None = None
     is_mine: bool | None = None
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
@@ -214,6 +215,7 @@ class SatelliteZone(BaseModel):
     median_val: float
     area_acres: float
     percentage: float
+    simple_label: str | None = None
 
     @computed_field
     @property
@@ -261,6 +263,8 @@ class SatelliteMapResult(BaseModel):
     zones: list[SatelliteZone] = Field(default_factory=list)
     data_mode: str  # "live", "fixture", "missing"
     acquisition_note: str | None = None
+    simple_summary: str | None = None  # plain-language explanation in the requested locale
+    bounds: list[list[float]] | None = None  # [[south, west], [north, east]] of the map image
 
 
 class AdvisoryRequest(BaseModel):
@@ -270,6 +274,7 @@ class AdvisoryRequest(BaseModel):
     budget_level: Literal["low", "medium", "flexible"] = "low"
     labor_access: Literal["limited", "family", "hired"] = "family"
     equipment_access: list[str] = Field(default_factory=list)
+    farmer_query: str | None = Field(default=None, max_length=500)
 
 
 class ScoreDimension(BaseModel):
@@ -309,7 +314,9 @@ class CropRecommendationResult(BaseModel):
     water_access: str
     soil_type: str
     previous_crop: str | None = None
+    suggested_season: str | None = None
     rainfall_7d_forecast_mm: float | None = None
+    mean_max_temp_7d_c: float | None = None
     data_sources_used: list[dict[str, str]] = Field(default_factory=list)
     recommendations: list[CropPracticeOption] = Field(default_factory=list)
     unsuitable_crops: list[CropPracticeOption] = Field(default_factory=list)
@@ -407,54 +414,6 @@ class ExpertReview(BaseModel):
     version: int
     review_text: str = Field(min_length=3, max_length=4000)
     status: Literal["in_review", "resolved"]
-
-
-class PracticeCreate(BaseModel):
-    title: str = Field(min_length=3, max_length=160)
-    summary: str = Field(min_length=10, max_length=1200)
-    country_codes: list[str] = Field(default_factory=lambda: ["IN"])
-    state_codes: list[str] = Field(default_factory=list)
-    crops: list[str]
-    seasons: list[str]
-    water_contexts: list[str]
-    steps: list[str]
-    contraindications: list[str]
-    source_urls: list[str]
-    license: Literal["CC0-1.0", "CC-BY-4.0"]
-
-
-class Practice(PracticeCreate):
-    id: str = Field(default_factory=lambda: f"practice_{uuid4().hex}")
-    node_id: str
-    created_by: str
-    version: int = 1
-    review_status: Literal["draft", "reviewed"] = "draft"
-    reviewed_by: str | None = None
-    reviewed_at: datetime | None = None
-    created_at: datetime = Field(default_factory=utcnow)
-
-
-class PracticeReview(BaseModel):
-    approve: bool
-    note: str = Field(min_length=3, max_length=1000)
-
-
-class ExchangeImport(BaseModel):
-    id: str = Field(default_factory=lambda: f"exchange_{uuid4().hex}")
-    node_id: str
-    imported_by: str
-    digest: str
-    bundle: dict[str, Any]
-    compatibility_findings: list[str]
-    local_review_status: Literal["pending", "approved", "rejected"] = "pending"
-    local_review_note: str | None = None
-    local_reviewed_by: str | None = None
-    created_at: datetime = Field(default_factory=utcnow)
-
-
-class ExchangeReview(BaseModel):
-    approve: bool
-    note: str = Field(min_length=3, max_length=2000)
 
 
 class VoiceTranscription(BaseModel):

@@ -16,7 +16,7 @@ RUN pip install --no-cache-dir uv
 # Copy Python project
 COPY services/api/pyproject.toml ./
 COPY services/api/src ./src
-COPY contracts ./contracts
+COPY data ./data
 
 # Install dependencies
 RUN uv pip install --system --no-cache -e .

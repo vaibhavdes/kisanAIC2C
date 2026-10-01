@@ -1,7 +1,14 @@
-import React from "react";
 import { CloudRain, MapPin, Activity, RefreshCw, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { View, Locale, Json } from "../types";
-import { parseWeatherFromEvidence, parseSatelliteMetrics, getImdWarningLevel } from "../utils/weather";
+import { parseWeatherFromEvidence, getImdWarningLevel } from "../utils/weather";
+import { InfoTip, ListenButton } from "../components/InfoTip";
+
+// Status from the API -> existing tag colour classes.
+const TAG_CLASS: Record<string, string> = {
+  ready: "safe", safe: "safe", not_needed: "safe", low: "safe", normal: "safe",
+  marginal: "caution", caution: "caution", monitor: "caution", moderate: "moderate", conserve: "caution", cold: "caution",
+  wait: "avoid", avoid: "avoid", irrigate: "avoid", high: "high", unknown: "hold",
+};
 
 export interface WeatherViewProps {
   t: Record<string, string>;
@@ -30,34 +37,34 @@ export function WeatherView({
     return (
       <section className="panel" style={{ textAlign: "center", padding: "60px 20px" }}>
         <MapPin size={48} color="var(--lime-500)" style={{ marginBottom: "12px" }} />
-        <h2>{t.add_farm_first || "Add a Farm First"}</h2>
+        <h2>{t.add_farm_first}</h2>
         <button className="primary" onClick={() => go("farm")} style={{ marginTop: "16px" }}>
-          {t.start || "Add Farm Profile"}
+          {t.start}
         </button>
       </section>
     );
   }
 
   const weatherData = parseWeatherFromEvidence(evidence, locale);
-  const satMetrics = parseSatelliteMetrics(evidence, locale);
+  const maxDailyMm = Math.max(1, ...((operational?.daily as Json[]) || []).map((d: Json) => d.rain_mm || 0));
   const imdAlert = getImdWarningLevel(evidence, locale);
 
-  const totalForecastMm = weatherData.forecast.reduce((acc, curr) => acc + curr.mm, 0).toFixed(1);
-  const maxForecastMm = Math.max(1, ...weatherData.forecast.map(f => f.mm));
 
-  const weatherSnap = evidence.find(e => e.kind === "weather_forecast" || e.kind === "weather_nowcast");
-  const weatherDateVal = weatherSnap?.fetched_at || weatherSnap?.issued_at || weatherSnap?.observed_at || weatherSnap?.acquired_at;
+  const weatherDateVal = operational?.fetched_at || evidence.find(e => e.kind === "weather_forecast")?.fetched_at;
   const weatherObsDate = weatherDateVal
     ? new Date(weatherDateVal as string).toLocaleString(locale, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
-    : "Live Synced";
+    : t.forecast_pending;
+  const daily: Json[] = operational?.daily || [];
+  const statusLabel = (status?: string) => t[`st_${status || "unknown"}`] || status || "";
+  const fmt = (value: unknown, digits = 0) => (typeof value === "number" ? value.toFixed(digits) : "--");
 
   return (
     <section className="panel">
       <div className="section-title">
         <CloudRain />
         <div>
-          <small>PIPELINE STAGE 2 OF 5 · {farm.name} ({farm.district}, {farm.state_code})</small>
-          <h2>{t.weather || "Local Weather & Operational Windows"}</h2>
+          <small>{farm.name} · {farm.district}</small>
+          <h2>{t.weather}</h2>
         </div>
       </div>
 
@@ -65,17 +72,17 @@ export function WeatherView({
       <div className="evidence-timestamp-strip">
         <span style={{ fontWeight: 700, color: "var(--green-950)", display: "flex", alignItems: "center", gap: 5 }}>
           <Activity size={14} />
-          {t.evidence_strip_title || "Observation Timestamps"}:
+          {t.evidence_strip_title}:
         </span>
-        <span className="timestamp-badge weather" title="Meteorological Observation and Forecast Window">
-          🌦️ {t.latest_weather_obs || "Weather"}: {weatherObsDate}
+        <span className="timestamp-badge weather" title="Weather">
+          🌦️ {t.latest_weather_obs}: {weatherObsDate}
         </span>
-        <span className="timestamp-badge sat" title="Earth Engine Sentinel-2 Scene Timestamp">
-          🛰️ {satMap?.scene_date ? `Sentinel-2: ${satMap.scene_date}` : "Sentinel-2: 07 Sep 2026, 05:33 UTC"}
+        <span className="timestamp-badge sat" title="Satellite photo date">
+          🛰️ Sentinel-2: {satMap ? (satMap.scene_date || t.scene_pending) : t.loading}
         </span>
-        <span className="timestamp-badge soil" title="Soil nutrient baseline or laboratory test">
-          🌱 {t.soil_profile_title || "Soil"}: {farm.soil_test?.tested_on ? `Lab Tested (${farm.soil_test.tested_on})` : `Regional Baseline (${farm.soil_type || "Black Soil"})`}
-        </span>
+        <button className="timestamp-badge soil" onClick={() => go("soil")}>
+          🌱 {t.soil_profile_title}: {farm.soil_type && farm.soil_type !== "unknown" ? farm.soil_type : "--"} →
+        </button>
       </div>
 
       {/* Dynamic Weather Dashboard */}
@@ -85,7 +92,7 @@ export function WeatherView({
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span className="weather-live-indicator">
                 <span className="weather-live-dot" />
-                LIVE METEOROLOGY · {farm.district.toUpperCase()}
+                {t.weather_updated} {weatherObsDate} · {farm.district}
               </span>
               <button
                 className="secondary"
@@ -101,17 +108,17 @@ export function WeatherView({
             {loadingWeather ? (
               <div style={{ padding: "28px 0", textAlign: "center" }}>
                 <RefreshCw className="spin" size={24} style={{ marginBottom: "8px" }} />
-                <div style={{ fontSize: "14px", color: "#cbd8cf" }}>Connecting to Open-Meteo & IMD stations...</div>
+                <div style={{ fontSize: "14px", color: "#cbd8cf" }}>{t.forecast_pending}</div>
               </div>
             ) : (
               <div className="weather-temp-main">
                 <h2>{weatherData.temp || (weatherData.hasData ? "--" : "--")}</h2>
                 <div>
                   <span style={{ fontSize: "15px", color: "#cbd8cf", display: "block" }}>
-                    {t.rainfall_today || "Rainfall Today"}: <strong>{weatherData.hasData ? (weatherData.rainfall || "0.0 mm") : "--"}</strong>
+                    {t.rainfall_today}: <strong>{weatherData.hasData ? (weatherData.rainfall || "0.0 mm") : "--"}</strong>
                   </span>
                   <span style={{ fontSize: "12px", color: weatherData.hasData ? "var(--lime-400)" : "var(--muted)" }}>
-                    {weatherData.hasData ? "🟢 Live station observation synced" : "⚪ Tap Refresh Live Evidence to sync"}
+                    {weatherData.hasData ? "Open-Meteo" : t.forecast_pending}
                   </span>
                 </div>
               </div>
@@ -120,29 +127,42 @@ export function WeatherView({
 
           <div className="weather-details-grid">
             <div>
-              <small>{t.wind_speed || "Wind Speed"}</small>
+              <small>{t.wind_speed}</small>
               <strong>{weatherData.wind || (weatherData.hasData ? "0 km/h" : "--")}</strong>
             </div>
             <div>
-              <small>{t.humidity || "Relative Humidity"}</small>
+              <small>{t.humidity}</small>
               <strong>{weatherData.humidity || (weatherData.hasData ? "N/A" : "--")}</strong>
             </div>
             <div>
-              <small>{t.forecast_7d || "7-Day Rain Total"}</small>
-              <strong>{weatherData.hasData ? `${totalForecastMm} mm` : "--"}</strong>
+              <small>{t.forecast_7d}</small>
+              <strong>{operational?.has_forecast ? `${fmt(operational.rain_7d_total_mm, 1)} mm` : "--"}</strong>
             </div>
             <div>
-              <small>{t.soil_status || "Soil Moisture"}</small>
-              <strong>{satMetrics.hasData && satMetrics.moistStatus ? satMetrics.moistStatus : "--"}</strong>
+              <small>{t.past_7d_rain}</small>
+              <strong>{operational?.past_7d_rain_mm != null ? `${fmt(operational.past_7d_rain_mm, 1)} mm` : "--"}</strong>
+            </div>
+            <div>
+              <small>{t.water_balance} <InfoTip term="water_balance" locale={locale} /></small>
+              <strong>{operational?.water_balance_7d_mm != null ? `${operational.water_balance_7d_mm > 0 ? "+" : ""}${fmt(operational.water_balance_7d_mm)} mm` : "--"}</strong>
+            </div>
+            <div>
+              <small>{t.soil_moisture_label} <InfoTip term="soil_moisture" locale={locale} /></small>
+              <strong>
+                {operational?.soil_moisture?.root_available_pct != null
+                  ? `${operational.soil_moisture.top_available_pct}% / ${operational.soil_moisture.root_available_pct}%`
+                  : "--"}
+              </strong>
+              <small>{t.top_soil} / {t.root_zone}</small>
             </div>
           </div>
         </div>
 
         <div className="forecast-card">
           <h4>
-            <span>Dynamic 7-Day Rainfall Forecast ({farm.district})</span>
+            <span>{t.forecast_7d} ({farm.district})</span>
             <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 600 }}>
-              {weatherData.hasData ? `Total: ${totalForecastMm} mm` : "Pending Sync"}
+              {operational?.has_forecast ? `${fmt(operational.rain_7d_total_mm, 1)} mm` : t.forecast_pending}
             </span>
           </h4>
 
@@ -150,19 +170,20 @@ export function WeatherView({
             <div style={{ display: "grid", placeItems: "center", height: "140px", color: "var(--muted)" }}>
               <RefreshCw className="spin" size={20} />
             </div>
-          ) : weatherData.forecast.length > 0 ? (
+          ) : daily.length > 0 ? (
             <div className="forecast-bars">
-              {weatherData.forecast.map(d => {
-                const heightPct = Math.max(12, Math.round((d.mm / maxForecastMm) * 85));
+              {daily.map(d => {
+                const mm = d.rain_mm || 0;
+                const heightPct = Math.max(12, Math.round((mm / maxDailyMm) * 85));
                 return (
                   <div key={d.date} className="forecast-day-col">
-                    <span style={{ fontSize: "10px", color: "var(--muted)" }}>{d.mm.toFixed(1)}mm</span>
+                    <span style={{ fontSize: "10px", color: "var(--muted)" }}>{mm.toFixed(1)}mm · {fmt(d.rain_prob)}%</span>
                     <div
-                      className={`forecast-bar-fill ${d.mm > 0 ? "rainy" : ""}`}
+                      className={`forecast-bar-fill ${mm > 0 ? "rainy" : ""}`}
                       style={{ height: `${heightPct}%` }}
-                      title={`${d.day}: ${d.mm}mm (${d.prob}% probability)`}
+                      title={`${d.label}: ${mm} mm (${fmt(d.rain_prob)}%)`}
                     />
-                    <span>{d.day}</span>
+                    <span>{d.label}</span>
                   </div>
                 );
               })}
@@ -170,7 +191,7 @@ export function WeatherView({
           ) : (
             <div style={{ textAlign: "center", padding: "30px 16px", color: "var(--muted)" }}>
               <p style={{ margin: "0 0 12px", fontSize: "14px" }}>
-                Tap "Refresh Live Evidence" to fetch 7-day rainfall forecast for {farm.district}.
+                {t.forecast_pending}
               </p>
               <button
                 className="secondary"
@@ -179,7 +200,7 @@ export function WeatherView({
                 onClick={refreshEvidence}
               >
                 <RefreshCw size={14} className={loadingWeather ? "spin" : ""} />
-                <span>{t.refresh || "Refresh Live Evidence"}</span>
+                <span>{t.refresh}</span>
               </button>
             </div>
           )}
@@ -195,89 +216,85 @@ export function WeatherView({
             <small>{imdAlert.msg} Source: India Meteorological Department (api.imd.gov.in)</small>
           </div>
         </div>
-      ) : (
+      ) : evidence.some(e => e.provider === "imd" && e.mode === "live") && (
         <div className="alert-banner" style={{ background: "#f0f8ec", color: "#225934", border: "1px solid #cce5c4" }}>
           <CheckCircle2 size={20} color="var(--green-700)" />
           <div>
-            <strong>{t.normal_weather || "Normal Weather Conditions in " + farm.district}</strong>
-            <small>{t.normal_weather_desc || "No severe IMD warnings active for this district. Safe for field spraying, weeding, and cultural operations."}</small>
+            <strong>{t.normal_weather + farm.district}</strong>
+            <small>{t.normal_weather_desc}</small>
           </div>
         </div>
       )}
 
-      {/* 4 Operational Agricultural Windows */}
+      {/* Farm operation windows derived from the 7-day forecast */}
       {operational && (
         <div className="agri-action-window-grid">
-          {/* Sowing Window */}
-          <div className="agri-action-card">
-            <div className="agri-action-card-head">
-              <span>🌱 {t.sowing_window || "Sowing Readiness"}</span>
-              <span className={`agri-tag ${operational.sowing_readiness?.status === "ready" ? "safe" : operational.sowing_readiness?.status === "wait" ? "hold" : "caution"}`}>
-                {operational.sowing_readiness?.status === "ready" ? (t.optimal_window || "Ready") : operational.sowing_readiness?.status === "wait" ? (t.avoid_window || "Wait") : (t.caution_window || "Marginal")}
-              </span>
-            </div>
-            <div>
-              <strong style={{ fontSize: "13px", color: "var(--green-950)", display: "block", marginBottom: 4 }}>
-                {operational.sowing_readiness?.summary}
-              </strong>
-              <p>{operational.sowing_readiness?.details}</p>
-            </div>
-          </div>
+          {([
+            ["sowing", "🌱", t.sowing_window, "sowing"],
+            ["spraying", "🧪", t.spraying_window, "spray"],
+            ["irrigation", "💧", t.irrigation_advisory, "water_balance"],
+            ["drainage", "🌊", t.drainage_alert, ""],
+            ["temperature", "🌡️", t.temperature_window, ""],
+            ["disease", "🍂", t.disease_window, "disease"],
+          ] as const).map(([key, icon, title, term]) => {
+            const card = (operational[key] || {}) as Json;
+            return (
+              <div className="agri-action-card" key={key}>
+                <div className="agri-action-card-head">
+                  <span>{icon} {title} {term && <InfoTip term={term} locale={locale} />}</span>
+                  <span className={`agri-tag ${TAG_CLASS[card.status as string] || "caution"}`}>{statusLabel(card.status)}</span>
+                </div>
+                <div>
+                  <strong style={{ fontSize: "13px", color: "var(--green-950)", display: "block", marginBottom: 4 }}>
+                    {card.summary}
+                  </strong>
+                  {card.details && <p>{card.details}</p>}
+                  <ListenButton text={[card.summary, card.details].filter(Boolean).join(" ")} locale={locale} label={t.listen} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
-          {/* Spraying Window */}
-          <div className="agri-action-card">
-            <div className="agri-action-card-head">
-              <span>🧪 {t.spraying_window || "Spraying Window"}</span>
-              <span className={`agri-tag ${operational.spray_window?.status === "safe" ? "safe" : operational.spray_window?.status === "marginal" ? "caution" : "avoid"}`}>
-                {operational.spray_window?.status === "safe" ? (t.optimal_window || "Safe") : operational.spray_window?.status === "marginal" ? (t.caution_window || "Marginal") : (t.avoid_window || "Avoid")}
-              </span>
-            </div>
-            <div>
-              <strong style={{ fontSize: "13px", color: "var(--green-950)", display: "block", marginBottom: 4 }}>
-                {operational.spray_window?.summary}
-              </strong>
-              <p>{operational.spray_window?.details}</p>
-            </div>
-          </div>
-
-          {/* Irrigation Advisory */}
-          <div className="agri-action-card">
-            <div className="agri-action-card-head">
-              <span>💧 {t.irrigation_advisory || "Irrigation Advisory"}</span>
-              <span className={`agri-tag ${operational.irrigation_advice?.status === "sufficient" ? "optimal" : operational.irrigation_advice?.status === "irrigate_soon" ? "caution" : "avoid"}`}>
-                {operational.irrigation_advice?.status === "sufficient" ? "Sufficient" : operational.irrigation_advice?.status === "irrigate_soon" ? (t.caution_window || "Irrigate Soon") : "Excess Rain"}
-              </span>
-            </div>
-            <div>
-              <strong style={{ fontSize: "13px", color: "var(--green-950)", display: "block", marginBottom: 4 }}>
-                {operational.irrigation_advice?.summary}
-              </strong>
-              <p>{operational.irrigation_advice?.details}</p>
-            </div>
-          </div>
-
-          {/* Drainage & Runoff Risk */}
-          <div className="agri-action-card">
-            <div className="agri-action-card-head">
-              <span>🌊 {t.drainage_alert || "Drainage Risk"}</span>
-              <span className={`agri-tag ${operational.drainage_risk?.status === "low" ? "safe" : operational.drainage_risk?.status === "moderate" ? "moderate" : "high"}`}>
-                {operational.drainage_risk?.status === "low" ? "Low Risk" : operational.drainage_risk?.status === "moderate" ? "Moderate" : "High Alert"}
-              </span>
-            </div>
-            <div>
-              <strong style={{ fontSize: "13px", color: "var(--green-950)", display: "block", marginBottom: 4 }}>
-                {operational.drainage_risk?.summary}
-              </strong>
-              <p>{operational.drainage_risk?.details}</p>
-            </div>
-          </div>
+      {/* Day-by-day table: every number behind the advice above */}
+      {daily.length > 0 && (
+        <div className="farm-forecast-table-wrap">
+          <h4>{t.farm_forecast_title}</h4>
+          <table className="farm-forecast-table">
+            <thead>
+              <tr>
+                <th>{t.col_day}</th>
+                <th>{t.col_rain}</th>
+                <th>{t.col_chance} <InfoTip term="rain_prob" locale={locale} /></th>
+                <th>{t.col_temp}</th>
+                <th>{t.col_wind}</th>
+                <th>{t.col_et0} <InfoTip term="et0" locale={locale} /></th>
+                <th>{t.col_spray} <InfoTip term="spray" locale={locale} /></th>
+              </tr>
+            </thead>
+            <tbody>
+              {daily.map(d => (
+                <tr key={d.date}>
+                  <td>{d.label}</td>
+                  <td>{fmt(d.rain_mm, 1)} mm</td>
+                  <td>{fmt(d.rain_prob)}%</td>
+                  <td>{fmt(d.temp_max)}° / {fmt(d.temp_min)}°</td>
+                  <td>{fmt(d.wind_max)} km/h</td>
+                  <td>{fmt(d.et0, 1)} mm</td>
+                  <td><span className={`agri-tag ${TAG_CLASS[d.spray as string]}`}>{statusLabel(d.spray)}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <small>{t.weather_source_note}</small>
         </div>
       )}
 
       {/* Verified Provenance Compact Pill (Hover for source details) */}
       <div
         className="provenance-compact-pill"
-        title="Verified sources: India Meteorological Department (api.imd.gov.in) · Open-Meteo High-Resolution Model (ECMWF) · Copernicus Sentinel-2 MSI (10m Optical) · ICAR-NBSS&LUP Soil Database"
+        title="Open-Meteo forecast · IMD warnings (when available) · Sentinel-2 satellite"
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -293,17 +310,17 @@ export function WeatherView({
         }}
       >
         <span style={{ fontSize: "15px" }}>🛡️</span>
-        <span style={{ fontWeight: 600 }}>{t.sources_badge || "Verified Meteorology & Sensor Sources"}</span>
-        <span style={{ color: "var(--muted)", fontSize: "11px" }}>ⓘ IMD · Open-Meteo · Sentinel-2 (Hover for details)</span>
+        <span style={{ fontWeight: 600 }}>{t.sources_badge}</span>
+        <span style={{ color: "var(--muted)", fontSize: "11px" }}>ⓘ Open-Meteo · IMD · Sentinel-2</span>
       </div>
 
       {/* Pipeline Navigation Footer */}
       <div className="pipeline-footer-nav">
         <button className="nav-prev-btn" onClick={() => go("farm")}>
-          {t.btn_back_farm || "← Back to Field Plot"}
+          {t.btn_back_farm}
         </button>
         <button className="nav-next-btn" onClick={() => go("soil")}>
-          {t.btn_proceed_soil || "Proceed to Soil Health (Optional) →"}
+          {t.btn_proceed_soil}
         </button>
       </div>
     </section>

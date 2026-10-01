@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+import hashlib
+import json
+import time
+from threading import Lock
 from typing import Any
 
 from ..models import EvidenceSnapshot, EvidenceValue, Farm
@@ -9,6 +13,38 @@ from ..settings import Settings, get_settings
 
 class SatelliteUnavailable(RuntimeError):
     pass
+
+
+# Agronomic class breaks per index (fixed, so areas are comparable between fields and dates).
+# Each class: (lower bound, upper bound, colour, label). Bounds are inclusive-exclusive.
+INDEX_CLASSES: dict[str, list[tuple[float, float, str, str]]] = {
+    "NDVI": [
+        (-1.0, 0.2, "#d73027", "Bare soil / very low vigour"),
+        (0.2, 0.35, "#fdae61", "Sparse or stressed crop"),
+        (0.35, 0.5, "#fee08b", "Moderate crop cover"),
+        (0.5, 0.65, "#a6d96a", "Healthy crop"),
+        (0.65, 1.0, "#1a9850", "Dense, vigorous crop"),
+    ],
+    "NDMI": [
+        (-1.0, -0.1, "#7f0000", "Severe water stress"),
+        (-0.1, 0.05, "#d73027", "High water stress"),
+        (0.05, 0.2, "#fee08b", "Moderate canopy moisture"),
+        (0.2, 0.35, "#91bfdb", "Adequate canopy moisture"),
+        (0.35, 1.0, "#104e8b", "High canopy moisture"),
+    ],
+    "NDWI": [
+        (-1.0, -0.3, "#d73027", "Dry surface / dense canopy"),
+        (-0.3, -0.15, "#fee08b", "Mildly moist surface"),
+        (-0.15, 0.0, "#74add1", "Moist surface"),
+        (0.0, 0.2, "#4575b4", "Wet / water-logged"),
+        (0.2, 1.0, "#313695", "Standing water"),
+    ],
+}
+INDEX_BANDS = {"NDVI": ("B8", "B4"), "NDMI": ("B8", "B11"), "NDWI": ("B3", "B8")}
+SQ_M_PER_ACRE = 4046.8564224
+MAP_CACHE_SECONDS = 6 * 3600
+_MAP_CACHE: dict[str, tuple[float, Any, bytes | None]] = {}
+_MAP_LOCK = Lock()
 
 
 class SatelliteProvider:
@@ -23,17 +59,14 @@ class SatelliteProvider:
 
     @staticmethod
     def _water_stress(ndvi, ndwi, ndmi) -> str:
-        if ndvi is None and ndwi is None and ndmi is None:
+        """Crop water stress from leaf water (NDMI). NDWI is not used: it is negative over any
+        green canopy, so it cannot separate stressed from healthy crop. Over bare soil
+        (NDVI < 0.2) there is no crop to be stressed."""
+        if ndmi is None or ndvi is None or ndvi < 0.2:
             return "unknown"
-        if ndmi is not None and ndmi < -0.1:
+        if ndmi < -0.1:
             return "high"
-        if ndwi is not None and ndwi < -0.15:
-            return "high"
-        if ndmi is not None and ndmi < 0.1:
-            return "medium"
-        if ndwi is not None and ndwi < 0:
-            return "medium"
-        if ndvi is not None and ndvi < 0.25:
+        if ndmi < 0.05:  # same breakpoints as _moisture_status and the NDMI map zones
             return "medium"
         return "low"
 
@@ -41,13 +74,15 @@ class SatelliteProvider:
     def _vegetation_status(ndvi) -> str:
         if ndvi is None:
             return "unknown"
-        return "poor" if ndvi < 0.25 else "moderate" if ndvi < 0.45 else "healthy"
+        # Same breaks as the NDVI map zones (INDEX_CLASSES), so card and map agree.
+        return "poor" if ndvi < 0.35 else "moderate" if ndvi < 0.5 else "healthy"
 
     @staticmethod
     def _moisture_status(ndmi) -> str:
         if ndmi is None:
             return "unknown"
-        return "very_dry" if ndmi < -0.1 else "dry" if ndmi < 0.1 else "adequate" if ndmi < 0.3 else "moist"
+        # Same breaks as the NDMI map zones.
+        return "very_dry" if ndmi < -0.1 else "dry" if ndmi < 0.05 else "adequate" if ndmi < 0.35 else "moist"
 
     @staticmethod
     def _chlorophyll_status(ndre) -> str:
@@ -92,24 +127,26 @@ class SatelliteProvider:
                 .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 80))
                 .map(add_quality)
             )
-            count = int(collection.size().getInfo())
-            if count == 0:
+            times = collection.aggregate_array("system:time_start").getInfo() or []
+            if not times:
                 raise SatelliteUnavailable("No Sentinel-2 scenes are available in the selected period")
             image = collection.sort("system:time_start", False).first()
-            acquired_ms = image.get("system:time_start").getInfo()
-            acquired = datetime.fromtimestamp(float(acquired_ms) / 1000, tz=UTC)
-            values = image.select(["NDVI", "NDWI", "NDMI", "NDRE", "EVI"]).reduceRegion(
-                reducer=ee.Reducer.mean(), geometry=geometry, scale=20, maxPixels=250000
-            ).getInfo() or {}
-            valid = image.select("NDVI").mask().reduceRegion(
-                reducer=ee.Reducer.mean(), geometry=geometry, scale=20, maxPixels=250000
-            ).getInfo() or {}
+            acquired = datetime.fromtimestamp(float(max(times)) / 1000, tz=UTC)
+            # Index means and the clear-pixel share in a single Earth Engine round trip.
+            combined = ee.Dictionary({
+                "values": image.select(["NDVI", "NDWI", "NDMI", "NDRE", "EVI"]).reduceRegion(
+                    reducer=ee.Reducer.mean(), geometry=geometry, scale=20, maxPixels=250000),
+                "valid": image.select("NDVI").mask().reduceRegion(
+                    reducer=ee.Reducer.mean(), geometry=geometry, scale=20, maxPixels=250000),
+            }).getInfo() or {}
+            values = combined.get("values") or {}
+            valid = combined.get("valid") or {}
         except SatelliteUnavailable:
             raise
         except Exception as exc:
             raise SatelliteUnavailable(f"Earth Engine query failed: {exc}") from exc
         coverage = float(valid.get("NDVI") or 0)
-        flags = ["point_buffer_approximation"]
+        flags = [] if farm.boundary_coordinates and len(farm.boundary_coordinates) >= 3 else ["point_buffer_approximation"]
         if coverage < 0.5:
             flags.append("low_valid_pixel_coverage")
         return EvidenceSnapshot(
@@ -120,7 +157,7 @@ class SatelliteProvider:
             mode="live",
             observed_at=acquired,
             valid_until=acquired + timedelta(days=12),
-            spatial_scope="125m_point_buffer",
+            spatial_scope="farm_polygon" if not flags or flags[0] != "point_buffer_approximation" else "125m_point_buffer",
             values=[
                 EvidenceValue(name=name.lower(), value=self._rounded(value))
                 for name, value in values.items()
@@ -145,281 +182,183 @@ class SatelliteProvider:
         return ee.Geometry.Point([farm.location.longitude, farm.location.latitude]).buffer(125), "point_buffer"
 
     @staticmethod
-    def _cloud_filtered_collection(ee, geometry, start: str, end: str):
-        return (
-            ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
-            .filterBounds(geometry)
-            .filterDate(start, end)
-            .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 35))
-        )
+    def _preview_style(index: str) -> tuple[str, dict, dict[str, str]]:
+        meanings = {
+            "NDVI": "Crop growth and vigour (NDVI)",
+            "NDMI": "Crop canopy moisture (NDMI)",
+            "NDWI": "Surface wetness and standing water (NDWI)",
+        }
+        if index not in INDEX_CLASSES:
+            raise ValueError(f"Unsupported satellite index: {index}")
+        classes = INDEX_CLASSES[index]
+        vis = {"min": classes[0][1] - 0.1, "max": classes[-1][0] + 0.1, "palette": [c[2] for c in classes]}
+        return meanings[index], vis, {c[2]: c[3] for c in classes}
 
     @staticmethod
-    def _preview_style(index: str) -> tuple[str, dict, dict[str, str]]:
-        """Return (meaning, vis_params, legend) for Earth Engine visualization matching GeoPard layout."""
-        if index == "NDVI":
-            return (
-                "Crop Growth & Vegetation Vigor Map",
-                {"min": 0.0, "max": 0.75, "palette": ["#d73027", "#f46d43", "#fdae61", "#fee08b", "#d9ef8b", "#a6d96a", "#66bd63", "#1a9850"]},
-                {"#d73027": "Low Biomass / Fallow", "#fdae61": "Emerging / Stressed", "#fee08b": "Moderate Canopy", "#a6d96a": "Healthy Vigor", "#1a9850": "Peak Dense Canopy"},
-            )
-        if index == "NDWI":
-            return (
-                "Surface Water & Soil Wetness Map",
-                {"min": -0.4, "max": 0.35, "palette": ["#d73027", "#fee08b", "#74add1", "#4575b4", "#313695"]},
-                {"#d73027": "Dry Surface", "#fee08b": "Mild Moisture", "#74add1": "Moist Soil", "#4575b4": "Water Rich", "#313695": "Standing Water"},
-            )
-        if index == "NDMI":
-            return (
-                "Crop Canopy Moisture & Water Stress Map",
-                {"min": -0.25, "max": 0.40, "palette": ["#7f0000", "#d73027", "#fdae61", "#fee08b", "#91bfdb", "#4575b4", "#104e8b"]},
-                {"#7f0000": "Severe Water Stress", "#d73027": "High Stress", "#fee08b": "Moderate Moisture", "#91bfdb": "Adequate Moisture", "#104e8b": "Optimal Hydration"},
-            )
-        raise ValueError(f"Unsupported satellite preview index: {index}")
+    def _cache_key(farm: Farm, index: str, days: int) -> str:
+        shape = json.dumps([farm.location.latitude, farm.location.longitude, farm.boundary_coordinates, farm.area_value, farm.area_unit])
+        return f"{farm.id}:{index}:{days}:{datetime.now(UTC).date()}:{hashlib.sha1(shape.encode()).hexdigest()[:12]}"
 
-    def satellite_image_bytes(self, farm: Farm, index: str = "NDVI", days: int = 90) -> tuple[bytes, str]:
-        """Fetch rendered PNG binary of the satellite index overlay directly from Earth Engine or Google Maps."""
+    def satellite_image_bytes(self, farm: Farm, index: str = "NDVI", days: int = 30) -> tuple[bytes, str]:
+        """PNG of the index map, downloaded once from Earth Engine and served from cache after that."""
         import requests
-        sat_res = self.satellite_map(farm, index=index, days=days)
-        target_url = sat_res.map_url or sat_res.fallback_map_url
-        if target_url:
-            try:
-                resp = requests.get(target_url, timeout=15)
-                if resp.status_code == 200 and len(resp.content) > 100:
-                    content_type = resp.headers.get("content-type", "image/png")
-                    return resp.content, content_type
-            except Exception:
-                pass
-        # Fallback simple 1x1 transparent PNG if network unavailable
-        return (
-            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15c4\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82",
-            "image/png",
-        )
 
-    def satellite_map(self, farm: Farm, index: str = "NDVI", days: int = 90) -> 'SatelliteMapResult':
-        """Return a coloured thumbnail URL and GeoPard-style multi-zone statistics."""
-        from datetime import date, timedelta
-        import requests
-        from ..models import SatelliteMapResult, SatelliteZone
+        key = self._cache_key(farm, index.upper(), days)
+        result = self.satellite_map(farm, index=index, days=days)
+        with _MAP_LOCK:
+            cached = _MAP_CACHE.get(key)
+        if cached and cached[2]:
+            return cached[2], "image/png"
+        if not result.map_url:
+            raise SatelliteUnavailable(result.acquisition_note or "Satellite map is not available")
+        response = requests.get(result.map_url, timeout=20)
+        if response.status_code != 200 or len(response.content) < 100:
+            raise SatelliteUnavailable(f"Earth Engine thumbnail download failed ({response.status_code})")
+        with _MAP_LOCK:
+            if key in _MAP_CACHE:
+                expiry, value, _ = _MAP_CACHE[key]
+                _MAP_CACHE[key] = (expiry, value, response.content)
+        return response.content, response.headers.get("content-type", "image/png")
 
-        end = date.today()
+    def satellite_map(self, farm: Farm, index: str = "NDVI", days: int = 30) -> "SatelliteMapResult":
+        """Latest mostly-clear Sentinel-2 scene over the field: index map, measured zone areas and summary.
+
+        Results are cached per farm, index and day; a failure is reported as data_mode="missing"
+        with the reason, never replaced with estimated values.
+        """
+        from ..models import SatelliteMapResult
+
+        normalized = index.upper()
+        meaning, vis, legend = self._preview_style(normalized)
+        key = self._cache_key(farm, normalized, days)
+        with _MAP_LOCK:
+            cached = _MAP_CACHE.get(key)
+        if cached and cached[0] > time.time():
+            return cached[1]
+
+        end = datetime.now(UTC).date()
         start = end - timedelta(days=days)
-        normalized_index = index.upper()
-        meaning, vis, legend = self._preview_style(normalized_index)
-        image_path = f"/api/v1/farms/{farm.id}/satellite/image?index={normalized_index}"
-
-        lat = farm.location.latitude
-        lon = farm.location.longitude
-        maps_key = self.settings.google_maps_api_key
-        path_param = ""
-        if farm.boundary_coordinates and len(farm.boundary_coordinates) >= 3:
-            pts = [f"{float(p[0])},{float(p[1])}" for p in farm.boundary_coordinates]
-            pts.append(pts[0])
-            path_param = f"&path=color:0x00ffffff|weight:3|fillcolor:0x00ffff33|{'|'.join(pts)}"
-        fallback_url = (
-            f"https://maps.googleapis.com/maps/api/staticmap?center={lat},{lon}&zoom=15&size=600x400&maptype=satellite&key={maps_key}&markers=color:red|{lat},{lon}{path_param}"
-            if maps_key
-            else None
+        has_boundary = bool(farm.boundary_coordinates and len(farm.boundary_coordinates) >= 3)
+        base = dict(
+            farm_id=farm.id, index=normalized, meaning=meaning,
+            image_api_path=f"/api/v1/farms/{farm.id}/satellite/image?index={normalized}&days={days}",
+            start_date=start.isoformat(), end_date=end.isoformat(), legend=legend,
         )
 
-        farm_acres = farm.area_value if farm.area_unit == "acre" else farm.area_value * 2.471
+        def missing(reason: str) -> SatelliteMapResult:
+            # Not cached, so the next request tries again.
+            return SatelliteMapResult(**base, source="earth_engine_sentinel_2", data_mode="missing", zones=[],
+                                      field_status_narrative=None, acquisition_note=reason)
 
         if not self.settings.earth_engine_enabled:
-            simulated_zones = self._generate_zones(normalized_index, farm_acres, None)
-            return SatelliteMapResult(
-                farm_id=farm.id,
-                index=normalized_index,
-                meaning=meaning,
-                map_url=None,
-                fallback_map_url=fallback_url,
-                image_api_path=image_path,
-                start_date=start.isoformat(),
-                end_date=end.isoformat(),
-                scene_date="Recent Multi-Date Composite",
-                sensor="Sentinel-2 MSI Level-2A",
-                cloud_coverage_percent=12.0,
-                resolution_m=10,
-                field_status_narrative=f"Regional baseline active for {farm.district}. Earth Engine raster overlay initializing.",
-                source="regional_baseline",
-                legend=legend,
-                zones=simulated_zones,
-                data_mode="missing",
-                acquisition_note="Earth Engine disabled. Showing satellite basemap and calibrated baseline.",
-            )
+            return missing("Satellite analysis is turned off on this server (EARTH_ENGINE_ENABLED=false).")
 
         try:
             import ee
             ee.Initialize(project=self.settings.google_cloud_project)
             geometry, _ = self._geometry(ee, farm)
-            collection = self._cloud_filtered_collection(ee, geometry, start.isoformat(), end.isoformat())
-            scene_count = int(collection.size().getInfo())
+            low_band, high_band = INDEX_BANDS[normalized][1], INDEX_BANDS[normalized][0]
 
-            if scene_count > 0:
-                latest_scene = collection.sort("system:time_start", False).first()
-                time_ms = latest_scene.get("system:time_start").getInfo()
-                scene_dt = datetime.fromtimestamp(float(time_ms) / 1000, tz=UTC)
-                scene_date_str = scene_dt.strftime("%d %b %Y, %H:%M UTC")
-                cloud_pct = float(latest_scene.get("CLOUDY_PIXEL_PERCENTAGE").getInfo())
-            else:
-                scene_date_str = f"Composite {start.strftime('%d %b')} – {end.strftime('%d %b %Y')}"
-                cloud_pct = 15.0
+            def prepare(image):
+                scl = image.select("SCL")
+                clear = scl.neq(1).And(scl.neq(3)).And(scl.neq(7)).And(scl.neq(8)).And(scl.neq(9)).And(scl.neq(10)).And(scl.neq(11))
+                layer = image.updateMask(clear).normalizedDifference([high_band, low_band]).rename("index")
+                share = layer.mask().reduceRegion(ee.Reducer.mean(), geometry, 20, maxPixels=250000).get("index")
+                return layer.copyProperties(image, ["system:time_start", "CLOUDY_PIXEL_PERCENTAGE"]).set("clear_share", share)
 
-            image = collection.median().clip(geometry)
-
-            if normalized_index == "NDVI":
-                layer = image.normalizedDifference(["B8", "B4"]).rename("NDVI")
-            elif normalized_index == "NDWI":
-                layer = image.normalizedDifference(["B3", "B8"]).rename("NDWI")
-            elif normalized_index == "NDMI":
-                layer = image.normalizedDifference(["B8", "B11"]).rename("NDMI")
-            else:
-                raise ValueError(f"Unsupported index: {normalized_index}")
-
-            # Calculate actual percentiles across the farm parcel
-            stats = layer.reduceRegion(
-                reducer=ee.Reducer.percentile([10, 30, 50, 70, 90]).combine(ee.Reducer.minMax(), sharedInputs=True),
-                geometry=geometry,
-                scale=10,
-                maxPixels=100000,
-            ).getInfo() or {}
-
-            zones = self._generate_zones(normalized_index, farm_acres, stats)
-
-            # Draw farm boundary as white outline
-            boundary = ee.Image().byte().paint(
-                featureCollection=ee.FeatureCollection([ee.Feature(geometry)]),
-                color=1,
-                width=3,
+            scenes = (
+                ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
+                .filterBounds(geometry)
+                .filterDate(start.isoformat(), (end + timedelta(days=1)).isoformat())
+                .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 70))
+                .map(prepare)
+                .filter(ee.Filter.gte("clear_share", 0.6))
+                .sort("system:time_start", False)
             )
-            preview = layer.visualize(**vis).blend(
-                boundary.visualize(palette=["#00ffff"], opacity=0.9)
-            )
-            map_url = preview.getThumbURL({
-                "region": geometry.bounds(),
-                "dimensions": 600,
-                "format": "png",
-            })
+            first = scenes.limit(1)
+            meta = first.reduceColumns(ee.Reducer.toList(3), ["system:time_start", "CLOUDY_PIXEL_PERCENTAGE", "clear_share"]).getInfo()
+            rows = (meta or {}).get("list") or []
+            if not rows:
+                return missing(f"No Sentinel-2 scene with at least 60% clear sky over the field between {start} and {end}.")
+            scene_ms, scene_cloud, clear_share = rows[0]
+            layer = ee.Image(first.first()).clip(geometry)
 
-            narrative = self._generate_narrative(normalized_index, stats, zones)
+            classes = INDEX_CLASSES[normalized]
+            class_image = ee.Image(0)
+            for number, (lower, _, _, _) in enumerate(classes[1:], start=1):
+                class_image = class_image.where(layer.gte(lower), number)
+            class_image = class_image.updateMask(layer.mask()).rename("zone")
+            area = ee.Image.pixelArea().addBands(class_image)
+            stats = ee.Dictionary({
+                "area": area.reduceRegion(ee.Reducer.sum().group(groupField=1, groupName="zone"), geometry, 10, maxPixels=1_000_000),
+                "mean": layer.addBands(class_image).reduceRegion(ee.Reducer.mean().group(groupField=1, groupName="zone"), geometry, 10, maxPixels=1_000_000),
+                "overall": layer.reduceRegion(ee.Reducer.median().combine(ee.Reducer.minMax(), sharedInputs=True), geometry, 10, maxPixels=1_000_000),
+                # The thumbnail covers exactly this box, so the app can lay it over a map.
+                "bounds": geometry.bounds().coordinates(),
+            }).getInfo() or {}
 
-            return SatelliteMapResult(
-                farm_id=farm.id,
-                index=normalized_index,
-                meaning=meaning,
-                map_url=map_url,
-                fallback_map_url=fallback_url,
-                image_api_path=image_path,
-                start_date=start.isoformat(),
-                end_date=end.isoformat(),
-                scene_date=scene_date_str,
-                sensor="Sentinel-2 MSI Level-2A",
-                cloud_coverage_percent=round(cloud_pct, 1),
-                resolution_m=10,
-                field_status_narrative=narrative,
-                source="earth_engine_sentinel_2_thumbnail",
-                legend=legend,
-                zones=zones,
-                data_mode="live",
-                acquisition_note=f"Sentinel-2 Level-2A ({scene_date_str}, {cloud_pct:.1f}% cloud masked)",
-            )
+            boundary = ee.Image().byte().paint(featureCollection=ee.FeatureCollection([ee.Feature(geometry)]), color=1, width=2)
+            map_url = layer.visualize(**vis).blend(boundary.visualize(palette=["#00ffff"])).getThumbURL(
+                {"region": geometry.bounds(), "dimensions": 600, "format": "png"})
         except Exception as exc:
-            simulated_zones = self._generate_zones(normalized_index, farm_acres, None)
-            return SatelliteMapResult(
-                farm_id=farm.id,
-                index=normalized_index,
-                meaning=meaning,
-                map_url=None,
-                fallback_map_url=fallback_url,
-                image_api_path=image_path,
-                start_date=start.isoformat(),
-                end_date=end.isoformat(),
-                scene_date="Recent Satellite Baseline",
-                sensor="Sentinel-2 MSI Level-2A",
-                cloud_coverage_percent=10.0,
-                resolution_m=10,
-                field_status_narrative=f"Observation calibrated from regional baseline for {farm.district}.",
-                source="earth_engine_error",
-                legend=legend,
-                zones=simulated_zones,
-                data_mode="missing",
-                acquisition_note=f"Earth Engine query fallback: {str(exc)[:100]}",
-            )
+            return missing(f"Earth Engine query failed: {str(exc)[:160]}")
+
+        zones = self._zones(normalized, stats)
+        overall = stats.get("overall") or {}
+        median = overall.get("index_median")
+        scene_dt = datetime.fromtimestamp(float(scene_ms) / 1000, tz=UTC)
+        scope = "field boundary" if has_boundary else "125 m around the farm point (draw the field boundary for parcel-level zones)"
+        ring = (stats.get("bounds") or [[]])[0]
+        bounds = None
+        if ring:
+            lons, lats = [point[0] for point in ring], [point[1] for point in ring]
+            bounds = [[min(lats), min(lons)], [max(lats), max(lons)]]
+        result = SatelliteMapResult(
+            **base,
+            map_url=map_url,
+            bounds=bounds,
+            scene_date=scene_dt.strftime("%d %b %Y"),
+            cloud_coverage_percent=round(float(scene_cloud), 1) if scene_cloud is not None else None,
+            field_status_narrative=self._narrative(normalized, median, zones),
+            source="earth_engine_sentinel_2",
+            zones=zones,
+            data_mode="live",
+            acquisition_note=(
+                f"Sentinel-2 L2A scene of {scene_dt.strftime('%d %b %Y')}; {round(float(clear_share) * 100)}% of the area cloud-free; "
+                f"clouds and shadows masked. Area: {scope}."
+            ),
+        )
+        with _MAP_LOCK:
+            _MAP_CACHE[key] = (time.time() + MAP_CACHE_SECONDS, result, None)
+        return result
 
     @staticmethod
-    def _generate_zones(index: str, farm_acres: float, stats: dict[str, Any] | None) -> list['SatelliteZone']:
+    def _zones(index: str, stats: dict[str, Any]) -> list["SatelliteZone"]:
         from ..models import SatelliteZone
 
-        # Extract values or use agronomic natural break baselines
-        p10 = stats.get(f"{index}_p10", 0.10) if stats else 0.12
-        p30 = stats.get(f"{index}_p30", 0.22) if stats else 0.22
-        p50 = stats.get(f"{index}_p50", 0.35) if stats else 0.35
-        p70 = stats.get(f"{index}_p70", 0.45) if stats else 0.45
-        p90 = stats.get(f"{index}_p90", 0.58) if stats else 0.58
-        v_min = stats.get(f"{index}_min", 0.05) if stats else 0.05
-        v_max = stats.get(f"{index}_max", 0.70) if stats else 0.68
-
-        if index == "NDMI":
-            zone_configs = [
-                (1, "#d73027", "Severe Moisture Stress", round(v_min, 2), round(p10, 2), round((v_min + p10)/2, 2), 0.12),
-                (2, "#fdae61", "Moderate Moisture Stress", round(p10, 2), round(p30, 2), round((p10 + p30)/2, 2), 0.24),
-                (3, "#fee08b", "Mild Stress / Average", round(p30, 2), round(p50, 2), round((p30 + p50)/2, 2), 0.32),
-                (4, "#a6d96a", "Adequate Canopy Moisture", round(p50, 2), round(p70, 2), round((p50 + p70)/2, 2), 0.20),
-                (5, "#1a9850", "Optimal Hydration", round(p70, 2), round(v_max, 2), round((p70 + v_max)/2, 2), 0.12),
-            ]
-        elif index == "NDWI":
-            zone_configs = [
-                (1, "#d73027", "Dry Surface / Low Wetness", round(v_min, 2), round(p10, 2), round((v_min + p10)/2, 2), 0.15),
-                (2, "#fee08b", "Mild Surface Wetness", round(p10, 2), round(p30, 2), round((p10 + p30)/2, 2), 0.28),
-                (3, "#74add1", "Moderate Soil Moisture", round(p30, 2), round(p50, 2), round((p30 + p50)/2, 2), 0.30),
-                (4, "#4575b4", "High Soil Moisture", round(p50, 2), round(p70, 2), round((p50 + p70)/2, 2), 0.18),
-                (5, "#313695", "Water-Rich / Saturated", round(p70, 2), round(v_max, 2), round((p70 + v_max)/2, 2), 0.09),
-            ]
-        else:  # NDVI
-            zone_configs = [
-                (1, "#d73027", "Low Vigor / Emergence", round(v_min, 2), round(p10, 2), round((v_min + p10)/2, 2), 0.14),
-                (2, "#fdae61", "Developing / Stressed", round(p10, 2), round(p30, 2), round((p10 + p30)/2, 2), 0.25),
-                (3, "#fee08b", "Moderate Canopy Cover", round(p30, 2), round(p50, 2), round((p30 + p50)/2, 2), 0.31),
-                (4, "#a6d96a", "Healthy Vegetative Growth", round(p50, 2), round(p70, 2), round((p50 + p70)/2, 2), 0.20),
-                (5, "#1a9850", "Peak Dense Biomass", round(p70, 2), round(v_max, 2), round((p70 + v_max)/2, 2), 0.10),
-            ]
-
+        areas = {int(row["zone"]): float(row.get("sum") or 0) for row in (stats.get("area") or {}).get("groups", [])}
+        means = {int(row["zone"]): row.get("mean") for row in (stats.get("mean") or {}).get("groups", [])}
+        total = sum(areas.values())
+        if total <= 0:
+            return []
         zones = []
-        for zid, color, label, zmin, zmax, zmed, share in zone_configs:
-            area = round(farm_acres * share, 2)
-            pct = round(share * 100, 1)
-            zones.append(
-                SatelliteZone(
-                    id=zid,
-                    color=color,
-                    label=label,
-                    min_val=zmin,
-                    max_val=zmax,
-                    median_val=zmed,
-                    area_acres=area,
-                    percentage=pct,
-                )
-            )
+        for number, (lower, upper, colour, label) in enumerate(INDEX_CLASSES[index]):
+            area_m2 = areas.get(number, 0.0)
+            if area_m2 <= 0:
+                continue
+            mean = means.get(number)
+            zones.append(SatelliteZone(
+                id=number + 1, color=colour, label=label,
+                min_val=max(lower, -1.0), max_val=min(upper, 1.0),
+                median_val=round(float(mean), 3) if mean is not None else round((lower + upper) / 2, 3),
+                area_acres=round(area_m2 / SQ_M_PER_ACRE, 2),
+                percentage=round(area_m2 / total * 100, 1),
+            ))
         return zones
 
     @staticmethod
-    def _generate_narrative(index: str, stats: dict[str, Any], zones: list['SatelliteZone']) -> str:
-        median = stats.get(f"{index}_p50")
-        if median is None:
-            return "Field condition metrics compiled across parcel boundary."
-
-        med_val = float(median)
-        if index == "NDVI":
-            if med_val >= 0.45:
-                return f"Vegetation vigor is strong (median NDVI {med_val:.2f}). Peak canopy density observed across 30%+ of the parcel."
-            elif med_val >= 0.25:
-                return f"Crop vegetative growth is developing steadily (median NDVI {med_val:.2f}). Emergence is consistent with moderate biomass."
-            else:
-                return f"Low canopy density detected (median NDVI {med_val:.2f}). Reflects early seedling stage or fallow cover."
-        elif index == "NDMI":
-            if med_val < 0.0:
-                return f"Canopy water content indicates stress (median NDMI {med_val:.2f}). Crop root zone drying; monitor for supplemental irrigation."
-            elif med_val < 0.20:
-                return f"Moderate canopy hydration (median NDMI {med_val:.2f}). Adequate moisture for current vegetative stage."
-            else:
-                return f"High canopy hydration (median NDMI {med_val:.2f}). Optimal leaf moisture content detected."
-        else:  # NDWI
-            return f"Surface water index is stable (median NDWI {med_val:.2f}). No standing water or waterlogging hazards detected."
+    def _narrative(index: str, median: float | None, zones: list["SatelliteZone"]) -> str | None:
+        if median is None or not zones:
+            return None
+        dominant = max(zones, key=lambda zone: zone.percentage)
+        return f"Median {index} {median:.2f}. Largest zone: {dominant.label.lower()} ({dominant.percentage:.0f}% of the area, {dominant.area_acres:.2f} acres)."

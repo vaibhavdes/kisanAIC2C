@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 def _find_project_root() -> Path:
     current = Path(__file__).resolve()
     for parent in current.parents:
-        if (parent / "contracts").exists():
+        if (parent / "data" / "agri_baselines").exists():
             return parent
     return current.parents[min(2, len(current.parents) - 1)]
 
@@ -20,7 +20,6 @@ class Settings(BaseSettings):
     app_name: str = "KISANAI C2C"
     app_env: Literal["development", "test", "production"] = "development"
     node_id: str = "india-node"
-    node_country_code: str = "IN"
     auth_mode: Literal["local", "firebase"] = "local"
     expert_subjects: str = ""
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
@@ -40,7 +39,7 @@ class Settings(BaseSettings):
     gemini_api_key: str | None = None
     ai_enabled: bool = True
 
-    imd_enabled: bool = True
+    imd_enabled: bool = False  # needs IMD API credentials
     imd_base_url: str = "https://api.imd.gov.in"
     imd_api_key: str | None = None
     imd_jwt_token: str | None = None
@@ -54,7 +53,6 @@ class Settings(BaseSettings):
     open_meteo_enabled: bool = True
     open_meteo_base_url: str = "https://api.open-meteo.com/v1/forecast"
     earth_engine_enabled: bool = False
-    google_maps_api_key: str | None = None
 
     speech_enabled: bool = False
     speech_location: str = "global"

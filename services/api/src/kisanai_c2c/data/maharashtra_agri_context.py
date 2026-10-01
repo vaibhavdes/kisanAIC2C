@@ -354,11 +354,8 @@ MAHARASHTRA_DISTRICT_PROFILES: dict[str, DistrictAgroProfile] = {
 
 def _load_dynamic_profiles() -> dict[str, DistrictAgroProfile] | None:
     import json
-    from pathlib import Path
-    candidate_paths = [
-        Path(__file__).resolve().parent / "../../../../../data/agri_baselines/maharashtra_district_agri_profiles.json",
-        Path("/app/data/agri_baselines/maharashtra_district_agri_profiles.json"),
-    ]
+    from ..settings import PROJECT_ROOT
+    candidate_paths = [PROJECT_ROOT / "data" / "agri_baselines" / "maharashtra_district_agri_profiles.json"]
     for p in candidate_paths:
         if p.exists():
             try:

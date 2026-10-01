@@ -1,9 +1,8 @@
 import pytest
 from typing import Any
-from datetime import UTC, datetime
 
 from kisanai_c2c.service import AppService
-from kisanai_c2c.models import Actor, FarmCreate, Location, SoilTestCreate, SoilValues, PracticeCreate, Role
+from kisanai_c2c.models import Actor, FarmCreate, Location, SoilTestCreate, SoilValues, Role
 
 class MemoryStore:
     def __init__(self):
@@ -98,55 +97,6 @@ def test_unconfirmed_soil_test_rejected(service: AppService, farmer: Actor):
     with pytest.raises(ValueError, match="Only farmer-confirmed soil values can be saved"):
         service.save_soil_test(farmer, farm.id, soil_payload)
 
-def test_practice_requires_review_before_export(service: AppService, expert: Actor):
-    payload = PracticeCreate(
-        title="Test Practice", summary="This is a test practice for the system.",
-        crops=["wheat"], seasons=["rabi"], water_contexts=["irrigated"],
-        steps=["Step 1", "Step 2"], contraindications=["None"], source_urls=["https://example.com"],
-        license="CC0-1.0"
-    )
-    practice = service.create_practice(expert, payload)
-    
-    with pytest.raises(ValueError, match="Only reviewed practices can be exported"):
-        service.export_practice(expert, practice.id)
-
-def test_bundle_import_deduplication(service: AppService, expert: Actor):
-    from kisanai_c2c.models import PracticeCreate, PracticeReview
-    payload = PracticeCreate(
-        title="Mulching", summary="Improves moisture retention",
-        crops=["sorghum"], seasons=["kharif"], water_contexts=["rainfed"],
-        steps=["Step 1"], contraindications=["Waterlogging"], source_urls=["https://example.com"],
-        license="CC0-1.0"
-    )
-    practice = service.create_practice(expert, payload)
-    service.review_practice(expert, practice.id, PracticeReview(approve=True, note="Approved for dryland"))
-    bundle = service.export_practice(expert, practice.id)
-
-    service.import_bundle(expert, bundle)
-
-    with pytest.raises(RuntimeError, match="This bundle has already been imported"):
-        service.import_bundle(expert, bundle)
-
-def test_seed_default_practices(service: AppService):
-    expert = Actor(subject="expert1", node_id=service.settings.node_id, roles={Role.expert})
-    service.seed_default_practices_if_empty()
-    practices = service.practices(expert)
-    assert len(practices) >= 3
-    reviewed = [p for p in practices if p.review_status == "reviewed"]
-    assert len(reviewed) >= 3
-    # Exporting a seeded practice should succeed because it is pre-reviewed
-    bundle = service.export_practice(expert, reviewed[0].id)
-    assert bundle["title"] == reviewed[0].title
-    assert "steps" in bundle
-
-def test_seed_default_farm(service: AppService):
-    farm = service.seed_default_farm_if_empty()
-    assert farm.id == "farm_default_mh"
-    assert farm.location.latitude == 20.4283
-    assert farm.location.longitude == 78.5082
-    assert farm.location.source == "device"
-    assert farm.location.confirmed is True
-
 def test_farm_self_healing_and_id_preservation(service: AppService, farmer: Actor):
     # Test 1: Payload with custom id preserves that exact ID
     custom_id = "farm_9d07ee79316f4cf3a320dfaa50834fbe"
@@ -164,11 +114,16 @@ def test_farm_self_healing_and_id_preservation(service: AppService, farmer: Acto
     assert fetched.id == custom_id
     assert fetched.district == "Yavatmal"
 
-    # Test 3: If an unknown farm_id is requested by active session actor, it self-heals
-    session_farm_id = "farm_session_cold_start_abc123"
-    recovered = service.farm(farmer, session_farm_id)
-    assert recovered.id == session_farm_id
-    assert recovered.owner_subject == farmer.subject
+    # Test 3: An unknown farm id is not found; it must never be filled with another farm's data.
+    with pytest.raises(LookupError):
+        service.farm(farmer, "farm_session_cold_start_abc123")
+
+
+def test_store_filters_apply_before_limit(service: AppService, farmer: Actor):
+    for index in range(5):
+        service.store.put("soil_tests", f"soil_{index}", {"id": f"soil_{index}", "farm_id": "farm_a" if index == 0 else "farm_b", "created_at": f"2026-01-0{index + 1}T00:00:00Z"})
+    rows = service.store.list("soil_tests", filters={"farm_id": "farm_a"}, limit=1)
+    assert [row["id"] for row in rows] == ["soil_0"]
 
 
 def test_lookup_pincode_success():
@@ -285,16 +240,14 @@ def test_reverse_geocode_endpoint():
     assert res["state_code"] == "MH"
 
 
-def test_ip_geocode_endpoint():
+def test_ip_geocode_private_address_is_not_invented():
+    from fastapi import HTTPException
     from starlette.requests import Request
     from kisanai_c2c.main import ip_geocode
     scope = {"type": "http", "headers": [(b"x-forwarded-for", b"127.0.0.1")]}
-    res = ip_geocode(Request(scope))
-    assert res["district"] == "Pune"
-    assert res["state_name"] == "Maharashtra"
-    assert res["state_code"] == "MH"
-    assert res["latitude"] == 18.5204
-    assert res["longitude"] == 73.8567
+    with pytest.raises(HTTPException) as error:
+        ip_geocode(Request(scope))
+    assert error.value.status_code == 404
 
 
 def test_latest_soil_and_partial_values(service, farmer):
@@ -342,7 +295,8 @@ def test_ip_linked_farm_ownership_and_deletion(service: AppService, farmer: Acto
 
     # 1. Create farm with creator_ip
     farm = service.create_farm(farmer, payload, client_ip=creator_ip)
-    assert farm.creator_ip == creator_ip
+    assert farm.creator_ip is None  # never sent to the browser
+    assert service.store.get("farms", farm.id)["creator_ip"] == creator_ip
     assert farm.is_mine is True
 
     # 2. List farms as the creator IP -> is_mine should be True
@@ -437,3 +391,21 @@ def test_soil_date_flexible_parsing(service: AppService, farmer: Actor):
 
 
 
+
+
+def test_device_id_owns_farm_and_is_not_exposed(service: AppService, farmer: Actor):
+    payload = FarmCreate(
+        name="Phone Farm", state_code="MH", state_name="Maharashtra", district="Pune",
+        area_value=1, location=Location(latitude=18.5, longitude=73.8), water_access="rainfed",
+    )
+    farm = service.create_farm(farmer, payload, client_ip="10.0.0.1", device_id="device-aaaa1111")
+    # Same phone on a new network still owns the farm; another phone does not.
+    mine = {f.id: f for f in service.farms(farmer, client_ip="10.9.9.9", device_id="device-aaaa1111")}
+    other = {f.id: f for f in service.farms(farmer, client_ip="10.0.0.1", device_id="device-bbbb2222")}
+    assert mine[farm.id].is_mine and not other[farm.id].is_mine
+    assert mine[farm.id].creator_device is None and mine[farm.id].creator_ip is None
+    with pytest.raises(PermissionError):
+        service.delete_farm(farmer, farm.id, client_ip="10.0.0.1", device_id="device-bbbb2222")
+    service.store.put("soil_tests", "soil_x", {"id": "soil_x", "farm_id": farm.id})
+    assert service.delete_farm(farmer, farm.id, client_ip="10.9.9.9", device_id="device-aaaa1111")
+    assert service.store.get("soil_tests", "soil_x") is None

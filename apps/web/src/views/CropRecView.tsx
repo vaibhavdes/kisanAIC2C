@@ -1,9 +1,12 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Sprout, RefreshCw, AlertTriangle } from "lucide-react";
-import { View, Json } from "../types";
+import { View, Json, Locale } from "../types";
+import { InfoTip, ListenButton } from "../components/InfoTip";
+import { currentSeason } from "../utils/season";
 
 export interface CropRecViewProps {
   t: Record<string, string>;
+  locale: Locale;
   farm?: Json;
   cropRecs: Json | null;
   loadingRecs: boolean;
@@ -15,6 +18,7 @@ export interface CropRecViewProps {
 
 export function CropRecView({
   t,
+  locale,
   farm,
   cropRecs,
   loadingRecs,
@@ -30,9 +34,9 @@ export function CropRecView({
     return (
       <section className="panel" style={{ textAlign: "center", padding: "60px 20px" }}>
         <Sprout size={48} color="var(--lime-500)" style={{ marginBottom: "12px" }} />
-        <h2>{t.add_farm_first || "Add a Farm First"}</h2>
+        <h2>{t.add_farm_first}</h2>
         <button className="primary" onClick={() => go("farm")} style={{ marginTop: "16px" }}>
-          {t.start || "Add Farm Profile"}
+          {t.start}
         </button>
       </section>
     );
@@ -43,8 +47,8 @@ export function CropRecView({
       <div className="section-title">
         <Sprout />
         <div>
-          <small>PIPELINE STAGE 4 OF 5 · {farm.name} ({farm.district})</small>
-          <h2>{t.crops || "Multi-Factor Crop Recommendation Engine"}</h2>
+          <small>{farm.name} · {farm.district}</small>
+          <h2>{t.crops}</h2>
         </div>
       </div>
 
@@ -52,29 +56,30 @@ export function CropRecView({
         <div className="crop-rec-header">
           <div className="crop-rec-title-group">
             <p style={{ margin: 0, fontSize: "14px", color: "var(--muted)" }}>
-              {t.crop_rec_sub || "Dynamic agronomic matching based on soil type, water access, 7-day rainfall forecast, and crop rotation history."}
+              {t.crop_rec_sub}
             </p>
           </div>
 
           <div className="crop-rec-controls">
+            <InfoTip term="season" locale={locale} />
             <div className="season-btn-group">
               <button
                 className={`season-tab-btn ${season === "kharif" ? "active" : ""}`}
                 onClick={() => handleSeasonChange("kharif")}
               >
-                ☀️ Kharif
+                ☀️ Kharif{currentSeason() === "kharif" ? ` · ${t.current_season_tag}` : ""}
               </button>
               <button
                 className={`season-tab-btn ${season === "rabi" ? "active" : ""}`}
                 onClick={() => handleSeasonChange("rabi")}
               >
-                ❄️ Rabi
+                ❄️ Rabi{currentSeason() === "rabi" ? ` · ${t.current_season_tag}` : ""}
               </button>
               <button
                 className={`season-tab-btn ${season === "summer" ? "active" : ""}`}
                 onClick={() => handleSeasonChange("summer")}
               >
-                🌤️ Summer
+                🌤️ Summer{currentSeason() === "summer" ? ` · ${t.current_season_tag}` : ""}
               </button>
             </div>
 
@@ -86,7 +91,7 @@ export function CropRecView({
               title="Recalculate Recommendations"
             >
               <RefreshCw size={13} className={loadingRecs ? "spin" : ""} />
-              <span>{t.refresh || "Refresh"}</span>
+              <span>{t.refresh}</span>
             </button>
           </div>
         </div>
@@ -101,6 +106,11 @@ export function CropRecView({
               {cropRecs.rainfall_7d_forecast_mm != null && (
                 <span className="baseline-meta-item">
                   🌧️ 7-Day Rain Forecast: <strong>{(cropRecs.rainfall_7d_forecast_mm as number).toFixed(1)} mm</strong>
+                </span>
+              )}
+              {cropRecs.mean_max_temp_7d_c != null && (
+                <span className="baseline-meta-item">
+                  🌡️ Avg max temp: <strong>{(cropRecs.mean_max_temp_7d_c as number).toFixed(0)}°C</strong>
                 </span>
               )}
               <span className="baseline-meta-item">
@@ -124,7 +134,7 @@ export function CropRecView({
 
             {cropRecs.data_sources_used && (
               <div className="baseline-sources-row">
-                <small>{t.sources_badge || "Data Sources Used"}:</small>
+                <small>{t.sources_badge}:</small>
                 {(cropRecs.data_sources_used as Json[]).map((src: Json, idx: number) => (
                   <span key={idx} className="source-tag">
                     ✓ <strong>{src.name as string}</strong> ({src.type as string})
@@ -138,14 +148,14 @@ export function CropRecView({
         {loadingRecs ? (
           <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--muted)" }}>
             <RefreshCw className="spin" size={24} style={{ marginBottom: "8px" }} />
-            <p style={{ margin: 0, fontSize: "13px" }}>{t.loading_crop_recs || "Evaluating agronomic suitability for your field..."}</p>
+            <p style={{ margin: 0, fontSize: "13px" }}>{t.loading_crop_recs}</p>
           </div>
         ) : cropRecs && ((cropRecs.recommendations as Json[])?.length > 0 || (cropRecs.unsuitable_crops as Json[])?.length > 0) ? (
           <div>
             {((cropRecs.recommendations as Json[])?.length > 0) && (
               <>
                 <h4 style={{ margin: "0 0 14px 0", fontSize: "15px", color: "var(--green-950)", fontWeight: 700 }}>
-                  {t.rec_crops_heading || "Recommended Crops for Your Field"} ({(cropRecs.recommendations as Json[]).length})
+                  {t.rec_crops_heading} ({(cropRecs.recommendations as Json[]).length})
                 </h4>
 
                 <div className="crop-cards-grid">
@@ -163,11 +173,19 @@ export function CropRecView({
                           </div>
                           <div className="crop-score-badge">
                             <span className="crop-score-pill">
-                              {matchPct != null ? `${matchPct}% Match` : "Recommended"}
+                              {matchPct != null ? `${matchPct}%` : "—"} {t.match_score}
                             </span>
                             <small style={{ fontSize: "10px", color: "var(--muted)", marginTop: "2px" }}>
-                              {Math.round(((cropItem.evidence_coverage as number) || 1) * 100)}% Data-Backed
+                              {Math.round(((cropItem.evidence_coverage as number) || 0) * 100)}% {t.evidence_cov}
                             </small>
+                            <span>
+                              <InfoTip term="match_score" locale={locale} />
+                              <ListenButton
+                                locale={locale}
+                                label={t.listen}
+                                text={[cropItem.crop_name, ...factors.map((f: Json) => f.reasoning)].filter(Boolean).join(". ")}
+                              />
+                            </span>
                           </div>
                         </div>
 
@@ -178,7 +196,7 @@ export function CropRecView({
                             onClick={() => setExpandedCrop(isExpanded ? null : (cropItem.crop as string))}
                           >
                             <span>
-                              {isExpanded ? (t.hide_factors_btn || "Hide Factors Breakdown") : (t.view_factors_btn || "View Decision Factors Breakdown")} ({factors.length})
+                              {isExpanded ? (t.hide_factors_btn) : (t.view_factors_btn)} ({factors.length})
                             </span>
                             <span>{isExpanded ? "▲" : "▼"}</span>
                           </button>
@@ -191,21 +209,21 @@ export function CropRecView({
                                   <div className="crop-factor-header">
                                     <span className="crop-factor-name">{factor.factor_name as string}</span>
                                     <span className={`crop-factor-status ${factor.status as string}`}>
-                                      {factor.status === "pass" || factor.status === "optimal" || factor.status === "compatible" ? "✅ Pass" : factor.status === "warning" || factor.status === "caution" || factor.status === "marginal" ? "⚠️ Notice" : "❌ Conflict"}
+                                      {factor.status === "optimal" || factor.status === "compatible" ? "✅" : factor.status === "constrained" ? "⚠️" : "❌"} {t[`factor_${factor.status}`] || String(factor.status)}
                                     </span>
                                   </div>
 
                                   <div className="crop-factor-data">
-                                    <span style={{ fontWeight: 600 }}>{t.data_used || "Data Used"}:</span> {factor.data_used as string}
+                                    <span style={{ fontWeight: 600 }}>{t.data_used}:</span> {factor.data_used as string}
                                   </div>
 
                                   <div className="crop-factor-reason">
-                                    <span style={{ fontWeight: 600 }}>{t.reasoning || "Rationale"}:</span> {factor.reasoning as string}
+                                    <span style={{ fontWeight: 600 }}>{t.reasoning}:</span> {factor.reasoning as string}
                                   </div>
 
                                   {factor.remedy && (
                                     <div className="crop-factor-remedy">
-                                      <strong>💡 {t.remedy || "Remedy / Practice"}:</strong> {factor.remedy as string}
+                                      <strong>💡 {t.remedy}:</strong> {factor.remedy as string}
                                     </div>
                                   )}
                                 </div>
@@ -229,7 +247,7 @@ export function CropRecView({
                 >
                   <AlertTriangle size={15} color="#b91c1c" />
                   <span>
-                    {showUnsuitable ? (t.hide_unsuitable_btn || "Hide Ineligible Crops") : (t.view_unsuitable_btn || "View Ineligible / High-Risk Crops")} ({(cropRecs.unsuitable_crops as Json[]).length})
+                    {showUnsuitable ? (t.hide_unsuitable_btn) : (t.view_unsuitable_btn)} ({(cropRecs.unsuitable_crops as Json[]).length})
                   </span>
                   <span>{showUnsuitable ? "▲" : "▼"}</span>
                 </button>
@@ -248,7 +266,7 @@ export function CropRecView({
                         </div>
 
                         <div style={{ fontSize: "12px", color: "#7f1d1d", background: "#fef2f2", padding: "8px 10px", borderRadius: "6px", borderLeft: "3px solid #ef4444", marginBottom: "8px" }}>
-                          <strong>{t.why_unsuitable || "Why not recommended:"}</strong>
+                          <strong>{t.why_unsuitable}</strong>
                           <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
                             {((cropItem.rejection_reasons as string[]) || []).map((reason: string, rIdx: number) => (
                               <li key={rIdx}>{reason}</li>
@@ -271,7 +289,7 @@ export function CropRecView({
           </div>
         ) : (
           <div style={{ textAlign: "center", padding: "30px 20px", color: "var(--muted)" }}>
-            <p>{t.no_crops_found || "No crops match all constraints for this season and water access."}</p>
+            <p>{t.no_crops_found}</p>
           </div>
         )}
       </div>
@@ -279,10 +297,10 @@ export function CropRecView({
       {/* Pipeline Navigation Footer */}
       <div className="pipeline-footer-nav">
         <button className="nav-prev-btn" onClick={() => go("soil")}>
-          {t.btn_back_soil || "← Back to Soil Health"}
+          {t.btn_back_soil}
         </button>
         <button className="nav-next-btn" onClick={() => go("advice")}>
-          {t.btn_proceed_plan || "Proceed to Field Action Plan →"}
+          {t.btn_proceed_plan}
         </button>
       </div>
     </section>

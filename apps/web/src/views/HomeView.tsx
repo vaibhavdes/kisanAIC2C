@@ -1,409 +1,197 @@
+import React, { useState } from "react";
 import {
-  Activity,
-  ArrowRight,
-  ChevronRight,
-  CloudRain,
-  FileText,
-  Leaf,
-  MapPin,
-  Microscope,
-  Plus,
-  ShieldCheck,
-  Sparkles,
-  Sprout,
-  Trash2,
-  User
+  Activity, ArrowRight, CloudRain, Droplets, FlaskConical, MapPin, Microscope, Plus, RefreshCw,
+  Sprout, Thermometer, Trash2, Wind
 } from "lucide-react";
-import { Json, TranslationDictionary, View } from "../types";
-import { VerifiedDataSourcesPanel } from "../components/VerifiedDataSourcesPanel";
+import { Json, Locale, TranslationDictionary, View } from "../types";
+import { parseWeatherFromEvidence } from "../utils/weather";
+import { InfoTip, ListenButton } from "../components/InfoTip";
+import { PlatformInfo } from "../components/PlatformInfo";
 
 interface HomeViewProps {
   t: TranslationDictionary;
+  locale: Locale;
   farms: Json[];
   selected: string;
   setSelected: (id: string) => void;
   go: (v: View) => void;
   onDeleteFarm?: (id: string) => Promise<void>;
+  evidence: Json[];
+  operational: Json | null;
+  cropRecs: Json | null;
+  loadingWeather: boolean;
+  loadingRecs: boolean;
 }
 
-export const HomeView: React.FC<HomeViewProps> = ({
-  t,
-  farms,
-  selected,
-  setSelected,
-  go,
-  onDeleteFarm
-}) => {
-  const activeFarm = farms.find((f) => f.id === selected) || farms[0];
+// Status from the API -> tag colour class (same mapping as the weather view).
+const TAG_CLASS: Record<string, string> = {
+  ready: "safe", safe: "safe", not_needed: "safe", low: "safe", normal: "safe",
+  marginal: "caution", caution: "caution", monitor: "caution", moderate: "moderate", conserve: "caution", cold: "caution",
+  wait: "avoid", avoid: "avoid", irrigate: "avoid", high: "high", unknown: "hold",
+};
 
-  const isFarmMine = (f: Json) => {
-    if (f.is_mine) return true;
-    try {
-      const myIds = JSON.parse(localStorage.getItem("kisanai_my_farm_ids") || "[]");
-      return Array.isArray(myIds) && myIds.includes(f.id);
-    } catch {
-      return false;
-    }
-  };
+export const HomeView: React.FC<HomeViewProps> = ({
+  t, locale, farms, selected, setSelected, go, onDeleteFarm, evidence, operational, cropRecs, loadingWeather, loadingRecs
+}) => {
+  const farm = farms.find(f => f.id === selected) || farms[0];
+  const [showFarms, setShowFarms] = useState(false);
+
+  if (!farm) {
+    return (
+      <>
+      <section className="home-empty">
+        <h1>{t.home_no_farm_title}</h1>
+        <p>{t.home_no_farm_desc}</p>
+        <button className="primary" onClick={() => go("farm")}>
+          <MapPin size={18} />
+          <span>{t.home_add_farm}</span>
+          <ArrowRight size={18} />
+        </button>
+        <ul className="feature-chips">
+          <li><CloudRain size={15} />{t.feat_weather}</li>
+          <li><Sprout size={15} />{t.feat_crops}</li>
+          <li><FlaskConical size={15} />{t.feat_soil}</li>
+          <li><Microscope size={15} />{t.feat_doctor}</li>
+          <li>🎙️ {t.feat_voice}</li>
+        </ul>
+        <button className="link-btn" onClick={() => go("diagnose")}>{t.plant_doctor} →</button>
+        </section>
+        <div className="home-info"><PlatformInfo locale={locale} go={go} hasFarm={false} /></div>
+      </>
+    );
+  }
+
+  const now = parseWeatherFromEvidence(evidence, locale);
+  const today: Json | undefined = operational?.daily?.[0];
+  const statusLabel = (status?: string) => t[`st_${status || "unknown"}`] || status || "";
+  const cards: Array<[string, string, string, string]> = [
+    ["sowing", "🌱", t.sowing_window, "sowing"],
+    ["spraying", "🧪", t.spraying_window, "spray"],
+    ["irrigation", "💧", t.irrigation_advisory, "water_balance"],
+    ["disease", "🍂", t.disease_window, "disease"],
+  ];
+  // Everything on the advice card as one text, for farmers who prefer to listen.
+  const todayText = cards
+    .map(([key, , title]) => (operational?.[key]?.summary ? `${title}: ${operational[key].summary}` : ""))
+    .filter(Boolean)
+    .join(" ");
+  const topCrops: Json[] = (cropRecs?.recommendations || []).slice(0, 3);
+  const seasonName = cropRecs?.season ? String(cropRecs.season).replace(/^./, c => c.toUpperCase()) : "";
 
   return (
-    <>
-      <section className="hero">
-        <div className="eyebrow">
-          <Sparkles size={13} />
-          AG-02 LOCALIZED AGRO-CLIMATE · COMMUNITY AGRICULTURAL INTELLIGENCE
+    <section className="home-today">
+      <div className="home-farm-bar">
+        <div>
+          <small>{t.home_today}</small>
+          <h2>{farm.name}</h2>
+          <span className="muted">
+            <MapPin size={13} /> {[farm.village, farm.district, farm.state_name].filter(Boolean).join(", ")} · {farm.area_value} {farm.area_unit}
+            {farm.soil_type && farm.soil_type !== "unknown" ? ` · ${farm.soil_type}` : ""}
+          </span>
         </div>
-        <h1>{t.hello || "KISANAI"}</h1>
-        <p>
-          {t.sub ||
-            "Hyperlocal weather warnings from IMD, 10-meter Sentinel-2 satellite canopy scans, and verified regenerative practices tailored to your exact coordinates — with zero guesswork."}
-        </p>
-
-        {/* If Active Farm Exists: Welcoming Quick-Resume Card */}
-        {activeFarm ? (
-          <div className="active-farm-resume-card">
-            <div className="resume-card-header">
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                <span className="resume-card-badge">
-                  <span className="pulse-dot" />
-                  ACTIVE FARM LOADED
-                </span>
-                {isFarmMine(activeFarm) ? (
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", background: "#e8f5e9", color: "#1b5e20", padding: "2px 8px", borderRadius: "12px", fontSize: "11px", fontWeight: 700, border: "1px solid #c8e6c9" }}>
-                    <User size={12} />
-                    My Farm
-                  </span>
-                ) : (
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", background: "#f0f4f8", color: "#334155", padding: "2px 8px", borderRadius: "12px", fontSize: "11px", fontWeight: 600, border: "1px solid #cbd5e1" }}>
-                    🌱 Community Farm
-                  </span>
-                )}
-                {isFarmMine(activeFarm) && onDeleteFarm && (
-                  <button
-                    onClick={() => {
-                      if (window.confirm(`Are you sure you want to delete "${activeFarm.name}"? This action cannot be undone.`)) {
-                        onDeleteFarm(activeFarm.id);
-                      }
-                    }}
-                    style={{
-                      background: "#fff",
-                      border: "1px solid #fca5a5",
-                      color: "#dc2626",
-                      borderRadius: "6px",
-                      padding: "3px 8px",
-                      fontSize: "11px",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "4px"
-                    }}
-                    title="Delete your farm (only creator can delete)"
-                  >
-                    <Trash2 size={12} />
-                    <span>Delete</span>
-                  </button>
-                )}
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 600 }}>
-                  Switch Farm:
-                </span>
-                <select
-                  value={selected}
-                  onChange={(e) => {
-                    setSelected(e.target.value);
-                    const match = farms.find((f) => f.id === e.target.value);
-                    if (match)
-                      localStorage.setItem("kisanai_cached_farm", JSON.stringify(match));
-                  }}
-                  className="active-farm-select"
-                  style={{ padding: "6px 12px", fontSize: "13px" }}
-                >
-                  {farms.map((f) => {
-                    const mine = isFarmMine(f);
-                    return (
-                      <option key={f.id} value={f.id}>
-                        {mine ? "👤 [My Farm] " : "🌱 "}
-                        {f.name} · {f.district}, {f.state_code}
-                      </option>
-                    );
-                  })}
-                </select>
-                <button
-                  onClick={() => go("farm")}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "4px",
-                    background: "#ecfdf5",
-                    color: "#15803d",
-                    border: "1px solid #a7f3d0",
-                    borderRadius: "8px",
-                    padding: "6px 10px",
-                    fontSize: "12px",
-                    fontWeight: 700,
-                    cursor: "pointer"
-                  }}
-                  title="Plot and onboard a new farm"
-                >
-                  <Plus size={13} />
-                  <span>+ New Farm</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="resume-farm-meta">
-              <h3>{activeFarm.name}</h3>
-              <span className="resume-meta-tag">
-                📍 {activeFarm.district},{" "}
-                {activeFarm.state_name || activeFarm.state_code}
-              </span>
-              <span className="resume-meta-tag">
-                📐 {activeFarm.area_acres || activeFarm.area_value || 1} Acres
-              </span>
-              {activeFarm.current_crop && (
-                <span className="resume-meta-tag">
-                  🌾 Crop: {String(activeFarm.current_crop).replace("_", " ")}
-                </span>
-              )}
-              <span className="resume-meta-tag">
-                🌱 Soil: {activeFarm.soil_type || "Medium Deep Black"}
-              </span>
-            </div>
-
-            <div className="resume-actions-grid">
-              <button
-                className="resume-action-btn primary-resume"
-                onClick={() => go("weather")}
-              >
-                <CloudRain size={16} />
-                <span>{t.step_weather || "2. Local Weather & Alerts"}</span>
-                <ArrowRight size={14} style={{ marginLeft: "auto" }} />
-              </button>
-              <button className="resume-action-btn" onClick={() => go("soil")}>
-                <FileText size={16} />
-                <span>{t.step_soil || "3. Soil Health Card"}</span>
-                <ArrowRight size={14} style={{ marginLeft: "auto" }} />
-              </button>
-              <button className="resume-action-btn" onClick={() => go("crops")}>
-                <Sprout size={16} />
-                <span>{t.step_crops || "4. Recommended Crops"}</span>
-                <ArrowRight size={14} style={{ marginLeft: "auto" }} />
-              </button>
-              <button className="resume-action-btn" onClick={() => go("advice")}>
-                <Activity size={16} />
-                <span>{t.step_advice || "5. Field Action Plan"}</span>
-                <ArrowRight size={14} style={{ marginLeft: "auto" }} />
-              </button>
-              <button className="resume-action-btn" onClick={() => go("diagnose")}>
-                <Microscope size={16} />
-                <span>{t.plant_doctor || t.diagnose || "Plant Doctor"}</span>
-                <ArrowRight size={14} style={{ marginLeft: "auto" }} />
-              </button>
-            </div>
-          </div>
-        ) : null}
-
-        {/* Primary Onboarding CTA — Always available for new users or adding farms */}
-        <div className="cta-row" style={{ marginTop: activeFarm ? "20px" : "24px", display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
-          <button
-            className="primary"
-            onClick={() => go("farm")}
-            style={{ padding: activeFarm ? "14px 26px" : "16px 28px", fontSize: activeFarm ? "15px" : "16px", borderRadius: "14px" }}
-          >
-            <MapPin size={20} />
-            <span>{activeFarm ? (t.btn_plot_own_field || "Plot Your Own Field / New Farm") : (t.get_started_plot || "Get Started — Plot Your Field")}</span>
-            <ArrowRight size={18} />
+        <div className="home-farm-actions">
+          <button className="secondary small" onClick={() => setShowFarms(!showFarms)} aria-expanded={showFarms}>
+            {t.home_your_farms} ({farms.length}) {showFarms ? "▴" : "▾"}
           </button>
-          {activeFarm && !isFarmMine(activeFarm) && (
-            <span style={{ fontSize: "13px", color: "var(--muted)", maxWidth: "440px" }}>
-              🌱 <b>Viewing community field.</b> Tap above to plot your own boundary for personalized satellite canopy scans and local IMD alerts.
-            </span>
+          <button className="secondary small" onClick={() => go("farm")}><Plus size={14} />{t.home_new_farm}</button>
+        </div>
+      </div>
+
+      {showFarms && (
+        <ul className="farm-list">
+          {farms.map(f => (
+            <li key={f.id} className={f.id === farm.id ? "active" : ""}>
+              <button className="farm-list-pick" onClick={() => { setSelected(f.id); setShowFarms(false); }}>
+                <b>{f.name}</b>
+                <small>{[f.village, f.district].filter(Boolean).join(", ")} · {f.area_value} {f.area_unit}</small>
+              </button>
+              {f.is_mine && onDeleteFarm ? (
+                <button
+                  className="secondary small danger"
+                  onClick={() => window.confirm(`${f.name}: ${t.home_delete_confirm}`) && onDeleteFarm(f.id)}
+                  aria-label={`${t.home_delete} ${f.name}`}
+                >
+                  <Trash2 size={14} /> {t.home_delete}
+                </button>
+              ) : (
+                <small className="muted">{t.home_not_yours}</small>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="home-grid">
+        <button className="home-weather" onClick={() => go("weather")}>
+          {loadingWeather && !operational ? (
+            <span className="muted"><RefreshCw size={14} className="spin" /> {t.loading}</span>
+          ) : (
+            <>
+              <div className="home-weather-now">
+                <strong>{now.temp || "--"}</strong>
+                <span>{t.home_now}</span>
+              </div>
+              <div className="home-weather-stats">
+                <span><Thermometer size={14} /> {today ? `${Math.round(today.temp_max)}° / ${Math.round(today.temp_min)}°` : "--"}</span>
+                <span><CloudRain size={14} /> {today ? `${today.rain_prob ?? 0}% · ${(today.rain_mm ?? 0).toFixed(1)} mm` : "--"}</span>
+                <span><Wind size={14} /> {today?.wind_max != null ? `${Math.round(today.wind_max)} km/h` : "--"}</span>
+                <span><Droplets size={14} /> {t.forecast_7d}: {operational?.rain_7d_total_mm != null ? `${operational.rain_7d_total_mm} mm` : "--"}</span>
+              </div>
+            </>
+          )}
+        </button>
+
+        <div className="home-advice">
+          {todayText && (
+            <div className="home-listen"><ListenButton text={todayText} locale={locale} label={t.listen_today} /></div>
+          )}
+          {cards.map(([key, icon, title, term]) => {
+            const card: Json = operational?.[key] || {};
+            return (
+              <div key={key} className="home-advice-row" role="button" tabIndex={0} onClick={() => go("weather")}>
+                <span className="home-advice-title">{icon} {title} <InfoTip term={term} locale={locale} /></span>
+                <span className={`agri-tag ${TAG_CLASS[card.status] || "hold"}`}>{statusLabel(card.status)}</span>
+                <span className="home-advice-text">{card.summary || (loadingWeather ? t.loading : "")}</span>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="home-crops">
+          <div className="home-crops-head">
+            <b>{t.home_top_crops}{seasonName ? ` · ${seasonName}` : ""} <InfoTip term="match_score" locale={locale} /></b>
+            <button className="link-btn" onClick={() => go("crops")}>{t.home_view_all} →</button>
+          </div>
+          {loadingRecs && !cropRecs ? (
+            <span className="muted"><RefreshCw size={14} className="spin" /> {t.loading}</span>
+          ) : topCrops.length ? (
+            topCrops.map((crop, index) => (
+              <button key={crop.crop} className="home-crop-row" onClick={() => go("crops")}>
+                <span className="home-crop-rank">{index + 1}</span>
+                <span className="home-crop-name">{crop.crop_name || crop.crop}</span>
+                <span className="home-crop-score">{Math.round((crop.rank_score || 0) * 100)}%</span>
+              </button>
+            ))
+          ) : (
+            <span className="muted">{t.home_no_crops}</span>
           )}
         </div>
-      </section>
+      </div>
 
-      {/* Platform Mission & Overview */}
-      <section className="home-section">
-        <div className="home-section-header">
-          <div className="section-eyebrow">
-            <Leaf size={13} />
-            WHY KISANAI C2C
-          </div>
-          <h2>Empowering Smallholder Farmers with Ground-Truth Science</h2>
-        </div>
+      <div className="quick-actions">
+        <button onClick={() => go("weather")}><CloudRain size={18} /><span>{t.weather}</span></button>
+        <button onClick={() => go("soil")}><FlaskConical size={18} /><span>{t.soil_title}</span></button>
+        <button onClick={() => go("crops")}><Sprout size={18} /><span>{t.crops}</span></button>
+        <button onClick={() => go("advice")}><Activity size={18} /><span>{t.plan_title}</span></button>
+        <button onClick={() => go("diagnose")}><Microscope size={18} /><span>{t.plant_doctor}</span></button>
+      </div>
 
-        {/* 4 Core Features Showcase */}
-        <div className="features-grid">
-          <div
-            className="feature-card clickable"
-            onClick={() => go(activeFarm ? "weather" : "farm")}
-          >
-            <div className="feature-icon-box">
-              <Activity size={26} />
-            </div>
-            <h3>10m Satellite Biophysics</h3>
-            <p>
-              Copernicus Sentinel-2 multispectral passes analyze canopy vigor (NDVI) and
-              moisture stress (NDMI) across 5 quantile field zones to identify stressed patches
-              before visible wilting.
-            </p>
-            <div className="feature-tags">
-              <span className="feature-tag">10m Optical</span>
-              <span className="feature-tag">NDVI Vigor</span>
-              <span className="feature-tag">5-Zone Map</span>
-            </div>
-          </div>
+      <PlatformInfo locale={locale} go={go} hasFarm />
 
-          <div
-            className="feature-card clickable"
-            onClick={() => go(activeFarm ? "weather" : "farm")}
-          >
-            <div className="feature-icon-box">
-              <CloudRain size={26} />
-            </div>
-            <h3>Localized Meteorology & Windows</h3>
-            <p>
-              Real station observations and 7-day rainfall forecasts power 4 practical
-              operational windows: Sowing Readiness, Foliar Spraying, Irrigation Advisory, and
-              Field Drainage Runoff Risk.
-            </p>
-            <div className="feature-tags">
-              <span className="feature-tag">Live IMD Alerts</span>
-              <span className="feature-tag">7-Day Rain Bars</span>
-              <span className="feature-tag">Spraying Window</span>
-            </div>
-          </div>
-
-          <div
-            className="feature-card clickable"
-            onClick={() => go(activeFarm ? "crops" : "farm")}
-          >
-            <div className="feature-icon-box">
-              <Sprout size={26} />
-            </div>
-            <h3>7-Factor Crop Match Engine</h3>
-            <p>
-              Evaluates 12 major crops against 7 agronomic constraints including soil texture,
-              water access, rain forecast, rotation history, and Maharashtra 36-district
-              baseline normals with full explainability.
-            </p>
-            <div className="feature-tags">
-              <span className="feature-tag">7 Decision Factors</span>
-              <span className="feature-tag">Rotation Fit</span>
-              <span className="feature-tag">Vernacular Rationale</span>
-            </div>
-          </div>
-
-          <div
-            className="feature-card clickable"
-            onClick={() => go(activeFarm ? "diagnose" : "farm")}
-          >
-            <div className="feature-icon-box">
-              <Microscope size={26} />
-            </div>
-            <h3>Visual Crop Doctor</h3>
-            <p>
-              Gemini Multimodal AI inspects leaf symptoms, diagnoses bacterial blight vs.
-              fungal leaf spot, provides low-risk organic remedies, and escalates uncertain
-              cases to real agronomists.
-            </p>
-            <div className="feature-tags">
-              <span className="feature-tag">Gemini Vision</span>
-              <span className="feature-tag">Bio-Pesticides</span>
-              <span className="feature-tag">Expert Review</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Real-World Smallholder Use Cases */}
-      <section className="home-section">
-        <div className="home-section-header">
-          <div className="section-eyebrow">
-            <Sparkles size={13} />
-            REAL-WORLD SCENARIOS
-          </div>
-          <h2>Practical Use Cases on the Field</h2>
-          <p>
-            Designed specifically for practical day-to-day decisions faced by Indian
-            smallholder farmers throughout the crop cycle.
-          </p>
-        </div>
-
-        <div className="use-cases-grid">
-          <div className="use-case-card">
-            <span className="use-case-badge weather-badge">Sowing Decision</span>
-            <h4>"Should I sow my seeds this week or wait?"</h4>
-            <p>
-              Avoid dry sowing or seed washouts. KISANAI checks 7-day cumulative rainfall
-              against soil moisture retention to signal whether topsoil is primed for
-              germination.
-            </p>
-            <button
-              className="use-case-action-link"
-              onClick={() => go(activeFarm ? "weather" : "farm")}
-            >
-              <span>Check Sowing Readiness</span>
-              <ChevronRight size={14} />
-            </button>
-          </div>
-
-          <div className="use-case-card">
-            <span className="use-case-badge weather-badge">Spraying Window</span>
-            <h4>"Is today safe to spray foliar bio-nutrients?"</h4>
-            <p>
-              Prevent chemical wastage and runoff. The Spraying Window flags wind speeds
-              exceeding 15 km/h or incoming rain within 6 hours that would wash away your spray.
-            </p>
-            <button
-              className="use-case-action-link"
-              onClick={() => go(activeFarm ? "weather" : "farm")}
-            >
-              <span>Check Spray Window</span>
-              <ChevronRight size={14} />
-            </button>
-          </div>
-
-          <div className="use-case-card">
-            <span className="use-case-badge crop-badge">Rotation Planning</span>
-            <h4>"What should I plant after harvesting cotton?"</h4>
-            <p>
-              Prevent soil exhaustion. The recommendation engine applies crop rotation
-              penalties and recommends restorative legumes like Pigeon Pea or Harbara to
-              naturally replenish nitrogen.
-            </p>
-            <button
-              className="use-case-action-link"
-              onClick={() => go(activeFarm ? "crops" : "farm")}
-            >
-              <span>View Crop Recommendations</span>
-              <ChevronRight size={14} />
-            </button>
-          </div>
-
-          <div className="use-case-card">
-            <span className="use-case-badge doctor-badge">Pest & Blight Alert</span>
-            <h4>"What are these yellow and brown spots on my leaves?"</h4>
-            <p>
-              Take a leaf photograph. Gemini Vision identifies the pathogen, estimates
-              severity, provides organic biocontrol recipes, and dispatches uncertain cases to
-              local extension officers.
-            </p>
-            <button
-              className="use-case-action-link"
-              onClick={() => go(activeFarm ? "diagnose" : "farm")}
-            >
-              <span>Open Plant Doctor</span>
-              <ChevronRight size={14} />
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* Verified Data Sources & Provenance Panel */}
-      <VerifiedDataSourcesPanel t={t} />
-    </>
+      <footer className="home-footer">
+        <span className="sources-line">{t.sources_line}</span>
+        <button className="link-btn" onClick={() => go("expert")}>{t.expert_review_link}</button>
+      </footer>
+    </section>
   );
 };

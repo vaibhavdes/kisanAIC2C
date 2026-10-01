@@ -1,11 +1,9 @@
-import React, { useEffect, useState } from "react";
-import {
-  Activity, AlertTriangle, ArrowRight, BookOpen, CloudRain,
-  Languages, Leaf, MapPin, Microscope, RefreshCw, Sprout
-} from "lucide-react";
+import { useEffect, useState } from "react";
+import { AlertTriangle } from "lucide-react";
 import { api } from "./api";
 import { View, Locale, Json } from "./types";
 import { copy } from "./constants/localization";
+import { currentSeason } from "./utils/season";
 
 // Components
 import { Header } from "./components/Header";
@@ -35,33 +33,10 @@ export function App() {
   const [showLangModal, setShowLangModal] = useState<boolean>(
     () => !localStorage.getItem("kisanai_locale_selected")
   );
-  const [farms, setFarms] = useState<Json[]>(() => {
-    try {
-      const saved = localStorage.getItem("kisanai_cached_farm");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.id === "farm_default_mh" || parsed.name === "Vidarbha Demonstration Farm" || String(parsed.name).toLowerCase().includes("demonstration")) {
-          localStorage.removeItem("kisanai_cached_farm");
-          return [];
-        }
-        return [parsed];
-      }
-      return [];
-    } catch {
-      return [];
-    }
-  });
+  const [farms, setFarms] = useState<Json[]>([]);
   const [selected, setSelected] = useState<string>(() => {
     try {
-      const saved = localStorage.getItem("kisanai_cached_farm");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.id === "farm_default_mh" || parsed.name === "Vidarbha Demonstration Farm" || String(parsed.name).toLowerCase().includes("demonstration")) {
-          return "";
-        }
-        return parsed.id || "";
-      }
-      return "";
+      return JSON.parse(localStorage.getItem("kisanai_cached_farm") || "{}").id || "";
     } catch {
       return "";
     }
@@ -74,7 +49,7 @@ export function App() {
   const [satIndex, setSatIndex] = useState("NDVI");
   const [operational, setOperational] = useState<Json | null>(null);
   const [cropRecs, setCropRecs] = useState<Json | null>(null);
-  const [season, setSeason] = useState("kharif");
+  const [season, setSeason] = useState<string>(() => currentSeason());
   const [loadingWeather, setLoadingWeather] = useState(false);
   const [loadingRecs, setLoadingRecs] = useState(false);
 
@@ -90,35 +65,8 @@ export function App() {
 
   const load = async () => {
     try {
-      let list = await api<Json[]>("/api/v1/farms");
-      // Filter out any legacy demonstration farms
-      list = (list || []).filter(
-        f => f.id !== "farm_default_mh" && !String(f.name || "").toLowerCase().includes("demonstration")
-      );
-
-      if (list.length === 0) {
-        const cachedStr = localStorage.getItem("kisanai_cached_farm");
-        if (cachedStr) {
-          try {
-            const cachedFarm = JSON.parse(cachedStr);
-            if (
-              cachedFarm.id === "farm_default_mh" ||
-              cachedFarm.name === "Vidarbha Demonstration Farm" ||
-              String(cachedFarm.name || "").toLowerCase().includes("demonstration")
-            ) {
-              localStorage.removeItem("kisanai_cached_farm");
-            } else {
-              const synced = await api<Json>("/api/v1/farms", {
-                method: "POST",
-                body: JSON.stringify(cachedFarm)
-              });
-              list = [synced];
-            }
-          } catch (e) {
-            console.warn("Could not sync cached farm to server", e);
-          }
-        }
-      }
+      // Farms live in the server's database; the browser only remembers which one was open.
+      const list = (await api<Json[]>("/api/v1/farms")) || [];
       setFarms(list);
       if (list.length > 0) {
         const match = list.find(f => f.id === selected) || list[0];
@@ -139,8 +87,8 @@ export function App() {
     try {
       const snaps = await api<Json[]>(`/api/v1/farms/${farm.id}/evidence/refresh`, { method: "POST" });
       setEvidence(snaps);
+      await loadOperational(season);
       await loadSatMap(satIndex);
-      await loadOperational();
       await loadCropRecs(season);
     } catch (err) {
       alert((err as Error).message);
@@ -153,17 +101,18 @@ export function App() {
     if (!farm) return;
     setSatIndex(index);
     try {
-      const res = await api<Json>(`/api/v1/farms/${farm.id}/satellite/map?index=${index}&days=90`);
+      const res = await api<Json>(`/api/v1/farms/${farm.id}/satellite/map?index=${index}&days=30&locale=${locale}`);
       setSatMap(res);
     } catch (err) {
       console.warn("Satellite map error", err);
     }
   };
 
-  const loadOperational = async () => {
+  const loadOperational = async (targetSeason?: string) => {
     if (!farm) return;
     try {
-      const data = await api<Json>(`/api/v1/farms/${farm.id}/weather/operational`);
+      const s = targetSeason || season;
+      const data = await api<Json>(`/api/v1/farms/${farm.id}/weather/operational?season=${s}&locale=${locale}`);
       setOperational(data);
     } catch (e) {
       console.warn("Operational forecast fetch issue", e);
@@ -187,50 +136,38 @@ export function App() {
   const handleSeasonChange = (newSeason: string) => {
     setSeason(newSeason);
     loadCropRecs(newSeason);
+    loadOperational(newSeason);
   };
 
   useEffect(() => { load(); }, []);
 
   useEffect(() => {
     if (!farm) return;
-    const fetchExistingOrRefresh = async () => {
+    const loadWeather = async () => {
+      setLoadingWeather(true);
       try {
-        setLoadingWeather(true);
-        const existing = await api<Json[]>(`/api/v1/farms/${farm.id}/evidence`);
-        const hasForecast = existing?.some(
-          (s: any) =>
-            (s.kind === "weather_forecast" || s.kind === "weather_nowcast") &&
-            Array.isArray(s.values) &&
-            s.values.some((v: any) => typeof v.name === "string" && v.name.startsWith("rainfall_"))
-        );
-        if (existing && existing.length > 0 && hasForecast) {
-          setEvidence(existing);
-        } else {
-          const fresh = await api<Json[]>(`/api/v1/farms/${farm.id}/evidence/refresh`, { method: "POST" });
-          setEvidence(fresh);
-        }
+        // The operational endpoint refetches the forecast on the server when it is older than 3 hours,
+        // so load it first and then read the evidence it produced.
+        await loadOperational(season);
+        setEvidence(await api<Json[]>(`/api/v1/farms/${farm.id}/evidence`));
       } catch (e) {
-        console.warn("Evidence fetch issue", e);
+        console.warn("Weather load issue", e);
       } finally {
         setLoadingWeather(false);
       }
     };
-    fetchExistingOrRefresh();
-    loadSatMap("NDVI");
-    loadOperational();
+    loadWeather();
     loadCropRecs(season);
+  }, [farm?.id, locale]);
+
+  // The satellite map is cached on the server; a language change only refetches its plain-language text.
+  useEffect(() => {
+    if (farm) loadSatMap(satIndex);
   }, [farm?.id, locale]);
 
   const deleteFarm = async (farmId: string) => {
     try {
       await api(`/api/v1/farms/${farmId}`, { method: "DELETE" });
-      try {
-        const myIds = JSON.parse(localStorage.getItem("kisanai_my_farm_ids") || "[]");
-        localStorage.setItem(
-          "kisanai_my_farm_ids",
-          JSON.stringify(myIds.filter((id: string) => id !== farmId))
-        );
-      } catch {}
       const remaining = farms.filter((f) => f.id !== farmId);
       setFarms(remaining);
       if (selected === farmId) {
@@ -295,11 +232,17 @@ export function App() {
         {view === "home" && (
           <HomeView
             t={t}
+            locale={locale}
             farms={farms}
             selected={selected}
             setSelected={setSelected}
             go={setView}
             onDeleteFarm={deleteFarm}
+            evidence={evidence}
+            operational={operational}
+            cropRecs={cropRecs}
+            loadingWeather={loadingWeather}
+            loadingRecs={loadingRecs}
           />
         )}
         {view === "farm" && (
@@ -330,12 +273,16 @@ export function App() {
             t={t}
             locale={locale}
             farm={farm}
+            cropRecs={cropRecs}
+            season={season}
             go={setView}
+            onSoilSaved={() => loadCropRecs(season)}
           />
         )}
         {view === "crops" && (
           <CropRecView
             t={t}
+            locale={locale}
             farm={farm}
             cropRecs={cropRecs}
             loadingRecs={loadingRecs}
@@ -367,7 +314,7 @@ export function App() {
         )}
       </main>
 
-      <MobileNav view={view} farm={farm} setView={setView} />
+      <MobileNav t={t} view={view} farm={farm} setView={setView} />
     </div>
   );
 }

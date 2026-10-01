@@ -92,30 +92,115 @@ def test_new_maharashtra_crops_and_aliases():
     assert "soybean" in eligible
 
 
+def _forecast(days, *, start="2026-10-01", past=None):
+    """Weather snapshot in the stored Open-Meteo shape. days: list of (rain, prob, wind, tmax, tmin, et0)."""
+    from datetime import date, timedelta
+    values = [{"name": "forecast_start_date", "value": start}]
+    first = date.fromisoformat(start)
+    for offset, rain in enumerate(past or []):
+        day = (first - timedelta(days=len(past) - offset)).isoformat()
+        values.append({"name": f"rainfall_{day}", "value": rain})
+    for offset, (rain, prob, wind, tmax, tmin, et0) in enumerate(days):
+        day = (first + timedelta(days=offset)).isoformat()
+        values += [
+            {"name": f"rainfall_{day}", "value": rain}, {"name": f"rain_probability_{day}", "value": prob},
+            {"name": f"wind_max_{day}", "value": wind}, {"name": f"temp_max_{day}", "value": tmax},
+            {"name": f"temp_min_{day}", "value": tmin}, {"name": f"et0_{day}", "value": et0},
+        ]
+    return {"kind": "weather_forecast", "provider": "open_meteo", "fetched_at": "2026-10-01T06:00:00Z", "values": values}
+
+
 def test_operational_forecast_indicators():
     from kisanai_c2c.domain import operational_forecast_indicators
-    evidence = [
-        {
-            "kind": "weather_forecast",
-            "values": [
-                {"name": "rainfall_day_1", "value": 12.0},
-                {"name": "rainfall_day_2", "value": 18.0},
-                {"name": "rainfall_day_3", "value": 5.0},
-                {"name": "current_wind_speed", "value": 11.0},
-                {"name": "rainfall_today", "value": 0.0},
-            ]
-        },
-        {
-            "kind": "satellite_observation",
-            "values": [
-                {"name": "water_stress", "value": "low"}
-            ]
-        }
-    ]
-    indicators = operational_forecast_indicators(evidence, soil_type="black")
-    assert indicators["rain_7d_total_mm"] == 35.0
-    assert indicators["sowing_readiness"] == "optimal"
-    assert indicators["spray_window"] == "safe"
+    week = [(0.0, 5, 9.0, 32.0, 22.0, 4.5)] * 7
+    evidence = [_forecast(week, past=[0, 0, 0, 0, 0, 0, 0]), {"kind": "satellite_observation", "values": [{"name": "water_stress", "value": "low"}]}]
+    ops = operational_forecast_indicators(evidence, soil_type="black", water_access="rainfed", season="rabi")
+    assert ops["has_forecast"] and len(ops["daily"]) == 7
+    assert ops["rain_7d_total_mm"] == 0.0
+    assert ops["past_7d_rain_mm"] == 0.0
+    assert ops["spraying"]["status"] == "safe"
+    assert len(ops["spraying"]["best_days"]) == 3
+    assert ops["sowing"]["status"] == "ready"  # rabi sowing on stored moisture, mild days
+    # 7 x 4.5 mm ET0 x 0.8 = 25.2 mm demand and no rain -> deficit, but no irrigation source.
+    assert ops["irrigation"]["status"] == "conserve"
+    assert ops["drainage"]["status"] == "low"
+    assert ops["temperature"]["status"] == "normal"
+
+
+def test_operational_heavy_rain_wind_and_heat():
+    from kisanai_c2c.domain import operational_forecast_indicators
+    week = [(70.0, 90, 30.0, 41.0, 26.0, 3.0)] + [(5.0, 40, 12.0, 33.0, 24.0, 3.0)] * 6
+    ops = operational_forecast_indicators([_forecast(week)], soil_type="black", water_access="irrigated", season="kharif", locale="mr-IN")
+    assert ops["spraying"]["status"] == "avoid"
+    assert ops["drainage"]["status"] == "high"
+    assert ops["irrigation"]["status"] == "not_needed"
+    assert ops["temperature"]["status"] == "high"
+    assert "मिमी" in ops["drainage"]["summary"]
+
+
+def test_kharif_sowing_uses_past_rain():
+    from kisanai_c2c.domain import operational_forecast_indicators
+    week = [(5.0, 40, 10.0, 31.0, 23.0, 3.0)] * 7
+    wet = operational_forecast_indicators([_forecast(week, past=[15] * 7)], season="kharif")
+    dry = operational_forecast_indicators([_forecast(week, past=[0] * 7)], season="kharif")
+    assert wet["sowing"]["status"] == "ready"  # 105 + 15 mm
+    assert dry["sowing"]["status"] == "wait"   # 15 mm
+
+
+def test_operational_without_forecast():
+    from kisanai_c2c.domain import operational_forecast_indicators
+    ops = operational_forecast_indicators([])
+    assert ops["has_forecast"] is False
+    assert ops["sowing"]["status"] == "unknown"
+
+
+def test_rainfall_total_uses_only_forecast_days_of_newest_snapshot():
+    old = _forecast([(50.0, 90, 5.0, 30.0, 20.0, 3.0)] * 7)
+    old["fetched_at"] = "2026-09-20T06:00:00Z"
+    new = _forecast([(1.0, 10, 5.0, 30.0, 20.0, 3.0)] * 7, past=[40] * 7)
+    assert rainfall_total([old, new]) == 7.0
+
+
+def test_current_season():
+    from datetime import date
+    from kisanai_c2c.domain import current_season
+    assert current_season(date(2026, 7, 1)) == "kharif"
+    assert current_season(date(2026, 10, 1)) == "rabi"
+    assert current_season(date(2027, 1, 15)) == "rabi"
+    assert current_season(date(2027, 4, 1)) == "summer"
+
+
+def test_rainfed_cotton_is_eligible_in_kharif_but_wheat_needs_irrigation():
+    from kisanai_c2c.domain import generate_crop_recommendations
+    farm = Farm(
+        name="Rainfed Farm", state_code="MH", state_name="Maharashtra", district="Yavatmal",
+        area_value=2, area_ha=0.8, location=Location(latitude=20.38, longitude=78.12),
+        water_access="rainfed", soil_type="black", previous_crop="soybean", owner_subject="farmer", node_id="n",
+    )
+    kharif = generate_crop_recommendations(farm, None, season="kharif", evidence=[], locale="en-IN")
+    assert "cotton" in [r.crop for r in kharif.recommendations]
+    rabi = generate_crop_recommendations(farm, None, season="rabi", evidence=[_forecast([(0.0, 5, 8.0, 31.0, 20.0, 4.0)] * 7)])
+    rabi_crops = [r.crop for r in rabi.recommendations]
+    assert "chickpea" in rabi_crops and "sorghum" in rabi_crops
+    assert "wheat" not in rabi_crops
+    # A dry week is normal for rabi sowing and must not lower the weather score.
+    chickpea = next(r for r in rabi.recommendations if r.crop == "chickpea")
+    assert next(d for d in chickpea.dimensions if d.name == "weather_forecast").score == 1.0
+
+
+def test_hot_forecast_lowers_wheat_score():
+    from kisanai_c2c.domain import generate_crop_recommendations
+    farm = Farm(
+        name="Irrigated Farm", state_code="MH", state_name="Maharashtra", district="Pune",
+        area_value=2, area_ha=0.8, location=Location(latitude=18.5, longitude=73.8),
+        water_access="irrigated", soil_type="black", owner_subject="farmer", node_id="n",
+    )
+    cool = generate_crop_recommendations(farm, None, season="rabi", evidence=[_forecast([(0.0, 5, 8.0, 29.0, 14.0, 4.0)] * 7)])
+    hot = generate_crop_recommendations(farm, None, season="rabi", evidence=[_forecast([(0.0, 5, 8.0, 35.0, 22.0, 5.0)] * 7)])
+    score = lambda res: next(r.rank_score for r in res.recommendations if r.crop == "wheat")
+    assert score(hot) < score(cool)
+    weather = next(f for f in next(r for r in hot.recommendations if r.crop == "wheat").factors if f.factor_id == "weather")
+    assert weather.status in {"compatible", "constrained"} and weather.remedy
 
 
 def test_generate_crop_recommendations_factors():

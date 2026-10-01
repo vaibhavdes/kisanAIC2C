@@ -48,29 +48,29 @@ Weather analysis and the selected crop recommendation are then combined into a *
 
 ### 🌦️ Localized Weather & Farm Operations
 
-KISANAI provides:
+One Open-Meteo call per farm (refreshed automatically when older than 3 hours) provides:
 
-- 7-day rainfall forecast and rainfall probability
-- maximum and minimum temperature
-- relative humidity
-- wind speed
-- reference evapotranspiration (ET₀)
-- IMD district warnings and nowcasts
+- 7 observed days + 7 forecast days: rain, rain probability, max/min temperature, humidity, wind and gusts, ET₀
+- 72 hourly values: temperature, humidity, rain, rain probability, wind
+- modelled soil moisture at 3–9 cm and 9–27 cm, converted to % of plant-available water for the farm's soil type
+- IMD district warnings and nowcasts when IMD API credentials are configured
 
-The forecast is converted into four operational decisions:
+The forecast is converted into six field decisions, in the farmer's language:
 
-| Decision | Purpose |
+| Decision | How it is decided |
 |---|---|
-| **Sowing Readiness** | Checks whether upcoming rainfall and field conditions support sowing |
-| **Spraying Window** | Uses wind and rainfall conditions to identify safer foliar-spraying periods |
-| **Irrigation Guidance** | Compares rainfall with crop water-demand indicators |
-| **Drainage Risk** | Highlights heavy-rain periods that may increase waterlogging or runoff risk |
+| **Sowing readiness** | Kharif: rain of the last 7 + next 3 days and topsoil moisture. Rabi: heavy rain ahead and day temperature. Summer: needs irrigation |
+| **Spraying window** | Today's wind / rain chance, plus the best **hours** (daylight, wind ≤ 12 km/h, rain chance < 30 %, 2 dry hours after) |
+| **Irrigation** | Forecast rain vs crop water use (ET₀ × Kc) and root-zone soil moisture; rainfed farms get moisture-saving advice |
+| **Drainage risk** | IMD heavy-rain category (≥ 64.5 mm/day) and 7-day totals on heavy soils |
+| **Heat / cold stress** | Forecast maximum ≥ 37 / 40 °C, minimum ≤ 8 °C |
+| **Disease weather risk** | Hours a day with humidity ≥ 90 % at 15–30 °C (leaf-wetness proxy for fungal disease) |
 
-Operational thresholds are configurable.
+All thresholds are in `services/api/src/kisanai_c2c/weather_ops.py` (`THRESHOLDS`).
 
 ### 🌾 Explainable Crop Recommendation Engine
 
-The engine evaluates **12 regional crops** across seven factors:
+The engine evaluates **12 regional crops** for the current planning season (kharif Jun–Sep, rabi Oct–Feb, summer Mar–May) across seven factors:
 
 1. Season and sowing window
 2. Water availability
@@ -88,6 +88,14 @@ For each crop, the farmer can see:
 - rejection reasons for unsuitable crops
 - conditions affecting suitability
 - corrective guidance
+
+### 🧪 Soil-Test-Based Fertilizer Plan
+
+For any crop, the app turns the crop's general recommended dose (Maharashtra agricultural universities) into a farm-specific plan:
+
+- N, P and K from the Soil Health Card (or the district average, clearly labelled) are rated low / medium / high (ICAR thresholds) and the dose is adjusted by +25 % / 0 / −25 %
+- the dose is converted to **DAP, urea and MOP** in kg and bags for the farm's area, split into sowing and top-dressing
+- low organic carbon adds compost/FYM advice; legumes get Rhizobium seed treatment
 
 ### 📋 Farm Action Plan
 
@@ -116,7 +124,7 @@ Copernicus Sentinel-2 imagery is processed through Google Earth Engine for:
 - **NDMI** — vegetation moisture condition
 - **NDRE** — red-edge chlorophyll signal where available
 
-The plotted field can be divided into relative management zones to highlight stronger and weaker areas. Satellite acquisition date and source are displayed with the analysis.
+The latest Sentinel-2 scene with at least 60 % clear sky over the field (clouds and shadows masked) is classified into fixed agronomic classes, and the **area of each class is measured** in Earth Engine. Scene date, cloud share and whether the analysis covers the drawn boundary or a 125 m circle are shown. Results are cached per farm and day; if no clear scene exists, the app says so instead of estimating.
 
 ### 🧪 Soil Health Card Reader
 Farmers can upload a Soil Health Card image or PDF. AI extracts available values such as:
@@ -133,6 +141,13 @@ A farmer can upload an affected leaf, stem, or visible-pest image. The system re
 - low-risk next steps
 - an expert-review flag when the image or diagnosis is uncertain
 
+
+### 🗣️ Built for Farmers With Little Schooling
+
+- Every technical value keeps its number and agronomic label (NDVI 0.42 · Moderate Growth), with the meaning in plain words under it ("Average crop").
+- An **(i) button** next to each technical word (NDVI, NDMI, ET₀, water balance, pH, N/P/K, DAP/urea/MOP…) explains it in simple language in the selected language and can read the explanation aloud.
+- The satellite map gets a plain-language summary built from the measured zone areas ("40 % of the area (4.8 acres) has good green crop… walk to the red patches…") with a Listen button; every colour has a simple name next to its technical label.
+- Home has one **"Listen to today's advice"** button; every advice card and every crop's reasons can be played as audio (Google Cloud Text-to-Speech, browser voice as fallback).
 
 ### 🎙️ Krishi Mitra — Voice & Follow-Up Advisor
 Krishi Mitra allows farmers to use **voice or text** to:
@@ -252,16 +267,16 @@ KISANAI combines **farm-specific, location-specific, regional, and historical/re
 
 | Source | Used For | Data Scope |
 |---|---|---|
-| **India Meteorological Department (IMD)** | District warnings, nowcasts, severe-weather information | Regional / current |
-| **Open-Meteo** | Rainfall, temperature, humidity, wind, ET₀ forecast | Coordinate-based / forecast |
+| **India Meteorological Department (IMD)** | District warnings and nowcasts (when IMD API access is configured); rainfall normals | Regional / current |
+| **Open-Meteo** | Rain, temperature, humidity, wind, ET₀, hourly values and soil moisture | Coordinate-based / forecast |
 | **Copernicus Sentinel-2 via Google Earth Engine** | Vegetation and moisture analysis | Parcel-level when boundary is available |
 | **India Post / postal data** | PIN-code based location information | Postal / regional |
-| **pincodeapi.in** | PIN-code lookup in the current implementation | Postal / regional |
+| **pincodeapi.in** / zippopotam.us | PIN-code lookup (primary / fallback) | Postal / regional |
+| **ipapi.co** | City-level location when device GPS is unavailable | Approximate |
 | **OpenStreetMap + Nominatim** | Reverse geocoding from latitude and longitude | Location-specific |
 | **ICAR / NBSS&LUP references** | Crop and soil agronomic reference information | Reference / regional |
 | **Maharashtra agriculture datasets** | Crop, season, agro-climatic information | Regional / historical |
 | **Central Ground Water Board (CGWB)** | Groundwater assessment information | Regional / historical |
-| **Google Maps Static imagery** | Satellite-style map preview | Visual context |
 
 Fetched evidence can retain its **source and timestamp** so the application can show which information was used for a recommendation.
 
@@ -400,8 +415,12 @@ Detailed request and response schemas are available through FastAPI OpenAPI / Sw
 | `GET /api/v1/farms/{id}/evidence` | Get weather and supporting farm evidence |
 | `GET /api/v1/farms/{id}/satellite/map` | Generate a satellite index map |
 | `POST /api/v1/farms/{id}/soil/extract` | Extract Soil Health Card information |
-| `GET /api/v1/farms/{id}/crops/recommendations` | Generate crop recommendations |
-| `POST /api/v1/farms/{id}/advisories` | Generate the field action plan |
+| `GET /api/v1/farms/{id}/weather/operational` | Six field decisions, daily table and hourly spray windows |
+| `GET /api/v1/farms/{id}/crop-recommendations` | Crop recommendations (season defaults to the current one) |
+| `GET /api/v1/farms/{id}/soil/profile` | Soil values with their source (soil test or district average) |
+| `GET /api/v1/farms/{id}/fertilizer?crop=` | Fertilizer plan in DAP / urea / MOP |
+| `POST /api/v1/farms/{id}/advisories` | Generate the field action plan (optional spoken/typed question) |
+| `GET /api/v1/expert/cases` | Uncertain Plant Doctor cases for agronomist review |
 | `POST /api/v1/farms/{id}/diagnoses` | Analyze a crop image |
 | `POST /api/v1/farms/{id}/chat` | Krishi Mitra follow-up conversation |
 

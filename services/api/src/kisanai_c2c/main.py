@@ -1,18 +1,18 @@
 from __future__ import annotations
 
-import io
 from contextlib import asynccontextmanager
+from typing import Any, Literal
 from uuid import uuid4
 
-from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile, status
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 
 from .auth import current_actor, require_roles
 from .models import (
     ActionUpdate, Actor, Advisory, AdvisoryRequest, CropRecommendationResult, DiagnosisRequest,
-    ExchangeReview, ExpertReview, Farm, FarmChatRequest, FarmChatResponse, FarmCreate, HealthResponse,
-    Practice, PracticeCreate, PracticeReview, Role, SoilExtraction, SoilTest, SoilTestCreate,
+    ExpertReview, Farm, FarmChatRequest, FarmChatResponse, FarmCreate, HealthResponse,
+    Role, SoilExtraction, SoilTest, SoilTestCreate,
     SpeechRequest, VoiceTranscription,
 )
 from .providers.gemini import GeminiUnavailable
@@ -26,11 +26,6 @@ from .settings import get_settings
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     get_settings()
-    try:
-        svc = AppService()
-        svc.seed_default_practices_if_empty()
-    except Exception:
-        pass
     yield
 
 
@@ -115,23 +110,29 @@ def get_client_ip(request: Request) -> str:
     return request.client.host if request.client else "127.0.0.1"
 
 
+def get_device_id(request: Request) -> str | None:
+    """Random id the browser keeps in local storage; identifies who created a farm."""
+    value = (request.headers.get("x-device-id") or "").strip()
+    return value if 8 <= len(value) <= 64 and value.replace("-", "").isalnum() else None
+
+
 @app.post("/api/v1/farms", response_model=Farm, status_code=201)
 def create_farm(payload: FarmCreate, request: Request, actor: Actor = Depends(current_actor), svc: AppService = Depends(service)):
     client_ip = get_client_ip(request)
-    return svc.create_farm(actor, payload, client_ip=client_ip)
+    return svc.create_farm(actor, payload, client_ip=client_ip, device_id=get_device_id(request))
 
 
 @app.get("/api/v1/farms", response_model=list[Farm])
 def list_farms(request: Request, actor: Actor = Depends(current_actor), svc: AppService = Depends(service)):
     client_ip = get_client_ip(request)
-    return svc.farms(actor, client_ip=client_ip)
+    return svc.farms(actor, client_ip=client_ip, device_id=get_device_id(request))
 
 
 @app.get("/api/v1/farms/{farm_id}", response_model=Farm)
 def get_farm(farm_id: str, request: Request, actor: Actor = Depends(current_actor), svc: AppService = Depends(service)):
     client_ip = get_client_ip(request)
     try:
-        return svc.farm(actor, farm_id, client_ip=client_ip)
+        return svc.farm(actor, farm_id, client_ip=client_ip, device_id=get_device_id(request))
     except LookupError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc))
     except PermissionError as exc:
@@ -141,14 +142,14 @@ def get_farm(farm_id: str, request: Request, actor: Actor = Depends(current_acto
 @app.put("/api/v1/farms/{farm_id}", response_model=Farm)
 def update_farm(farm_id: str, payload: FarmCreate, version: int, request: Request, actor: Actor = Depends(current_actor), svc: AppService = Depends(service)):
     client_ip = get_client_ip(request)
-    return svc.update_farm(actor, farm_id, payload, version, client_ip=client_ip)
+    return svc.update_farm(actor, farm_id, payload, version, client_ip=client_ip, device_id=get_device_id(request))
 
 
 @app.delete("/api/v1/farms/{farm_id}", status_code=200)
 def delete_farm(farm_id: str, request: Request, actor: Actor = Depends(current_actor), svc: AppService = Depends(service)):
     client_ip = get_client_ip(request)
     try:
-        svc.delete_farm(actor, farm_id, client_ip=client_ip)
+        svc.delete_farm(actor, farm_id, client_ip=client_ip, device_id=get_device_id(request))
         return {"status": "deleted", "farm_id": farm_id}
     except LookupError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc))
@@ -160,6 +161,12 @@ def delete_farm(farm_id: str, request: Request, actor: Actor = Depends(current_a
 async def upload_media(purpose: str = Form(...), file: UploadFile = File(...), actor: Actor = Depends(current_actor), svc: AppService = Depends(service)):
     content = await file.read(settings.media_max_bytes + 1)
     return svc.save_media(actor, content, file.content_type or "application/octet-stream", purpose)
+
+
+@app.get("/api/v1/media/{media_id}")
+def get_media(media_id: str, actor: Actor = Depends(current_actor), svc: AppService = Depends(service)):
+    content, content_type = svc.media_content(actor, media_id)
+    return Response(content=content, media_type=content_type, headers={"Cache-Control": "private, max-age=3600"})
 
 
 @app.post("/api/v1/farms/{farm_id}/soil/extract", response_model=SoilExtraction)
@@ -176,6 +183,16 @@ def save_soil(farm_id: str, payload: SoilTestCreate, actor: Actor = Depends(curr
 def get_soil(farm_id: str, actor: Actor = Depends(current_actor), svc: AppService = Depends(service)):
     farm = svc.farm(actor, farm_id)
     return svc.latest_soil(farm.id)
+
+
+@app.get("/api/v1/farms/{farm_id}/soil/profile")
+def soil_profile(farm_id: str, actor: Actor = Depends(current_actor), svc: AppService = Depends(service)):
+    return svc.soil_profile(actor, farm_id)
+
+
+@app.get("/api/v1/farms/{farm_id}/fertilizer")
+def fertilizer(farm_id: str, crop: str, season: Literal["kharif", "rabi", "summer"] | None = None, actor: Actor = Depends(current_actor), svc: AppService = Depends(service)):
+    return svc.fertilizer(actor, farm_id, crop, season)
 
 
 @app.post("/api/v1/farms/{farm_id}/evidence/refresh", status_code=201)
@@ -199,7 +216,7 @@ def list_advisories(farm_id: str, actor: Actor = Depends(current_actor), svc: Ap
 
 
 @app.get("/api/v1/farms/{farm_id}/crop-recommendations", response_model=CropRecommendationResult)
-def crop_recommendations(farm_id: str, season: str = "kharif", locale: str = "en-IN", actor: Actor = Depends(current_actor), svc: AppService = Depends(service)):
+def crop_recommendations(farm_id: str, season: Literal["kharif", "rabi", "summer"] | None = None, locale: str = "en-IN", actor: Actor = Depends(current_actor), svc: AppService = Depends(service)):
     return svc.crop_recommendations(actor, farm_id, season=season, locale=locale)
 
 
@@ -235,52 +252,6 @@ def review_case(case_id: str, payload: ExpertReview, actor: Actor = Depends(requ
     return svc.review_case(actor, case_id, payload)
 
 
-@app.post("/api/v1/expert/practices", response_model=Practice, status_code=201)
-def create_practice(payload: PracticeCreate, actor: Actor = Depends(require_roles(Role.expert)), svc: AppService = Depends(service)):
-    return svc.create_practice(actor, payload)
-
-
-@app.get("/api/v1/expert/practices", response_model=list[Practice])
-def practices(actor: Actor = Depends(require_roles(Role.expert)), svc: AppService = Depends(service)):
-    return svc.practices(actor)
-
-
-@app.post("/api/v1/expert/practices/{practice_id}/review", response_model=Practice)
-def review_practice(practice_id: str, payload: PracticeReview, actor: Actor = Depends(require_roles(Role.expert)), svc: AppService = Depends(service)):
-    return svc.review_practice(actor, practice_id, payload)
-
-
-@app.get("/api/v1/expert/practices/{practice_id}/export")
-def export_practice(practice_id: str, actor: Actor = Depends(require_roles(Role.expert)), svc: AppService = Depends(service)):
-    return svc.export_practice(actor, practice_id)
-
-
-@app.post("/api/v1/expert/exchange/imports", status_code=201)
-def import_bundle(bundle: dict, actor: Actor = Depends(require_roles(Role.expert)), svc: AppService = Depends(service)):
-    return svc.import_bundle(actor, bundle)
-
-
-@app.get("/api/v1/expert/exchange/imports")
-def imports(actor: Actor = Depends(require_roles(Role.expert)), svc: AppService = Depends(service)):
-    return svc.imports(actor)
-
-
-@app.patch("/api/v1/expert/exchange/imports/{import_id}")
-def review_import(import_id: str, payload: ExchangeReview, actor: Actor = Depends(require_roles(Role.expert)), svc: AppService = Depends(service)):
-    return svc.review_import(actor, import_id, payload)
-
-
-@app.get("/api/v1/expert/exchange/sample-bundle")
-def get_sample_bundle(actor: Actor = Depends(require_roles(Role.expert)), svc: AppService = Depends(service)):
-    svc.seed_default_practices_if_empty()
-    practices = svc.practices(actor)
-    reviewed = [p for p in practices if p.review_status == "reviewed"]
-    if reviewed:
-        return svc.export_practice(actor, reviewed[0].id)
-    raise HTTPException(status_code=404, detail="No practice available for sample bundle")
-
-
-
 @app.post("/api/v1/voice/transcribe", response_model=VoiceTranscription)
 async def transcribe(file: UploadFile = File(...), locale: str = Form("en-IN"), actor: Actor = Depends(current_actor)):
     content = await file.read(settings.media_max_bytes + 1)
@@ -294,15 +265,22 @@ def speak(payload: SpeechRequest, actor: Actor = Depends(current_actor)):
     return Response(content=content, media_type=content_type)
 
 @app.get("/api/v1/farms/{farm_id}/satellite/map")
-def satellite_map(farm_id: str, index: str = "NDVI", days: int = 90, actor: Actor = Depends(current_actor), svc: AppService = Depends(service)):
+def satellite_map(farm_id: str, index: str = "NDVI", days: int = Query(30, ge=7, le=120), locale: str = "en-IN", actor: Actor = Depends(current_actor), svc: AppService = Depends(service)):
     farm = svc.farm(actor, farm_id)
     from .providers.satellite import SatelliteProvider
-    from .settings import get_settings
-    return SatelliteProvider(get_settings()).satellite_map(farm, index=index, days=days)
+    from .satellite_explain import explain_map, simple_label
+    result = SatelliteProvider(get_settings()).satellite_map(farm, index=index, days=days)
+    # The cached map is shared across languages; the plain-language text is added per request.
+    zones = [z.model_copy(update={"simple_label": simple_label(result.index, z.id - 1, locale)}) for z in result.zones]
+    has_boundary = len(farm.boundary_coordinates or []) >= 3
+    return result.model_copy(update={
+        "zones": zones,
+        "simple_summary": explain_map(result.index, zones, result.scene_date, has_boundary, locale),
+    })
 
 
 @app.get("/api/v1/farms/{farm_id}/satellite/image")
-def satellite_image(farm_id: str, index: str = "NDVI", days: int = 90, actor: Actor = Depends(current_actor), svc: AppService = Depends(service)):
+def satellite_image(farm_id: str, index: str = "NDVI", days: int = Query(30, ge=7, le=120), actor: Actor = Depends(current_actor), svc: AppService = Depends(service)):
     farm = svc.farm(actor, farm_id)
     from .providers.satellite import SatelliteProvider
     from .settings import get_settings
@@ -315,16 +293,8 @@ def satellite_image(farm_id: str, index: str = "NDVI", days: int = 90, actor: Ac
 
 
 @app.get("/api/v1/farms/{farm_id}/weather/operational")
-def weather_operational(farm_id: str, actor: Actor = Depends(current_actor), svc: AppService = Depends(service)):
-    farm = svc.farm(actor, farm_id)
-    evidence = svc.evidence(actor, farm_id)
-    if not evidence:
-        try:
-            evidence = svc.refresh_evidence(actor, farm_id)
-        except Exception:
-            pass
-    from .domain import operational_forecast_indicators
-    return operational_forecast_indicators([e.model_dump() for e in evidence], soil_type=farm.soil_type)
+def weather_operational(farm_id: str, season: Literal["kharif", "rabi", "summer"] | None = None, locale: str = "en-IN", actor: Actor = Depends(current_actor), svc: AppService = Depends(service)):
+    return svc.weather_operations(actor, farm_id, season=season, locale=locale)
 
 
 import time
@@ -365,9 +335,7 @@ def farm_chat(
 
     sess["last_active"] = time.time()
 
-    evidence = svc.evidence(actor, farm_id)
-    from .domain import operational_forecast_indicators
-    operational = operational_forecast_indicators([e.model_dump() for e in evidence], soil_type=farm.soil_type)
+    operational = svc.weather_operations(actor, farm_id, locale=payload.locale)
 
     from .providers.gemini import GeminiProvider
     from .settings import get_settings
@@ -379,7 +347,7 @@ def farm_chat(
         message=payload.message,
         conversation_history=sess["history"],
         weather_context={"district": farm.district, "state": farm.state_name},
-        operational_context=operational,
+        operational_context={k: v for k, v in operational.items() if k != "thresholds"},
     )
 
     sess["history"].append({"role": "user", "text": payload.message})
@@ -419,6 +387,24 @@ STATE_NAME_TO_CODE: dict[str, str] = {
     "odisha": "OD",
     "tamil nadu": "TN",
     "kerala": "KL",
+    "assam": "AS",
+    "chhattisgarh": "CG",
+    "jharkhand": "JH",
+    "uttarakhand": "UK",
+    "himachal pradesh": "HP",
+    "jammu and kashmir": "JK",
+    "goa": "GA",
+    "delhi": "DL",
+    "tripura": "TR",
+    "meghalaya": "ML",
+    "manipur": "MN",
+    "nagaland": "NL",
+    "mizoram": "MZ",
+    "arunachal pradesh": "AR",
+    "sikkim": "SK",
+    "puducherry": "PY",
+    "ladakh": "LA",
+    "chandigarh": "CH",
 }
 
 
@@ -444,7 +430,7 @@ def lookup_pincode(pincode: str):
             if payload.get("success") and payload.get("data", {}).get("post_offices"):
                 raw_offices = payload["data"]["post_offices"]
                 first = raw_offices[0]
-                state_name = first.get("state") or "Maharashtra"
+                state_name = first.get("state") or ""
                 state_code = STATE_NAME_TO_CODE.get(state_name.strip().lower(), "IN")
                 district = first.get("district") or ""
 
@@ -471,8 +457,8 @@ def lookup_pincode(pincode: str):
                     "state_code": state_code,
                     "state_name": state_name,
                     "village": valid_office["name"],
-                    "latitude": valid_office["latitude"] or 19.75,
-                    "longitude": valid_office["longitude"] or 75.71,
+                    "latitude": valid_office["latitude"],
+                    "longitude": valid_office["longitude"],
                     "post_offices": post_offices,
                     "source": "pincodeapi.in",
                 }
@@ -495,10 +481,10 @@ def lookup_pincode(pincode: str):
             if places:
                 first = places[0]
                 place_name = first.get("place name", "")
-                state_name = first.get("state", "Maharashtra")
-                state_code = first.get("state abbreviation", STATE_NAME_TO_CODE.get(state_name.lower(), "MH"))
-                lat = float(first.get("latitude", 19.75))
-                lon = float(first.get("longitude", 75.71))
+                state_name = first.get("state", "")
+                state_code = STATE_NAME_TO_CODE.get(state_name.lower(), first.get("state abbreviation") or "IN")
+                lat = float(first["latitude"])
+                lon = float(first["longitude"])
 
                 post_offices = [
                     {
@@ -514,9 +500,14 @@ def lookup_pincode(pincode: str):
                     for p in places
                 ]
 
+                # zippopotam has no district; take it from reverse geocoding of the coordinates.
+                try:
+                    district_name = reverse_geocode(lat, lon).get("district") or place_name
+                except HTTPException:
+                    district_name = place_name
                 result = {
                     "pincode": clean,
-                    "district": place_name,
+                    "district": district_name,
                     "state_code": state_code,
                     "state_name": state_name,
                     "village": place_name,
@@ -530,45 +521,7 @@ def lookup_pincode(pincode: str):
     except Exception:
         pass
 
-    # 3. Graceful offline fallback when network is unroutable (e.g. offline sandbox or external API outage)
-    prefix3 = clean[:3]
-    regional_fallbacks = {
-        "445": ("Yavatmal", "MH", "Maharashtra", 20.3888, 78.1204),
-        "444": ("Amravati", "MH", "Maharashtra", 20.9320, 77.7523),
-        "440": ("Nagpur", "MH", "Maharashtra", 21.1458, 79.0882),
-        "411": ("Pune", "MH", "Maharashtra", 18.5204, 73.8567),
-        "412": ("Pune Rural", "MH", "Maharashtra", 18.5458, 74.2091),
-        "414": ("Ahmednagar", "MH", "Maharashtra", 19.0952, 74.7496),
-        "422": ("Nashik", "MH", "Maharashtra", 19.9975, 73.7898),
-        "431": ("Sambhajinagar", "MH", "Maharashtra", 19.8762, 75.3433),
-        "506": ("Warangal", "TG", "Telangana", 17.9689, 79.5941),
-        "580": ("Dharwad", "KA", "Karnataka", 15.4589, 75.0078),
-    }
-    fallback_info = regional_fallbacks.get(prefix3, ("Maharashtra Region", "MH", "Maharashtra", 19.75, 75.71))
-    dist, sc, sn, lat, lon = fallback_info
-
-    return {
-        "pincode": clean,
-        "district": dist,
-        "state_code": sc,
-        "state_name": sn,
-        "village": f"{dist} Sub-Office",
-        "latitude": lat,
-        "longitude": lon,
-        "post_offices": [
-            {
-                "name": f"{dist} Central Post Office",
-                "office_type": "HO",
-                "delivery_status": "Delivery",
-                "district": dist,
-                "state": sn,
-                "latitude": lat,
-                "longitude": lon,
-                "digipin": "",
-            }
-        ],
-        "source": "offline_regional_baseline",
-    }
+    raise HTTPException(status_code=503, detail="PIN code lookup services are unreachable. Use GPS or pick the location on the map.")
 
 
 _REVERSE_GEO_CACHE: dict[str, dict] = {}
@@ -637,7 +590,7 @@ def reverse_geocode(latitude: float, longitude: float):
                 or ""
             )
             district = district.replace(" District", "").strip()
-            state = addr.get("state", "Maharashtra")
+            state = addr.get("state", "")
             village = (
                 addr.get("village")
                 or addr.get("town")
@@ -647,7 +600,7 @@ def reverse_geocode(latitude: float, longitude: float):
                 or ""
             )
             postcode = addr.get("postcode", "")
-            sc = STATE_NAME_TO_CODE.get(state.lower(), "MH")
+            sc = STATE_NAME_TO_CODE.get(state.lower(), "IN")
             if district:
                 result = {
                     "latitude": latitude,
@@ -664,19 +617,22 @@ def reverse_geocode(latitude: float, longitude: float):
     except Exception:
         pass
 
-    # Find nearest Maharashtra district centroid
+    # Offline fallback: nearest Maharashtra district centroid, only when the point is plausibly
+    # in that district (within ~45 km); elsewhere report that the place could not be resolved.
     best = min(
         MAHARASHTRA_DISTRICT_CENTROIDS,
         key=lambda d: (d[3] - latitude) ** 2 + (d[4] - longitude) ** 2,
     )
     dist, sc, sn, dlat, dlon = best
+    if ((dlat - latitude) ** 2 + (dlon - longitude) ** 2) ** 0.5 > 0.4:
+        raise HTTPException(status_code=503, detail="Place name lookup is unavailable for these coordinates.")
     result = {
         "latitude": latitude,
         "longitude": longitude,
         "district": dist,
         "state_name": sn,
         "state_code": sc,
-        "village": f"{dist} Rural",
+        "village": "",
         "pincode": None,
         "source": "nearest_district_centroid",
     }
@@ -686,56 +642,35 @@ def reverse_geocode(latitude: float, longitude: float):
 
 @app.get("/api/v1/geo/ip")
 def ip_geocode(request: Request):
+    """Approximate location from the caller's network address (city level), when GPS is unavailable."""
+    import ipaddress
     client_ip = get_client_ip(request)
-
-    # Try public IP geocoding if not local/private
-    if client_ip and not (
-        client_ip.startswith("127.") or client_ip in ("::1", "localhost") or
-        client_ip.startswith("192.168.") or client_ip.startswith("10.") or client_ip.startswith("172.")
-    ):
+    try:
+        public = ipaddress.ip_address(client_ip).is_global
+    except ValueError:
+        public = False
+    if public:
         try:
             import requests
-            resp = requests.get(
-                f"http://ip-api.com/json/{client_ip}?fields=status,message,country,countryCode,region,regionName,city,zip,lat,lon,district",
-                timeout=2.5,
-            )
-            if resp.status_code == 200:
-                data = resp.json()
-                if data.get("status") == "success":
-                    lat = float(data.get("lat", 18.5204))
-                    lon = float(data.get("lon", 73.8567))
-                    city = data.get("city") or data.get("district") or "Pune"
-                    region = data.get("regionName") or "Maharashtra"
-                    sc = STATE_NAME_TO_CODE.get(region.lower(), data.get("region") or "MH")
-                    dist = data.get("district") or city
-                    return {
-                        "latitude": round(lat, 4),
-                        "longitude": round(lon, 4),
-                        "district": dist,
-                        "state_name": region,
-                        "state_code": sc,
-                        "village": city,
-                        "pincode": data.get("zip") or None,
-                        "source": "ip_network_lookup",
-                    }
+            resp = requests.get(f"https://ipapi.co/{client_ip}/json/", headers={"User-Agent": "KISANAI/1.0"}, timeout=3)
+            data = resp.json() if resp.status_code == 200 else {}
+            if data.get("latitude") is not None and data.get("longitude") is not None:
+                region = data.get("region") or ""
+                return {
+                    "latitude": round(float(data["latitude"]), 4),
+                    "longitude": round(float(data["longitude"]), 4),
+                    "district": data.get("city") or "",
+                    "state_name": region,
+                    "state_code": STATE_NAME_TO_CODE.get(region.lower(), data.get("region_code") or ""),
+                    "village": data.get("city") or "",
+                    "pincode": data.get("postal") or None,
+                    "source": "ipapi.co (city-level, approximate)",
+                }
         except Exception:
             pass
-
-    # Central Maharashtra fallback for local development or unresolvable IP
-    return {
-        "latitude": 18.5204,
-        "longitude": 73.8567,
-        "district": "Pune",
-        "state_name": "Maharashtra",
-        "state_code": "MH",
-        "village": "Pune Central",
-        "pincode": "411001",
-        "source": "ip_default_central",
-    }
+    raise HTTPException(status_code=404, detail="Network location is not available. Enter the PIN code or use GPS.")
 
 
-
-from pathlib import Path
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
@@ -760,4 +695,6 @@ if static_dir and static_dir.exists():
         if file_path.is_file():
             return FileResponse(file_path)
         
-        return FileResponse(static_dir / "index.html")
+        # The page itself is never cached, so a new deploy shows up on the next load;
+        # hashed files under /assets stay cacheable.
+        return FileResponse(static_dir / "index.html", headers={"Cache-Control": "no-cache"})

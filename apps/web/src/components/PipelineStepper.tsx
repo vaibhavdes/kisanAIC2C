@@ -24,7 +24,7 @@ export const PipelineStepper: React.FC<PipelineStepperProps> = ({
         onClick={() => setView("farm")}
       >
         <span className="step-num">1</span>
-        <span>{t.step_farm || "1. Field Plot"}</span>
+        <span>{t.step_farm}</span>
       </button>
       <div className={`step-connector ${farm ? "active" : ""}`} />
 
@@ -36,7 +36,7 @@ export const PipelineStepper: React.FC<PipelineStepperProps> = ({
         onClick={() => setView("weather")}
       >
         <span className="step-num">2</span>
-        <span>{t.step_weather || "2. Local Weather"}</span>
+        <span>{t.step_weather}</span>
       </button>
       <div
         className={`step-connector ${
@@ -52,7 +52,7 @@ export const PipelineStepper: React.FC<PipelineStepperProps> = ({
         onClick={() => setView("soil")}
       >
         <span className="step-num">3</span>
-        <span>{t.step_soil || "3. Soil Health"}</span>
+        <span>{t.step_soil}</span>
       </button>
       <div
         className={`step-connector ${
@@ -68,7 +68,7 @@ export const PipelineStepper: React.FC<PipelineStepperProps> = ({
         onClick={() => setView("crops")}
       >
         <span className="step-num">4</span>
-        <span>{t.step_crops || "4. Crop Recs"}</span>
+        <span>{t.step_crops}</span>
       </button>
       <div
         className={`step-connector ${
@@ -82,7 +82,7 @@ export const PipelineStepper: React.FC<PipelineStepperProps> = ({
         onClick={() => setView("advice")}
       >
         <span className="step-num">5</span>
-        <span>{t.step_advice || "5. Field Plan"}</span>
+        <span>{t.step_advice}</span>
       </button>
     </div>
   );

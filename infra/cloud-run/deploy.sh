@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# KISANAI C2C Cloud Run Deployment Script
+# Deploys KISANAI to Cloud Run from source (root Dockerfile).
+# IMD stays off until IMD API credentials are added (IMD_EMAIL, IMD_PASSWORD, IMD_API_KEY).
+# Farms, soil tests and advice are stored in Firestore (database kisanai-ag02) and uploaded
+# photos in Cloud Storage, so data survives new revisions and the service can scale out.
 PROJECT_ID="${1:-project-52e7ca23-228b-4cfd-879}"
 REGION="${2:-asia-south1}"
 SERVICE_NAME="kisanai-c2c"
-
-# Auto-detect GOOGLE_MAPS_API_KEY from local .env.local if not already exported
-if [ -z "${GOOGLE_MAPS_API_KEY:-}" ] && [ -f ".env.local" ]; then
-  GOOGLE_MAPS_API_KEY=$(grep -E "^GOOGLE_MAPS_API_KEY=" .env.local | head -n1 | cut -d '=' -f2- | tr -d '"'"'"'\r' || true)
-fi
+FIRESTORE_DATABASE="kisanai-ag02"
+MEDIA_BUCKET="${PROJECT_ID}-kisanai-ag02"
 
 echo "Deploying ${SERVICE_NAME} to Google Cloud Run..."
 echo "Project: ${PROJECT_ID}"
@@ -26,8 +26,9 @@ gcloud run deploy "${SERVICE_NAME}" \
   --cpu=1 \
   --concurrency=80 \
   --min-instances=1 \
-  --max-instances=1 \
+  --max-instances=3 \
+  --session-affinity \
   --timeout=60 \
-  --set-env-vars="APP_ENV=development,NODE_ID=india-node-mh,AUTH_MODE=local,STORE_PROVIDER=sqlite,SQLITE_PATH=/tmp/kisanai.sqlite3,MEDIA_PROVIDER=local,MEDIA_DIRECTORY=/tmp/media,AI_ENABLED=true,AI_PROVIDER=vertex,GEMINI_MODEL=gemini-2.5-flash,VERTEX_LOCATION=${REGION},GOOGLE_CLOUD_PROJECT=${PROJECT_ID},EARTH_ENGINE_ENABLED=true,SPEECH_ENABLED=true,GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY:-},OPEN_METEO_ENABLED=true,IMD_ENABLED=true"
+  --set-env-vars="APP_ENV=development,NODE_ID=india-node-mh,AUTH_MODE=local,STORE_PROVIDER=firestore,FIRESTORE_DATABASE=${FIRESTORE_DATABASE},MEDIA_PROVIDER=gcs,MEDIA_BUCKET=${MEDIA_BUCKET},AI_ENABLED=true,AI_PROVIDER=vertex,GEMINI_MODEL=gemini-2.5-flash,VERTEX_LOCATION=${REGION},GOOGLE_CLOUD_PROJECT=${PROJECT_ID},EARTH_ENGINE_ENABLED=true,SPEECH_ENABLED=true,OPEN_METEO_ENABLED=true,IMD_ENABLED=false"
 
 echo "Deployment finished."
