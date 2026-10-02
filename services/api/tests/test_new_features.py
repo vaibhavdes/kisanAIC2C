@@ -120,3 +120,22 @@ def test_firestore_encoding_round_trips_nested_lists():
     encoded = _to_firestore(farm)
     assert all(not isinstance(item, list) for item in encoded["boundary_coordinates"])
     assert _from_firestore(encoded) == farm
+
+
+def test_expert_role_needs_access_code_when_configured():
+    import pytest
+    from fastapi import HTTPException
+    from kisanai_c2c.auth import current_actor
+    from kisanai_c2c.models import Role
+    from kisanai_c2c.settings import Settings
+    settings = Settings(expert_access_code="s3cret-code")
+    farmer = current_actor(None, None, None, None, None, settings)
+    assert farmer.roles == {Role.farmer}
+    with pytest.raises(HTTPException) as error:
+        current_actor(None, "e1", "expert", None, None, settings)
+    assert error.value.status_code == 401
+    with pytest.raises(HTTPException):
+        current_actor(None, "e1", "expert", None, "wrong", settings)
+    assert Role.expert in current_actor(None, "e1", "expert", None, "s3cret-code", settings).roles
+    # Local development without a configured code keeps working.
+    assert Role.expert in current_actor(None, "e1", "expert", None, None, Settings(expert_access_code=None)).roles

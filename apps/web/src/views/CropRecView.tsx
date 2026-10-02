@@ -4,6 +4,12 @@ import { View, Json, Locale } from "../types";
 import { InfoTip, ListenButton } from "../components/InfoTip";
 import { currentSeason } from "../utils/season";
 
+const WATER_KEYS: Record<string, string> = {
+  rainfed: "water_rainfed",
+  supplemental_irrigation: "water_supplemental",
+  irrigated: "water_irrigated",
+};
+
 export interface CropRecViewProps {
   t: Record<string, string>;
   locale: Locale;
@@ -105,30 +111,32 @@ export function CropRecView({
               </span>
               {cropRecs.rainfall_7d_forecast_mm != null && (
                 <span className="baseline-meta-item">
-                  🌧️ 7-Day Rain Forecast: <strong>{(cropRecs.rainfall_7d_forecast_mm as number).toFixed(1)} mm</strong>
+                  🌧️ {t.rain_7d_label}: <strong>{(cropRecs.rainfall_7d_forecast_mm as number).toFixed(1)} mm</strong>
                 </span>
               )}
               {cropRecs.mean_max_temp_7d_c != null && (
                 <span className="baseline-meta-item">
-                  🌡️ Avg max temp: <strong>{(cropRecs.mean_max_temp_7d_c as number).toFixed(0)}°C</strong>
+                  🌡️ {t.avg_max_temp}: <strong>{(cropRecs.mean_max_temp_7d_c as number).toFixed(0)}°C</strong>
                 </span>
               )}
               <span className="baseline-meta-item">
-                🌱 Soil: <strong>{cropRecs.soil_type as string}</strong>
+                🌱 {t.soil_word}: <strong>{(t[`soil_${cropRecs.soil_type}`] || String(cropRecs.soil_type)).replace(/^\S+\s/, "")}</strong>
               </span>
               <span className="baseline-meta-item">
-                💧 Water: <strong>{cropRecs.water_access as string}</strong>
+                💧 {t.water_word}: <strong>{(t[WATER_KEYS[cropRecs.water_access as string]] || String(cropRecs.water_access)).replace(/^\S+\s/, "")}</strong>
               </span>
               {cropRecs.previous_crop && (
                 <span className="baseline-meta-item">
-                  🔄 Prev Crop: <strong>{cropRecs.previous_crop as string}</strong>
+                  🔄 {t.prev_crop_word}: <strong>{(cropRecs.previous_crop_name || cropRecs.previous_crop) as string}</strong>
                 </span>
               )}
             </div>
 
-            {cropRecs.regional_notes && (
-              <div style={{ fontSize: "12px", color: "var(--muted)", fontStyle: "italic", borderTop: "1px dashed #dbe7d0", paddingTop: "6px" }}>
-                🏛️ Regional Agro-Climatic Profile: {cropRecs.regional_notes as string}
+            {(cropRecs.district_main_crops?.length > 0 || (locale === "en-IN" && cropRecs.regional_notes)) && (
+              <div style={{ fontSize: "12px", color: "var(--muted)", borderTop: "1px dashed #dbe7d0", paddingTop: "6px" }}>
+                🏛️ {t.district_main_crops.replace("{district}", String(cropRecs.district))}: {(cropRecs.district_main_crops || []).join(", ")}
+                {/* The district note is English reference text, so it is shown in English only. */}
+                {locale === "en-IN" && cropRecs.regional_notes && <em> · {cropRecs.regional_notes as string}</em>}
               </div>
             )}
 

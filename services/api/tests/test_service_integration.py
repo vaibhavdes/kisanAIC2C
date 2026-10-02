@@ -32,14 +32,19 @@ class MemoryStore:
 class MemoryMediaStore:
     def __init__(self):
         self.media: dict[str, bytes] = {}
+        self.count = 0
 
-    def save(self, content: bytes, content_type: str) -> tuple[str, str]:
-        uri = f"memory://{len(self.media)}"
+    def save(self, content: bytes, content_type: str, folder: str = "uploads") -> tuple[str, str]:
+        self.count += 1
+        uri = f"memory://{folder}/{self.count}"
         self.media[uri] = content
         return uri, uri
 
     def read(self, storage_uri: str) -> bytes:
         return self.media[storage_uri]
+
+    def delete(self, storage_uri: str) -> None:
+        self.media.pop(storage_uri, None)
 
 @pytest.fixture
 def service():
@@ -409,3 +414,79 @@ def test_device_id_owns_farm_and_is_not_exposed(service: AppService, farmer: Act
     service.store.put("soil_tests", "soil_x", {"id": "soil_x", "farm_id": farm.id})
     assert service.delete_farm(farmer, farm.id, client_ip="10.9.9.9", device_id="device-aaaa1111")
     assert service.store.get("soil_tests", "soil_x") is None
+
+
+def test_editing_farm_location_clears_old_readings(service: AppService, farmer: Actor):
+    payload = FarmCreate(
+        name="Edit Farm", state_code="MH", state_name="Maharashtra", district="Pune",
+        area_value=1, location=Location(latitude=18.5, longitude=73.8), water_access="rainfed",
+    )
+    farm = service.create_farm(farmer, payload, client_ip="10.0.0.1", device_id="device-cccc3333")
+    service.store.put("evidence", "ev1", {"id": "ev1", "farm_id": farm.id})
+    renamed = service.update_farm(farmer, farm.id, payload.model_copy(update={"name": "Renamed"}), 1, device_id="device-cccc3333")
+    assert renamed.name == "Renamed" and service.store.get("evidence", "ev1") is not None
+    moved = payload.model_copy(update={"boundary_coordinates": [[18.5, 73.8], [18.501, 73.8], [18.501, 73.801]]})
+    service.update_farm(farmer, farm.id, moved, 2, device_id="device-cccc3333")
+    assert service.store.get("evidence", "ev1") is None
+
+
+def _live_map(farm_id: str):
+    from kisanai_c2c.models import SatelliteMapResult
+    return SatelliteMapResult(farm_id=farm_id, index="NDVI", meaning="m", map_url="https://ee/thumb", start_date="2026-09-01",
+                              end_date="2026-10-01", source="earth_engine_sentinel_2", legend={}, data_mode="live", scene_date="28 Sep 2026")
+
+
+def test_satellite_map_is_stored_reused_and_removed_with_the_farm(service: AppService, farmer: Actor, monkeypatch):
+    from datetime import UTC, datetime, timedelta
+    from kisanai_c2c.providers.satellite import SatelliteProvider
+    calls = []
+    monkeypatch.setattr(SatelliteProvider, "satellite_map", lambda self, farm, index="NDVI", days=30: calls.append(farm.id) or _live_map(farm.id))
+    monkeypatch.setattr(SatelliteProvider, "download_image", staticmethod(lambda url: b"PNG" * 50))
+    payload = FarmCreate(name="Sat Farm", state_code="MH", state_name="Maharashtra", district="Yavatmal",
+                         area_value=2, location=Location(latitude=20.1, longitude=78.3), water_access="rainfed")
+    farm = service.create_farm(farmer, payload)
+
+    first = service.satellite_map(farmer, farm.id)
+    assert first.map_url is None  # the expiring Earth Engine link is never stored or sent
+    assert service.satellite_image(farmer, farm.id) == b"PNG" * 50
+    service.satellite_map(farmer, farm.id)
+    assert len(calls) == 1  # map, image and repeat visit: one Earth Engine query
+
+    doc = service.store.get("satellite_maps", f"{farm.id}_NDVI_30")
+    doc["fetched_at"] = (datetime.now(UTC) - timedelta(days=1, minutes=1)).isoformat()
+    old_image = doc["image_uri"]
+    service.satellite_map(farmer, farm.id)
+    assert len(calls) == 2 and old_image not in service.media_store.media  # expired after a day, old PNG replaced
+
+    service.delete_farm(farmer, farm.id)
+    assert service.store.list("satellite_maps", filters={"farm_id": farm.id}) == []
+    assert not [uri for uri in service.media_store.media if "satellite" in uri]
+
+
+def test_failed_satellite_map_is_not_stored(service: AppService, farmer: Actor, monkeypatch):
+    from kisanai_c2c.providers.satellite import SatelliteProvider
+    missing = _live_map("x").model_copy(update={"data_mode": "missing", "map_url": None})
+    monkeypatch.setattr(SatelliteProvider, "satellite_map", lambda self, farm, index="NDVI", days=30: missing)
+    payload = FarmCreate(name="Cloudy", state_code="MH", state_name="Maharashtra", district="Pune",
+                         area_value=1, location=Location(latitude=18.5, longitude=73.8), water_access="rainfed")
+    farm = service.create_farm(farmer, payload)
+    assert service.satellite_map(farmer, farm.id).data_mode == "missing"
+    assert service.store.get("satellite_maps", f"{farm.id}_NDVI_30") is None
+
+
+def test_refresh_keeps_one_reading_per_source_and_keeps_good_one_on_failure(service: AppService, farmer: Actor):
+    from kisanai_c2c.models import EvidenceSnapshot
+    payload = FarmCreate(name="Ev", state_code="MH", state_name="Maharashtra", district="Pune",
+                         area_value=1, location=Location(latitude=18.5, longitude=73.8), water_access="rainfed")
+    farm = service.create_farm(farmer, payload)
+
+    def snap(mode="live", kind="weather_forecast"):
+        return EvidenceSnapshot(farm_id=farm.id, node_id=farm.node_id, provider="open_meteo", kind=kind, mode=mode,
+                                spatial_scope="point", source_reference="x")
+
+    for _ in range(5):
+        service._store_evidence(farm.id, [snap(), snap(kind="weather_history")])
+    assert len(service.store.list("evidence", filters={"farm_id": farm.id})) == 2
+    good = service.store.list("evidence", filters={"farm_id": farm.id, "kind": "weather_forecast"})[0]["id"]
+    service._store_evidence(farm.id, [snap(mode="missing")])
+    assert service.store.get("evidence", good) is not None

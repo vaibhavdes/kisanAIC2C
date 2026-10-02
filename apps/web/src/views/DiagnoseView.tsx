@@ -18,14 +18,7 @@ export function DiagnoseView({ t, locale, farm, go }: DiagnoseViewProps) {
   const [customSymptom, setCustomSymptom] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
 
-  const symptomsList = [
-    "🟡 Yellowing Leaves",
-    "🟤 Brown Blight Spots",
-    "⚪ Powdery Coating",
-    "🐛 Stem Borer Damage",
-    "🍂 Plant Wilting",
-    "🔄 Leaf Curling"
-  ];
+  const symptomsList = [t.sym_yellow, t.sym_brown, t.sym_powder, t.sym_borer, t.sym_wilt, t.sym_curl];
 
   const [cases, setCases] = useState<Json[]>([]);
   useEffect(() => {
@@ -164,7 +157,7 @@ export function DiagnoseView({ t, locale, farm, go }: DiagnoseViewProps) {
               <option value="">{t.select_symptom_opt}</option>
               {symptomsList.map(s => (
                 <option key={s} value={s} disabled={symptomChips.includes(s)}>
-                  {s} {symptomChips.includes(s) ? "✓ (Selected)" : ""}
+                  {s} {symptomChips.includes(s) ? `✓ ${t.selected_word}` : ""}
                 </option>
               ))}
             </select>
@@ -241,7 +234,7 @@ export function DiagnoseView({ t, locale, farm, go }: DiagnoseViewProps) {
         <article className="diagnosis-card">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ fontSize: "12px", color: "var(--lime-400)", fontWeight: 700 }}>
-              IMAGE QUALITY: {String(result.diagnosis.image_quality || "").toUpperCase()}
+              {t.photo_quality}: {t[`quality_${result.diagnosis.image_quality}`] || result.diagnosis.image_quality}
             </span>
             {result.expert_case && (
               <span style={{ background: "var(--lime-500)", color: "var(--green-900)", padding: "4px 10px", borderRadius: "20px", fontSize: "12px", fontWeight: 800 }}>
@@ -250,26 +243,38 @@ export function DiagnoseView({ t, locale, farm, go }: DiagnoseViewProps) {
             )}
           </div>
 
-          <h3>{t.visible_findings_title}</h3>
-          <ul>
-            {result.diagnosis.visible_findings.map((x: string) => (
-              <li key={x}>{x}</li>
-            ))}
-          </ul>
+          {result.diagnosis.visible_findings?.length > 0 && (
+            <>
+              <h3>{t.visible_findings_title}</h3>
+              <ul>
+                {result.diagnosis.visible_findings.map((x: string) => (
+                  <li key={x}>{x}</li>
+                ))}
+              </ul>
+            </>
+          )}
 
-          <h3>{t.plausible_causes_title}</h3>
-          <ul>
-            {result.diagnosis.plausible_causes.map((x: string) => (
-              <li key={x}>{x}</li>
-            ))}
-          </ul>
+          {result.diagnosis.plausible_causes?.length > 0 && (
+            <>
+              <h3>{t.plausible_causes_title}</h3>
+              <ul>
+                {result.diagnosis.plausible_causes.map((x: string) => (
+                  <li key={x}>{x}</li>
+                ))}
+              </ul>
+            </>
+          )}
 
-          <h3>{t.safe_next_steps_title}</h3>
-          <ul>
-            {result.diagnosis.safe_next_steps.map((x: string) => (
-              <li key={x}>{x}</li>
-            ))}
-          </ul>
+          {result.diagnosis.safe_next_steps?.length > 0 && (
+            <>
+              <h3>{t.safe_next_steps_title}</h3>
+              <ul>
+                {result.diagnosis.safe_next_steps.map((x: string) => (
+                  <li key={x}>{x}</li>
+                ))}
+              </ul>
+            </>
+          )}
 
           {result.diagnosis.uncertainty_reasons?.length > 0 && (
             <>

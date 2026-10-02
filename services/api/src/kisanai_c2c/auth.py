@@ -1,3 +1,4 @@
+import hmac
 from functools import lru_cache
 
 from fastapi import Depends, Header, HTTPException, status
@@ -18,6 +19,7 @@ def current_actor(
     x_actor_id: str | None = Header(default=None),
     x_actor_role: str | None = Header(default=None),
     x_actor_locale: str | None = Header(default=None),
+    x_expert_code: str | None = Header(default=None),
     settings: Settings = Depends(get_settings),
 ) -> Actor:
     if settings.auth_mode == "local":
@@ -29,6 +31,11 @@ def current_actor(
             roles = {Role(role) for role in requested}
         except ValueError as exc:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid X-Actor-Role") from exc
+        # In local auth mode the role comes from a header, so the expert role must be backed
+        # by the shared expert access code whenever one is configured (always on Cloud Run).
+        if Role.expert in roles and settings.expert_access_code:
+            if not x_expert_code or not hmac.compare_digest(x_expert_code.strip(), settings.expert_access_code):
+                raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Expert access code required")
         return Actor(
             subject=subject,
             node_id=settings.node_id,

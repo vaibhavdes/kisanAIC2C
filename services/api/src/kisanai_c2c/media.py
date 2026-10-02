@@ -24,11 +24,11 @@ class MediaStore:
     def __init__(self):
         self.settings = get_settings()
 
-    def save(self, content: bytes, content_type: str) -> tuple[str, str]:
+    def save(self, content: bytes, content_type: str, folder: str = "uploads") -> tuple[str, str]:
         extension = ALLOWED_CONTENT_TYPES.get(content_type)
         if not extension:
             raise ValueError("Unsupported media type")
-        object_name = f"uploads/{uuid4().hex}{extension}"
+        object_name = f"{folder}/{uuid4().hex}{extension}"
         if self.settings.media_provider == "gcs":
             from google.cloud import storage
 
@@ -51,6 +51,19 @@ class MediaStore:
         if root not in path.parents:
             raise ValueError("Invalid local media path")
         return path.read_bytes()
+
+    def delete(self, storage_uri: str) -> None:
+        if storage_uri.startswith("gs://"):
+            from google.cloud import storage
+
+            bucket_name, object_name = storage_uri.removeprefix("gs://").split("/", 1)
+            blob = storage.Client(project=self.settings.google_cloud_project).bucket(bucket_name).blob(object_name)
+            if blob.exists():
+                blob.delete()
+            return
+        path = Path(storage_uri).resolve()
+        if Path(self.settings.media_directory).resolve() in path.parents:
+            path.unlink(missing_ok=True)
 
 
 @lru_cache

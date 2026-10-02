@@ -29,7 +29,7 @@ One container: a FastAPI backend (Python 3.12) that also serves the React + Vite
 | `auth.py` | Local headers in development, Firebase tokens in production |
 | `settings.py` | Environment settings (see `.env.example`) |
 | `providers/weather.py` | Open-Meteo (7 past + 7 forecast days, 72 hours, soil moisture); IMD warnings when configured |
-| `providers/satellite.py` | Earth Engine Sentinel-2: latest clear scene, indices, measured zone areas, cached thumbnails |
+| `providers/satellite.py` | Earth Engine Sentinel-2: latest clear scene, indices, measured zone areas, map image download |
 | `providers/gemini.py` | Gemini on Vertex AI: action plan, soil card reading, plant photo check, chat |
 | `providers/voice.py` | Google Cloud Speech-to-Text and Text-to-Speech |
 | `data/maharashtra_agri_context.py` | Loads the district profiles |

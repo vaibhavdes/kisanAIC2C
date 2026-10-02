@@ -598,27 +598,59 @@ def _build_factor_breakdowns(
     return factors
 
 
-def _sources_used(farm: Farm, soil: SoilTest | None, evidence: list[dict[str, Any]], district_profile: Any) -> list[dict[str, str]]:
+# Text for the "Based on" list, per language.
+SOURCE_TEXT: dict[str, dict[str, str]] = {
+    "en-IN": {"weather": "Weather forecast for your farm (Open-Meteo)", "weather_type": "Rain and temperature, next 7 days", "fetched": "Updated {time} UTC", "missing": "Not available",
+              "satellite": "Satellite photo (Sentinel-2)", "satellite_type": "Crop greenness and leaf water", "observed": "Latest clear photo",
+              "card": "Soil Health Card", "entered": "Soil test entered by you", "confirmed": "Checked by you",
+              "profile": "Soil type you chose", "profile_type": "{soil} soil, pH {ph} (district average)", "baseline": "District average, not a lab test",
+              "district": "District farming data", "district_type": "{district}: {rain} mm normal yearly rain, main crops", "reference": "Reference data", "no_district": "No data for {district}"},
+    "hi-IN": {"weather": "आपके खेत का मौसम पूर्वानुमान (Open-Meteo)", "weather_type": "अगले 7 दिन की बारिश और तापमान", "fetched": "अपडेट {time} UTC", "missing": "उपलब्ध नहीं",
+              "satellite": "उपग्रह फोटो (Sentinel-2)", "satellite_type": "फसल की हरियाली और पत्तियों का पानी", "observed": "नवीनतम साफ़ फोटो",
+              "card": "मृदा स्वास्थ्य कार्ड", "entered": "आपके द्वारा दर्ज मिट्टी जांच", "confirmed": "आपने जांचा",
+              "profile": "आपके द्वारा चुनी मिट्टी", "profile_type": "{soil} मिट्टी, pH {ph} (जिला औसत)", "baseline": "जिला औसत, लैब जांच नहीं",
+              "district": "जिले का खेती डेटा", "district_type": "{district}: सामान्य वार्षिक वर्षा {rain} मिमी, मुख्य फसलें", "reference": "संदर्भ डेटा", "no_district": "{district} का डेटा नहीं"},
+    "mr-IN": {"weather": "तुमच्या शेताचा हवामान अंदाज (Open-Meteo)", "weather_type": "पुढील ७ दिवसांचा पाऊस व तापमान", "fetched": "अद्ययावत {time} UTC", "missing": "उपलब्ध नाही",
+              "satellite": "उपग्रह फोटो (Sentinel-2)", "satellite_type": "पिकाचा हिरवेपणा व पानांतील पाणी", "observed": "नवीनतम स्वच्छ फोटो",
+              "card": "माती आरोग्य पत्रिका", "entered": "तुम्ही भरलेले माती परीक्षण", "confirmed": "तुम्ही तपासले",
+              "profile": "तुम्ही निवडलेली माती", "profile_type": "{soil} माती, सामू {ph} (जिल्हा सरासरी)", "baseline": "जिल्हा सरासरी, प्रयोगशाळा परीक्षण नाही",
+              "district": "जिल्ह्याची शेती माहिती", "district_type": "{district}: सरासरी वार्षिक पाऊस {rain} मिमी, मुख्य पिके", "reference": "संदर्भ माहिती", "no_district": "{district} ची माहिती नाही"},
+    "te-IN": {"weather": "మీ పొలం వాతావరణ సూచన (Open-Meteo)", "weather_type": "రాబోయే 7 రోజుల వర్షం, ఉష్ణోగ్రత", "fetched": "నవీకరణ {time} UTC", "missing": "అందుబాటులో లేదు",
+              "satellite": "ఉపగ్రహ ఫోటో (Sentinel-2)", "satellite_type": "పంట పచ్చదనం, ఆకుల నీరు", "observed": "తాజా స్పష్టమైన ఫోటో",
+              "card": "నేల ఆరోగ్య కార్డు", "entered": "మీరు నమోదు చేసిన నేల పరీక్ష", "confirmed": "మీరు సరిచూశారు",
+              "profile": "మీరు ఎంచుకున్న నేల", "profile_type": "{soil} నేల, pH {ph} (జిల్లా సగటు)", "baseline": "జిల్లా సగటు, ల్యాబ్ పరీక్ష కాదు",
+              "district": "జిల్లా వ్యవసాయ సమాచారం", "district_type": "{district}: సాధారణ వార్షిక వర్షం {rain} మి.మీ, ప్రధాన పంటలు", "reference": "సూచన సమాచారం", "no_district": "{district} సమాచారం లేదు"},
+    "kn-IN": {"weather": "ನಿಮ್ಮ ಹೊಲದ ಹವಾಮಾನ ಮುನ್ಸೂಚನೆ (Open-Meteo)", "weather_type": "ಮುಂದಿನ 7 ದಿನದ ಮಳೆ, ತಾಪಮಾನ", "fetched": "ನವೀಕರಣ {time} UTC", "missing": "ಲಭ್ಯವಿಲ್ಲ",
+              "satellite": "ಉಪಗ್ರಹ ಫೋಟೋ (Sentinel-2)", "satellite_type": "ಬೆಳೆಯ ಹಸಿರು, ಎಲೆಯ ನೀರು", "observed": "ಇತ್ತೀಚಿನ ಸ್ಪಷ್ಟ ಫೋಟೋ",
+              "card": "ಮಣ್ಣಿನ ಆರೋಗ್ಯ ಕಾರ್ಡ್", "entered": "ನೀವು ನಮೂದಿಸಿದ ಮಣ್ಣು ಪರೀಕ್ಷೆ", "confirmed": "ನೀವು ಪರಿಶೀಲಿಸಿದ್ದೀರಿ",
+              "profile": "ನೀವು ಆರಿಸಿದ ಮಣ್ಣು", "profile_type": "{soil} ಮಣ್ಣು, pH {ph} (ಜಿಲ್ಲಾ ಸರಾಸರಿ)", "baseline": "ಜಿಲ್ಲಾ ಸರಾಸರಿ, ಲ್ಯಾಬ್ ಪರೀಕ್ಷೆ ಅಲ್ಲ",
+              "district": "ಜಿಲ್ಲೆಯ ಕೃಷಿ ಮಾಹಿತಿ", "district_type": "{district}: ಸಾಮಾನ್ಯ ವಾರ್ಷಿಕ ಮಳೆ {rain} ಮಿ.ಮೀ, ಪ್ರಮುಖ ಬೆಳೆಗಳು", "reference": "ಉಲ್ಲೇಖ ಮಾಹಿತಿ", "no_district": "{district} ಮಾಹಿತಿ ಇಲ್ಲ"},
+}
+
+
+def _sources_used(farm: Farm, soil: SoilTest | None, evidence: list[dict[str, Any]], district_profile: Any, locale: str = "en-IN") -> list[dict[str, str]]:
     """Describe the data actually behind this result, not a fixed list."""
+    text = SOURCE_TEXT.get(locale, SOURCE_TEXT["en-IN"])
     sources: list[dict[str, str]] = []
     weather = latest_weather_snapshot(evidence)
     if weather:
-        name = {"open_meteo": "Open-Meteo forecast (coordinate based)", "imd": "IMD district forecast"}.get(weather.get("provider", ""), str(weather.get("provider")))
-        sources.append({"name": name, "type": "7-day rain and temperature forecast", "status": f"Fetched {str(weather.get('fetched_at', ''))[:16].replace('T', ' ')} UTC"})
+        stamp = str(weather.get("fetched_at", ""))[:16].replace("T", " ")
+        sources.append({"name": text["weather"], "type": text["weather_type"], "status": text["fetched"].format(time=stamp)})
     else:
-        sources.append({"name": "Weather forecast", "type": "7-day rain and temperature forecast", "status": "Not available"})
+        sources.append({"name": text["weather"], "type": text["weather_type"], "status": text["missing"]})
     satellite = next((snap for snap in evidence if snap.get("kind") == "satellite_observation" and snap.get("mode") != "missing"), None)
     if satellite:
-        sources.append({"name": "Sentinel-2 via Google Earth Engine", "type": "Crop vigour and moisture indices", "status": "Observed"})
+        sources.append({"name": text["satellite"], "type": text["satellite_type"], "status": text["observed"]})
     if soil:
-        sources.append({"name": "Soil Health Card" if soil.source == "soil_card_confirmed" else "Soil test entered by farmer", "type": f"pH {soil.values.ph if soil.values.ph is not None else 'n/a'}", "status": "Farmer confirmed"})
+        name = text["card"] if soil.source == "soil_card_confirmed" else text["entered"]
+        sources.append({"name": name, "type": f"pH {soil.values.ph if soil.values.ph is not None else '–'}", "status": text["confirmed"]})
     else:
-        ph, ph_source = soil_ph(None, district_profile)
-        sources.append({"name": "Soil type from farm profile", "type": f"{farm.soil_type.title()} soil, pH {ph if ph is not None else 'unknown'} ({ph_source})", "status": "Baseline, not lab tested"})
+        ph, _ = soil_ph(None, district_profile)
+        sources.append({"name": text["profile"], "type": text["profile_type"].format(soil=farm.soil_type, ph=ph if ph is not None else "–"), "status": text["baseline"]})
     if district_profile:
-        sources.append({"name": "District agro-climatic profile", "type": f"{district_profile.district}: {district_profile.normal_rainfall_mm:.0f} mm normal rainfall, major crops", "status": "Reference data"})
+        sources.append({"name": text["district"], "type": text["district_type"].format(district=district_profile.district, rain=f"{district_profile.normal_rainfall_mm:.0f}"), "status": text["reference"]})
     else:
-        sources.append({"name": "District agro-climatic profile", "type": f"No profile for {farm.district}", "status": "Not available"})
+        sources.append({"name": text["district"], "type": text["no_district"].format(district=farm.district), "status": text["missing"]})
     return sources
 
 
@@ -722,7 +754,9 @@ def generate_crop_recommendations(
         previous_crop=farm.previous_crop,
         rainfall_7d_forecast_mm=rain_7d,
         mean_max_temp_7d_c=mean_tmax,
-        data_sources_used=_sources_used(farm, soil, evidence, district_profile),
+        data_sources_used=_sources_used(farm, soil, evidence, district_profile, lang),
+        district_main_crops=[CROP_LOCALIZED_NAMES.get(crop, {}).get(lang, crop.replace("_", " ")) for crop in (district_profile.primary_crops if district_profile else ())],
+        previous_crop_name=CROP_LOCALIZED_NAMES.get(norm_previous, {}).get(lang, farm.previous_crop) if farm.previous_crop else None,
         recommendations=eligible_options,
         unsuitable_crops=unsuitable_options,
         regional_notes=reg_notes,

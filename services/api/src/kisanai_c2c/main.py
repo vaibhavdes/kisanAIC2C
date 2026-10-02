@@ -266,30 +266,24 @@ def speak(payload: SpeechRequest, actor: Actor = Depends(current_actor)):
 
 @app.get("/api/v1/farms/{farm_id}/satellite/map")
 def satellite_map(farm_id: str, index: str = "NDVI", days: int = Query(30, ge=7, le=120), locale: str = "en-IN", actor: Actor = Depends(current_actor), svc: AppService = Depends(service)):
+    from .satellite_explain import explain_map, narrative, scene_note, simple_label
     farm = svc.farm(actor, farm_id)
-    from .providers.satellite import SatelliteProvider
-    from .satellite_explain import explain_map, simple_label
-    result = SatelliteProvider(get_settings()).satellite_map(farm, index=index, days=days)
-    # The cached map is shared across languages; the plain-language text is added per request.
+    result = svc.satellite_map(actor, farm_id, index=index, days=days)
+    # The stored map is shared across languages; the plain-language text is added per request.
     zones = [z.model_copy(update={"simple_label": simple_label(result.index, z.id - 1, locale)}) for z in result.zones]
     has_boundary = len(farm.boundary_coordinates or []) >= 3
     return result.model_copy(update={
         "zones": zones,
         "simple_summary": explain_map(result.index, zones, result.scene_date, has_boundary, locale),
+        "acquisition_note": scene_note(result.scene_date, result.clear_percent, has_boundary, locale) or result.acquisition_note,
+        "field_status_narrative": narrative(result.index, result.median, zones, locale) or result.field_status_narrative,
     })
 
 
 @app.get("/api/v1/farms/{farm_id}/satellite/image")
 def satellite_image(farm_id: str, index: str = "NDVI", days: int = Query(30, ge=7, le=120), actor: Actor = Depends(current_actor), svc: AppService = Depends(service)):
-    farm = svc.farm(actor, farm_id)
-    from .providers.satellite import SatelliteProvider
-    from .settings import get_settings
-    content, content_type = SatelliteProvider(get_settings()).satellite_image_bytes(farm, index=index, days=days)
-    return Response(
-        content=content,
-        media_type=content_type,
-        headers={"Cache-Control": "public, max-age=3600"},
-    )
+    content = svc.satellite_image(actor, farm_id, index=index, days=days)
+    return Response(content=content, media_type="image/png", headers={"Cache-Control": "private, max-age=3600"})
 
 
 @app.get("/api/v1/farms/{farm_id}/weather/operational")

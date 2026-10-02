@@ -2056,3 +2056,11 @@ button.timestamp-badge { cursor: pointer; font: inherit; font-size: 12px; color:
   background: #fef2f2;
 }
 .crop-factor-status.rejected { background: #fee2e2; color: #991b1b; }
+.expert-code { display: grid; gap: 10px; max-width: 360px; margin-top: 12px; }
+.expert-code label { display: grid; gap: 6px; font-weight: 600; font-size: 14px; }
+.expert-code input { padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: 10px; font-size: 15px; }
+.fert-source { font-style: italic; }
+@media (max-width: 760px) {
+  .sat-body { grid-template-columns: 1fr; }
+  .sat-table { font-size: 12px; }
+}

@@ -60,8 +60,9 @@ class SQLiteDocumentStore:
                     document_id,
                     value.get("node_id"),
                     value.get("owner_subject"),
-                    value.get("created_at"),
-                    value.get("updated_at") or value.get("created_at"),
+                    # Evidence carries only fetched_at; it is used for newest-first ordering too.
+                    value.get("created_at") or value.get("fetched_at"),
+                    value.get("updated_at") or value.get("created_at") or value.get("fetched_at"),
                     encoded,
                 ),
             )

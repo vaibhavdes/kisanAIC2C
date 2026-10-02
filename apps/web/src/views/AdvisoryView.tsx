@@ -230,7 +230,7 @@ export function AdvisoryView({ t, locale, farm, satMap, satIndex, loadSatMap, ev
                   <span>{t.overlay_opacity}</span>
                   <input type="range" min={0} max={100} value={Math.round(overlayOpacity * 100)} onChange={e => setOverlayOpacity(Number(e.target.value) / 100)} />
                 </label>
-                <small className="muted">{satMap.meaning} · {satMap.scene_date}{satMap.cloud_coverage_percent != null ? ` · ☁ ${satMap.cloud_coverage_percent}%` : ""}</small>
+                <small className="muted">{explain(satIndex.toLowerCase(), locale)?.title || satMap.meaning} · {satMap.scene_date}{satMap.cloud_coverage_percent != null ? ` · ☁ ${satMap.cloud_coverage_percent}%` : ""}</small>
               </div>
               <div>
                 <table className="sat-table">
@@ -269,11 +269,14 @@ export function AdvisoryView({ t, locale, farm, satMap, satIndex, loadSatMap, ev
       <div className="plan-bar">
         <p className="muted">{t.plan_desc}</p>
         <div className="plan-controls">
-          <select value={season} onChange={e => handleSeasonChange(e.target.value)}>
-            <option value="kharif">Kharif</option>
-            <option value="rabi">Rabi</option>
-            <option value="summer">Summer</option>
-          </select>
+          {/* A plan for a planted crop covers that crop, so the season choice only matters when planning. */}
+          {!(farm.crop_status === "planted" && farm.current_crop) && (
+            <select value={season} onChange={e => handleSeasonChange(e.target.value)} aria-label={t.planning_season}>
+              <option value="kharif">Kharif</option>
+              <option value="rabi">Rabi</option>
+              <option value="summer">Summer</option>
+            </select>
+          )}
           <input
             value={question}
             onChange={e => setQuestion(e.target.value)}

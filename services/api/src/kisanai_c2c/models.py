@@ -248,9 +248,8 @@ class SatelliteMapResult(BaseModel):
     farm_id: str
     index: str  # NDVI, NDWI, NDMI
     meaning: str  # human label: "Crop growth map", etc.
-    map_url: str | None = None  # Earth Engine thumbnail URL
-    fallback_map_url: str | None = None  # Google Maps Static API URL (always available)
-    image_api_path: str | None = None  # Local authenticated proxy: /api/v1/farms/{id}/satellite/image?index=NDVI
+    map_url: str | None = None  # Earth Engine thumbnail link; expires within hours, so never stored or sent
+    image_api_path: str | None = None  # Stored PNG served by /api/v1/farms/{id}/satellite/image?index=NDVI
     start_date: str
     end_date: str
     scene_date: str | None = None  # Exact observation date e.g. "07 Sep 2026, 05:33 UTC"
@@ -265,6 +264,8 @@ class SatelliteMapResult(BaseModel):
     acquisition_note: str | None = None
     simple_summary: str | None = None  # plain-language explanation in the requested locale
     bounds: list[list[float]] | None = None  # [[south, west], [north, east]] of the map image
+    clear_percent: int | None = None  # share of the area without clouds in the scene used
+    median: float | None = None  # median index value over the area
 
 
 class AdvisoryRequest(BaseModel):
@@ -320,7 +321,9 @@ class CropRecommendationResult(BaseModel):
     data_sources_used: list[dict[str, str]] = Field(default_factory=list)
     recommendations: list[CropPracticeOption] = Field(default_factory=list)
     unsuitable_crops: list[CropPracticeOption] = Field(default_factory=list)
-    regional_notes: str | None = None
+    regional_notes: str | None = None  # English reference text from the district profile
+    district_main_crops: list[str] = Field(default_factory=list)  # in the requested language
+    previous_crop_name: str | None = None
 
 
 class AdvisoryAction(BaseModel):

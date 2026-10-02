@@ -16,6 +16,7 @@ interface HomeViewProps {
   setSelected: (id: string) => void;
   go: (v: View) => void;
   onDeleteFarm?: (id: string) => Promise<void>;
+  onNewFarm: () => void;
   evidence: Json[];
   operational: Json | null;
   cropRecs: Json | null;
@@ -31,7 +32,7 @@ const TAG_CLASS: Record<string, string> = {
 };
 
 export const HomeView: React.FC<HomeViewProps> = ({
-  t, locale, farms, selected, setSelected, go, onDeleteFarm, evidence, operational, cropRecs, loadingWeather, loadingRecs
+  t, locale, farms, selected, setSelected, go, onDeleteFarm, onNewFarm, evidence, operational, cropRecs, loadingWeather, loadingRecs
 }) => {
   const farm = farms.find(f => f.id === selected) || farms[0];
   const [showFarms, setShowFarms] = useState(false);
@@ -86,14 +87,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
           <h2>{farm.name}</h2>
           <span className="muted">
             <MapPin size={13} /> {[farm.village, farm.district, farm.state_name].filter(Boolean).join(", ")} · {farm.area_value} {farm.area_unit}
-            {farm.soil_type && farm.soil_type !== "unknown" ? ` · ${farm.soil_type}` : ""}
+            {farm.soil_type && farm.soil_type !== "unknown" ? ` · ${(t[`soil_${farm.soil_type}`] || farm.soil_type).replace(/^\S+\s/, "")}` : ""}
           </span>
         </div>
         <div className="home-farm-actions">
           <button className="secondary small" onClick={() => setShowFarms(!showFarms)} aria-expanded={showFarms}>
             {t.home_your_farms} ({farms.length}) {showFarms ? "▴" : "▾"}
           </button>
-          <button className="secondary small" onClick={() => go("farm")}><Plus size={14} />{t.home_new_farm}</button>
+          <button className="secondary small" onClick={onNewFarm}><Plus size={14} />{t.home_new_farm}</button>
         </div>
       </div>
 

@@ -54,7 +54,6 @@ DOSE_SOURCES: dict[str, str] = {
     "sugarcane": "MPKV Rahuri, suru sugarcane (250:115:115)",
     "rice": "Dr. BSKKV Dapoli, kharif rice in Konkan (100:50:50)",
 }
-DOSE_NOTE = "Confirm with your local KVK or agriculture officer."
 
 # Legumes fix their own nitrogen; all fertilizer goes in at sowing.
 LEGUMES = {"soybean", "pigeon_pea", "chickpea", "groundnut"}
@@ -174,6 +173,6 @@ def fertilizer_plan(farm: Farm, soil: SoilTest | None, crop: str, season: str | 
         "organic_advice": organic_advice,
         "legume": legume,
         "rhizobium_advice": legume,
-        "source": f"{DOSE_SOURCES[crop]}. {DOSE_NOTE}",
+        "source": DOSE_SOURCES[crop],  # the screen adds "confirm with your KVK" in the farmer's language
         "rating_source": "Soil test rating thresholds (ICAR): low / medium / high adjust dose by +25 % / 0 / -25 %",
     }

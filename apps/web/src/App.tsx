@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AlertTriangle } from "lucide-react";
 import { api } from "./api";
 import { View, Locale, Json } from "./types";
@@ -22,7 +22,17 @@ import { DiagnoseView } from "./views/DiagnoseView";
 import { ExpertView } from "./views/ExpertView";
 
 export function App() {
-  const [view, setView] = useState<View>("home");
+  const [view, setViewState] = useState<View>("home");
+  // The farm screen edits the open farm unless the farmer asked for a new one.
+  const [addingFarm, setAddingFarm] = useState(false);
+  const setView = (next: View) => {
+    setAddingFarm(false);
+    setViewState(next);
+  };
+  const startNewFarm = () => {
+    setAddingFarm(true);
+    setViewState("farm");
+  };
   const [locale, setLocale] = useState<Locale>(() => {
     const saved = localStorage.getItem("kisanai_locale");
     if (saved && ["en-IN", "hi-IN", "mr-IN", "te-IN", "kn-IN"].includes(saved)) {
@@ -55,6 +65,10 @@ export function App() {
 
   const t = copy[locale] || copy["en-IN"];
   const farm = farms.find(f => f.id === selected) || farms[0];
+  // Replies for a farm that is no longer open are dropped, so a slow reply cannot show another farm's data.
+  const openFarmId = useRef<string | undefined>(undefined);
+  openFarmId.current = farm?.id;
+  const stillOpen = (id: string) => openFarmId.current === id;
 
   const selectLanguage = (l: Locale) => {
     setLocale(l);
@@ -100,9 +114,10 @@ export function App() {
   const loadSatMap = async (index: string) => {
     if (!farm) return;
     setSatIndex(index);
+    const id = farm.id;
     try {
-      const res = await api<Json>(`/api/v1/farms/${farm.id}/satellite/map?index=${index}&days=30&locale=${locale}`);
-      setSatMap(res);
+      const res = await api<Json>(`/api/v1/farms/${id}/satellite/map?index=${index}&days=30&locale=${locale}`);
+      if (stillOpen(id)) setSatMap(res);
     } catch (err) {
       console.warn("Satellite map error", err);
     }
@@ -110,10 +125,11 @@ export function App() {
 
   const loadOperational = async (targetSeason?: string) => {
     if (!farm) return;
+    const id = farm.id;
     try {
       const s = targetSeason || season;
-      const data = await api<Json>(`/api/v1/farms/${farm.id}/weather/operational?season=${s}&locale=${locale}`);
-      setOperational(data);
+      const data = await api<Json>(`/api/v1/farms/${id}/weather/operational?season=${s}&locale=${locale}`);
+      if (stillOpen(id)) setOperational(data);
     } catch (e) {
       console.warn("Operational forecast fetch issue", e);
     }
@@ -122,10 +138,11 @@ export function App() {
   const loadCropRecs = async (targetSeason?: string) => {
     if (!farm) return;
     setLoadingRecs(true);
+    const id = farm.id;
     try {
       const s = targetSeason || season;
-      const data = await api<Json>(`/api/v1/farms/${farm.id}/crop-recommendations?season=${s}&locale=${locale}`);
-      setCropRecs(data);
+      const data = await api<Json>(`/api/v1/farms/${id}/crop-recommendations?season=${s}&locale=${locale}`);
+      if (stillOpen(id)) setCropRecs(data);
     } catch (err) {
       console.warn("Crop recommendation fetch error", err);
     } finally {
@@ -142,6 +159,14 @@ export function App() {
   useEffect(() => { load(); }, []);
 
   useEffect(() => {
+    setEvidence([]);
+    setOperational(null);
+    setCropRecs(null);
+    setSatMap(null);
+    if (farm) localStorage.setItem("kisanai_cached_farm", JSON.stringify(farm));
+  }, [farm?.id]);
+
+  useEffect(() => {
     if (!farm) return;
     const loadWeather = async () => {
       setLoadingWeather(true);
@@ -149,7 +174,8 @@ export function App() {
         // The operational endpoint refetches the forecast on the server when it is older than 3 hours,
         // so load it first and then read the evidence it produced.
         await loadOperational(season);
-        setEvidence(await api<Json[]>(`/api/v1/farms/${farm.id}/evidence`));
+        const snapshots = await api<Json[]>(`/api/v1/farms/${farm.id}/evidence`);
+        if (stillOpen(farm.id)) setEvidence(snapshots);
       } catch (e) {
         console.warn("Weather load issue", e);
       } finally {
@@ -238,6 +264,7 @@ export function App() {
             setSelected={setSelected}
             go={setView}
             onDeleteFarm={deleteFarm}
+            onNewFarm={startNewFarm}
             evidence={evidence}
             operational={operational}
             cropRecs={cropRecs}
@@ -247,7 +274,9 @@ export function App() {
         )}
         {view === "farm" && (
           <FarmFormView
+            key={addingFarm || !farm ? "new" : `${farm.id}-${farm.version}`}
             t={t}
+            farm={addingFarm ? undefined : farm}
             done={async (id) => {
               await load();
               setSelected(id);

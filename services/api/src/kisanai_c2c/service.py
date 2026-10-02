@@ -23,6 +23,7 @@ from .models import (
     FarmCreate,
     MediaRecord,
     Role,
+    SatelliteMapResult,
     SoilExtraction,
     SoilTest,
     SoilTestCreate,
@@ -38,6 +39,8 @@ from .store import DocumentStore, get_store
 # Open-Meteo updates its models hourly; older forecasts are refetched before giving advice.
 WEATHER_MAX_AGE = timedelta(hours=3)
 SATELLITE_MAX_AGE = timedelta(days=5)
+# A field's satellite map (zones + PNG) is stored and reused for a day, then fetched again.
+SATELLITE_MAP_MAX_AGE = timedelta(days=1)
 
 
 class AppService:
@@ -117,6 +120,7 @@ class AppService:
         for collection in ("evidence", "soil_tests", "soil_extractions", "advisories"):
             for item in self.store.list(collection, filters={"farm_id": farm_id}, limit=500):
                 self.store.delete(collection, item["id"])
+        self._drop_satellite_maps(farm_id)
         return self.store.delete("farms", farm_id)
 
     def upsert_farm(self, actor: Actor, farm_id: str, payload: FarmCreate, expected_version: int | None = None, client_ip: str | None = None, device_id: str | None = None) -> Farm:
@@ -132,7 +136,9 @@ class AppService:
         if expected_version is not None and current.version != expected_version:
             raise RuntimeError("Farm version conflict")
         area_ha = payload.area_value if payload.area_unit == "hectare" else payload.area_value * 0.40468564224
-        updated = current.model_copy(update={
+        # Validate the merged record so nested fields (location) are proper models, not dicts.
+        updated = Farm.model_validate({
+            **current.model_dump(),
             **payload.model_dump(exclude={"id", "creator_ip"}),
             "creator_ip": current.creator_ip or client_ip,
             "area_ha": round(area_ha, 4),
@@ -140,6 +146,12 @@ class AppService:
             "updated_at": datetime.now(UTC),
         })
         self.store.put("farms", farm_id, updated.model_dump(mode="json"))
+        moved = (updated.location.latitude, updated.location.longitude) != (current.location.latitude, current.location.longitude)
+        if moved or updated.boundary_coordinates != current.boundary_coordinates:
+            # Weather and satellite readings belong to the old place; fetch them again.
+            for item in self.store.list("evidence", filters={"farm_id": farm_id}, limit=500):
+                self.store.delete("evidence", item["id"])
+            self._drop_satellite_maps(farm_id)
         return self._public(updated)
 
     def update_farm(self, actor: Actor, farm_id: str, payload: FarmCreate, expected_version: int, client_ip: str | None = None, device_id: str | None = None) -> Farm:
@@ -196,8 +208,7 @@ class AppService:
         farm = self.farm(actor, farm_id)
         snapshots = WeatherProvider(self.settings).fetch(farm)
         if not include_satellite:
-            for snapshot in snapshots:
-                self.store.put("evidence", snapshot.id, snapshot.model_dump(mode="json"))
+            self._store_evidence(farm.id, snapshots)
             return snapshots
         try:
             snapshots.append(SatelliteProvider(self.settings).fetch(farm))
@@ -214,9 +225,78 @@ class AppService:
                     source_reference="COPERNICUS/S2_SR_HARMONIZED",
                 )
             )
+        self._store_evidence(farm.id, snapshots)
+        return snapshots
+
+    def _store_evidence(self, farm_id: str, snapshots: list[EvidenceSnapshot]) -> None:
+        """Save new snapshots and delete the ones they replace, so a farm keeps one per source and kind.
+
+        A failed ("missing") fetch is saved but does not remove the last good reading.
+        """
         for snapshot in snapshots:
             self.store.put("evidence", snapshot.id, snapshot.model_dump(mode="json"))
-        return snapshots
+        replaced = {(snap.provider, snap.kind) for snap in snapshots if snap.mode != "missing"}
+        fresh = {snap.id for snap in snapshots}
+        for item in self.store.list("evidence", filters={"farm_id": farm_id}, limit=500):
+            if item["id"] not in fresh and (item.get("provider"), item.get("kind")) in replaced:
+                self.store.delete("evidence", item["id"])
+
+    def satellite_map(self, actor: Actor, farm_id: str, index: str = "NDVI", days: int = 30) -> SatelliteMapResult:
+        """The field's satellite map, from the database when a stored one is under a day old.
+
+        The zones and the PNG are stored together (PNG in the media store, since the Earth Engine
+        link expires) and dropped when the field is moved, redrawn or deleted.
+        """
+        farm = self.farm(actor, farm_id)
+        index = index.upper()
+        doc_id = f"{farm.id}_{index}_{days}"
+        shape = SatelliteProvider.shape_key(farm)
+        stored = self.store.get("satellite_maps", doc_id)
+        if (
+            stored and stored.get("shape") == shape and stored.get("image_uri")
+            and datetime.now(UTC) - datetime.fromisoformat(stored["fetched_at"]) < SATELLITE_MAP_MAX_AGE
+        ):
+            return SatelliteMapResult.model_validate(stored["result"])
+
+        provider = SatelliteProvider(self.settings)
+        result = provider.satellite_map(farm, index=index, days=days)
+        if result.data_mode != "live" or not result.map_url:
+            return result
+        try:
+            image = provider.download_image(result.map_url)
+        except Exception as exc:
+            return result.model_copy(update={"data_mode": "missing", "zones": [], "map_url": None, "acquisition_note": str(exc)})
+        image_uri, _ = self.media_store.save(image, "image/png", folder="satellite")
+        if stored and stored.get("image_uri"):
+            self._delete_media(stored["image_uri"])
+        result = result.model_copy(update={"map_url": None})
+        now = datetime.now(UTC)
+        self.store.put("satellite_maps", doc_id, {
+            "id": doc_id, "farm_id": farm.id, "node_id": farm.node_id, "index": index, "days": days,
+            "shape": shape, "image_uri": image_uri,
+            "fetched_at": now.isoformat(), "created_at": now.isoformat(),
+            "result": result.model_dump(mode="json"),
+        })
+        return result
+
+    def satellite_image(self, actor: Actor, farm_id: str, index: str = "NDVI", days: int = 30) -> bytes:
+        result = self.satellite_map(actor, farm_id, index=index, days=days)
+        stored = self.store.get("satellite_maps", f"{farm_id}_{index.upper()}_{days}")
+        if not stored or not stored.get("image_uri"):
+            raise SatelliteUnavailable(result.acquisition_note or "Satellite map is not available")
+        return self.media_store.read(stored["image_uri"])
+
+    def _drop_satellite_maps(self, farm_id: str) -> None:
+        for item in self.store.list("satellite_maps", filters={"farm_id": farm_id}, limit=500):
+            if item.get("image_uri"):
+                self._delete_media(item["image_uri"])
+            self.store.delete("satellite_maps", item["id"])
+
+    def _delete_media(self, storage_uri: str) -> None:
+        try:
+            self.media_store.delete(storage_uri)
+        except Exception:
+            pass  # an orphaned PNG is harmless; the record that pointed to it is gone
 
     def evidence(self, actor: Actor, farm_id: str) -> list[EvidenceSnapshot]:
         """Newest snapshot per (provider, kind) for the farm, newest first."""

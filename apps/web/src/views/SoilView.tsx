@@ -223,7 +223,7 @@ export function SoilView({ t, locale, farm, cropRecs, season, go, onSoilSaved }:
               <b>N {plan.adjusted_dose_kg_ha.n}</b>
               <b>P₂O₅ {plan.adjusted_dose_kg_ha.p2o5}</b>
               <b>K₂O {plan.adjusted_dose_kg_ha.k2o}</b>
-              <small className="muted">(RDF {plan.recommended_dose_kg_ha.n}:{plan.recommended_dose_kg_ha.p2o5}:{plan.recommended_dose_kg_ha.k2o}, ±25% by soil rating)</small>
+              <small className="muted">({t.fert_rdf_note.replace("{rdf}", `${plan.recommended_dose_kg_ha.n}:${plan.recommended_dose_kg_ha.p2o5}:${plan.recommended_dose_kg_ha.k2o}`)})</small>
             </div>
             <table className="fert-table">
               <thead>
@@ -247,9 +247,9 @@ export function SoilView({ t, locale, farm, cropRecs, season, go, onSoilSaved }:
               </tbody>
             </table>
             {plan.rhizobium_advice && <p className="fert-note">🌱 {t.fert_rhizobium}</p>}
-            {plan.organic_advice && <p className="fert-note">🍂 {t.fert_organic_low} {plan.organic_advice}</p>}
+            {plan.organic_advice && <p className="fert-note">🍂 {t.fert_organic_low} {t.fert_organic_advice}</p>}
             <p className="muted small-text">
-              {plan.soil_source === "soil_test" ? t.fert_note_test : t.fert_note_baseline} {plan.source}
+              {plan.soil_source === "soil_test" ? t.fert_note_test : t.fert_note_baseline} {t.fert_confirm} <span className="fert-source">{plan.source}</span>
             </p>
           </>
         ) : (

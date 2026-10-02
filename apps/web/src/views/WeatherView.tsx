@@ -81,7 +81,7 @@ export function WeatherView({
           🛰️ Sentinel-2: {satMap ? (satMap.scene_date || t.scene_pending) : t.loading}
         </span>
         <button className="timestamp-badge soil" onClick={() => go("soil")}>
-          🌱 {t.soil_profile_title}: {farm.soil_type && farm.soil_type !== "unknown" ? farm.soil_type : "--"} →
+          🌱 {t.soil_profile_title}: {farm.soil_type && farm.soil_type !== "unknown" ? (t[`soil_${farm.soil_type}`] || farm.soil_type).replace(/^\S+\s/, "") : "--"} →
         </button>
       </div>
 

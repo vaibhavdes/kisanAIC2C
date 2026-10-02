@@ -3,8 +3,6 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 import hashlib
 import json
-import time
-from threading import Lock
 from typing import Any
 
 from ..models import EvidenceSnapshot, EvidenceValue, Farm
@@ -42,9 +40,6 @@ INDEX_CLASSES: dict[str, list[tuple[float, float, str, str]]] = {
 }
 INDEX_BANDS = {"NDVI": ("B8", "B4"), "NDMI": ("B8", "B11"), "NDWI": ("B3", "B8")}
 SQ_M_PER_ACRE = 4046.8564224
-MAP_CACHE_SECONDS = 6 * 3600
-_MAP_CACHE: dict[str, tuple[float, Any, bytes | None]] = {}
-_MAP_LOCK = Lock()
 
 
 class SatelliteProvider:
@@ -195,46 +190,31 @@ class SatelliteProvider:
         return meanings[index], vis, {c[2]: c[3] for c in classes}
 
     @staticmethod
-    def _cache_key(farm: Farm, index: str, days: int) -> str:
+    def shape_key(farm: Farm) -> str:
+        """Fingerprint of the field's position and shape; a stored map is reused only while it matches."""
         shape = json.dumps([farm.location.latitude, farm.location.longitude, farm.boundary_coordinates, farm.area_value, farm.area_unit])
-        return f"{farm.id}:{index}:{days}:{datetime.now(UTC).date()}:{hashlib.sha1(shape.encode()).hexdigest()[:12]}"
+        return hashlib.sha1(shape.encode()).hexdigest()[:12]
 
-    def satellite_image_bytes(self, farm: Farm, index: str = "NDVI", days: int = 30) -> tuple[bytes, str]:
-        """PNG of the index map, downloaded once from Earth Engine and served from cache after that."""
+    @staticmethod
+    def download_image(map_url: str) -> bytes:
+        """The Earth Engine thumbnail link expires within hours, so the PNG itself is kept."""
         import requests
 
-        key = self._cache_key(farm, index.upper(), days)
-        result = self.satellite_map(farm, index=index, days=days)
-        with _MAP_LOCK:
-            cached = _MAP_CACHE.get(key)
-        if cached and cached[2]:
-            return cached[2], "image/png"
-        if not result.map_url:
-            raise SatelliteUnavailable(result.acquisition_note or "Satellite map is not available")
-        response = requests.get(result.map_url, timeout=20)
+        response = requests.get(map_url, timeout=20)
         if response.status_code != 200 or len(response.content) < 100:
             raise SatelliteUnavailable(f"Earth Engine thumbnail download failed ({response.status_code})")
-        with _MAP_LOCK:
-            if key in _MAP_CACHE:
-                expiry, value, _ = _MAP_CACHE[key]
-                _MAP_CACHE[key] = (expiry, value, response.content)
-        return response.content, response.headers.get("content-type", "image/png")
+        return response.content
 
     def satellite_map(self, farm: Farm, index: str = "NDVI", days: int = 30) -> "SatelliteMapResult":
         """Latest mostly-clear Sentinel-2 scene over the field: index map, measured zone areas and summary.
 
-        Results are cached per farm, index and day; a failure is reported as data_mode="missing"
-        with the reason, never replaced with estimated values.
+        Every call queries Earth Engine; AppService stores the result. A failure is reported as
+        data_mode="missing" with the reason, never replaced with estimated values.
         """
         from ..models import SatelliteMapResult
 
         normalized = index.upper()
         meaning, vis, legend = self._preview_style(normalized)
-        key = self._cache_key(farm, normalized, days)
-        with _MAP_LOCK:
-            cached = _MAP_CACHE.get(key)
-        if cached and cached[0] > time.time():
-            return cached[1]
 
         end = datetime.now(UTC).date()
         start = end - timedelta(days=days)
@@ -246,7 +226,7 @@ class SatelliteProvider:
         )
 
         def missing(reason: str) -> SatelliteMapResult:
-            # Not cached, so the next request tries again.
+            # Not stored, so the next request tries again.
             return SatelliteMapResult(**base, source="earth_engine_sentinel_2", data_mode="missing", zones=[],
                                       field_status_narrative=None, acquisition_note=reason)
 
@@ -317,6 +297,8 @@ class SatelliteProvider:
             **base,
             map_url=map_url,
             bounds=bounds,
+            clear_percent=round(float(clear_share) * 100),
+            median=round(float(median), 3) if median is not None else None,
             scene_date=scene_dt.strftime("%d %b %Y"),
             cloud_coverage_percent=round(float(scene_cloud), 1) if scene_cloud is not None else None,
             field_status_narrative=self._narrative(normalized, median, zones),
@@ -328,8 +310,6 @@ class SatelliteProvider:
                 f"clouds and shadows masked. Area: {scope}."
             ),
         )
-        with _MAP_LOCK:
-            _MAP_CACHE[key] = (time.time() + MAP_CACHE_SECONDS, result, None)
         return result
 
     @staticmethod

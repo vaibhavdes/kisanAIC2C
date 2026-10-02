@@ -112,6 +112,45 @@ T: dict[str, tuple[str, str, str, str, str]] = {
 }
 
 
+T.update({
+    "note_boundary": (
+        "Sentinel-2 photo of {date}; {clear}% of the area cloud-free, clouds and shadows removed. Area: your field boundary.",
+        "{date} की Sentinel-2 फोटो; {clear}% क्षेत्र बादल रहित, बादल व छाया हटाए गए। क्षेत्र: आपके खेत की सीमा।",
+        "{date} चा Sentinel-2 फोटो; {clear}% क्षेत्र ढगविरहित, ढग व सावल्या काढल्या. क्षेत्र: तुमच्या शेताची हद्द.",
+        "{date} నాటి Sentinel-2 ఫోటో; {clear}% ప్రాంతం మేఘరహితం, మేఘాలు, నీడలు తొలగించాం. ప్రాంతం: మీ పొలం హద్దు.",
+        "{date} ರ Sentinel-2 ಫೋಟೋ; {clear}% ಪ್ರದೇಶ ಮೋಡರಹಿತ, ಮೋಡ, ನೆರಳು ತೆಗೆದಿದೆ. ಪ್ರದೇಶ: ನಿಮ್ಮ ಹೊಲದ ಗಡಿ.",
+    ),
+    "note_circle": (
+        "Sentinel-2 photo of {date}; {clear}% of the area cloud-free, clouds and shadows removed. Area: 125 m around the farm point.",
+        "{date} की Sentinel-2 फोटो; {clear}% क्षेत्र बादल रहित, बादल व छाया हटाए गए। क्षेत्र: खेत के बिंदु के आसपास 125 मीटर।",
+        "{date} चा Sentinel-2 फोटो; {clear}% क्षेत्र ढगविरहित, ढग व सावल्या काढल्या. क्षेत्र: शेताच्या बिंदूभोवती 125 मीटर.",
+        "{date} నాటి Sentinel-2 ఫోటో; {clear}% ప్రాంతం మేఘరహితం. ప్రాంతం: పొలం బిందువు చుట్టూ 125 మీ.",
+        "{date} ರ Sentinel-2 ಫೋಟೋ; {clear}% ಪ್ರದೇಶ ಮೋಡರಹಿತ. ಪ್ರದೇಶ: ಹೊಲದ ಬಿಂದುವಿನ ಸುತ್ತ 125 ಮೀ.",
+    ),
+    "narrative": (
+        "Median {index} {median}. Largest part: {label} ({pct}% of the area, {acres} acres).",
+        "मध्य {index} {median}। सबसे बड़ा हिस्सा: {label} ({pct}% क्षेत्र, {acres} एकड़)।",
+        "मध्य {index} {median}. सर्वात मोठा भाग: {label} ({pct}% क्षेत्र, {acres} एकर).",
+        "మధ్యస్థ {index} {median}. పెద్ద భాగం: {label} ({pct}% ప్రాంతం, {acres} ఎకరాలు).",
+        "ಮಧ್ಯಮ {index} {median}. ದೊಡ್ಡ ಭಾಗ: {label} ({pct}% ಪ್ರದೇಶ, {acres} ಎಕರೆ).",
+    ),
+})
+
+
+def scene_note(scene_date: str | None, clear_percent: int | None, has_boundary: bool, locale: str) -> str | None:
+    if not scene_date or clear_percent is None:
+        return None
+    return _t("note_boundary" if has_boundary else "note_circle", locale, date=scene_date, clear=clear_percent)
+
+
+def narrative(index: str, median: float | None, zones: list[Any], locale: str) -> str | None:
+    if median is None or not zones:
+        return None
+    biggest = max(zones, key=lambda zone: zone.percentage)
+    return _t("narrative", locale, index=index, median=f"{median:.2f}", label=biggest.simple_label or biggest.label,
+              pct=round(biggest.percentage), acres=f"{biggest.area_acres:.2f}")
+
+
 def _t(key: str, locale: str, **values: Any) -> str:
     return T[key][LOCALES.index(locale) if locale in LOCALES else 0].format(**values)
 

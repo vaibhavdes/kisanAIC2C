@@ -124,7 +124,7 @@ Copernicus Sentinel-2 imagery is processed through Google Earth Engine for:
 - **NDMI** — vegetation moisture condition
 - **NDRE** — red-edge chlorophyll signal where available
 
-The latest Sentinel-2 scene with at least 60 % clear sky over the field (clouds and shadows masked) is classified into fixed agronomic classes, and the **area of each class is measured** in Earth Engine. Scene date, cloud share and whether the analysis covers the drawn boundary or a 125 m circle are shown. Results are cached per farm and day; if no clear scene exists, the app says so instead of estimating.
+The latest Sentinel-2 scene with at least 60 % clear sky over the field (clouds and shadows masked) is classified into fixed agronomic classes, and the **area of each class is measured** in Earth Engine. Scene date, cloud share and whether the analysis covers the drawn boundary or a 125 m circle are shown. The zones and the map image are saved with the farm (database plus Cloud Storage) and reused for a day, so reopening the field does not call Earth Engine again; they are dropped when the field is redrawn or deleted. If no clear scene exists, the app says so instead of estimating.
 
 ### 🧪 Soil Health Card Reader
 Farmers can upload a Soil Health Card image or PDF. AI extracts available values such as:

@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { CheckCircle2, Clock, RefreshCw, Send, Stethoscope } from "lucide-react";
-import { api } from "../api";
+import { api, expertCode } from "../api";
 import { Json } from "../types";
 
 /** Agronomist queue: Plant Doctor diagnoses the AI flagged as uncertain. */
@@ -10,6 +10,8 @@ export function ExpertView({ t }: { t: Record<string, string> }) {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [images, setImages] = useState<Record<string, string>>({});
+  const [needsCode, setNeedsCode] = useState(false);
+  const [codeInput, setCodeInput] = useState("");
 
   const load = async () => {
     try {
@@ -18,16 +20,30 @@ export function ExpertView({ t }: { t: Record<string, string> }) {
       // Photos need the expert headers, so they are fetched as blobs rather than plain <img src>.
       for (const c of list) {
         if (c.image_url && !images[c.id]) {
-          fetch(c.image_url, { headers: { "X-Actor-Id": "local-expert", "X-Actor-Role": "expert" } })
+          fetch(c.image_url, { headers: { "X-Actor-Id": "local-expert", "X-Actor-Role": "expert", "X-Expert-Code": expertCode() } })
             .then(r => (r.ok ? r.blob() : Promise.reject()))
             .then(blob => setImages(prev => ({ ...prev, [c.id]: URL.createObjectURL(blob) })))
             .catch(() => undefined);
         }
       }
+      setNeedsCode(false);
     } catch (e) {
-      setError((e as Error).message);
+      const message = (e as Error).message;
+      if (/code/i.test(message)) {
+        setNeedsCode(true);
+        setCases([]);
+        return;
+      }
+      setError(message);
       setCases([]);
     }
+  };
+
+  const submitCode = (event: FormEvent) => {
+    event.preventDefault();
+    sessionStorage.setItem("kisanai_expert_code", codeInput.trim());
+    setCases(null);
+    load();
   };
 
   useEffect(() => { load(); }, []);
@@ -59,7 +75,15 @@ export function ExpertView({ t }: { t: Record<string, string> }) {
       <p className="muted">{t.expert_desc}</p>
       {error && <div className="notice error" onClick={() => setError("")}>{error}</div>}
 
-      {cases === null ? (
+      {needsCode ? (
+        <form className="expert-code" onSubmit={submitCode}>
+          <label>
+            <span>{t.expert_code_prompt}</span>
+            <input type="password" value={codeInput} onChange={e => setCodeInput(e.target.value)} autoComplete="off" required />
+          </label>
+          <button className="primary">{t.expert_code_open}</button>
+        </form>
+      ) : cases === null ? (
         <p className="muted"><RefreshCw size={14} className="spin" /> {t.loading}</p>
       ) : cases.length === 0 ? (
         <p className="empty-note">{t.expert_none}</p>

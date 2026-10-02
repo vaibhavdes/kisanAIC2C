@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     node_id: str = "india-node"
     auth_mode: Literal["local", "firebase"] = "local"
     expert_subjects: str = ""
+    expert_access_code: str | None = None  # required for the expert role in local auth mode
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 
     store_provider: Literal["sqlite", "firestore"] = "sqlite"

@@ -9,30 +9,37 @@ import { FieldMap } from "../components/FieldMap";
 
 export interface FarmFormViewProps {
   t: Record<string, string>;
+  /** The farm to edit; without it the form adds a new farm. */
+  farm?: Json;
   done: (id: string) => void;
 }
 
-export function FarmFormView({ t, done }: FarmFormViewProps) {
+const KNOWN_CROPS = new Set(MAHARASHTRA_CROPS.flatMap(category => category.crops.map(crop => crop.id)));
+
+export function FarmFormView({ t, farm, done }: FarmFormViewProps) {
+  const editing = Boolean(farm);
+  const readOnly = editing && !farm?.is_mine;
+  const savedCrop: string = farm?.current_crop || "";
   const [formData, setFormData] = useState({
-    name: "My Farm",
-    pincode: "",
-    state_name: "Maharashtra",
-    state_code: "MH",
-    district: "",
-    village: "",
-    latitude: "19.7500",
-    longitude: "75.7100",
-    area_value: "1",
-    area_unit: "acre",
-    water_access: "rainfed",
-    soil_type: "black",
-    current_crop: "",
-    custom_crop: "",
-    previous_crop: "",
-    crop_status: "planning"
+    name: farm?.name ?? "My Farm",
+    pincode: farm?.pincode ?? "",
+    state_name: farm?.state_name ?? "Maharashtra",
+    state_code: farm?.state_code ?? "MH",
+    district: farm?.district ?? "",
+    village: farm?.village ?? "",
+    latitude: farm ? String(farm.location.latitude) : "19.7500",
+    longitude: farm ? String(farm.location.longitude) : "75.7100",
+    area_value: farm ? String(farm.area_value) : "1",
+    area_unit: farm?.area_unit ?? "acre",
+    water_access: farm?.water_access ?? "rainfed",
+    soil_type: farm?.soil_type ?? "black",
+    current_crop: !savedCrop ? "" : KNOWN_CROPS.has(savedCrop) ? savedCrop : "custom",
+    custom_crop: savedCrop && !KNOWN_CROPS.has(savedCrop) ? savedCrop : "",
+    previous_crop: farm?.previous_crop ?? "",
+    crop_status: farm?.crop_status ?? "planning"
   });
 
-  const [boundaryCoords, setBoundaryCoords] = useState<Array<[number, number]>>([]);
+  const [boundaryCoords, setBoundaryCoords] = useState<Array<[number, number]>>(farm?.boundary_coordinates ?? []);
   const [busy, setBusy] = useState(false);
   const [pincodeLoading, setPincodeLoading] = useState(false);
   const [pincodeMsg, setPincodeMsg] = useState("");
@@ -246,8 +253,8 @@ export function FarmFormView({ t, done }: FarmFormViewProps) {
 
     try {
       const cropToSave = formData.current_crop === "custom" ? formData.custom_crop : formData.current_crop;
-      const f = await api<Json>("/api/v1/farms", {
-        method: "POST",
+      const f = await api<Json>(editing ? `/api/v1/farms/${farm!.id}?version=${farm!.version}` : "/api/v1/farms", {
+        method: editing ? "PUT" : "POST",
         body: JSON.stringify({
           name: formData.name || "My Farm",
           pincode: formData.pincode || null,
@@ -282,17 +289,17 @@ export function FarmFormView({ t, done }: FarmFormViewProps) {
   };
 
   const soilTypes = [
-    { id: "black", label: "⬛ Deep Black (Regur / काळी माती)" },
-    { id: "red", label: "🟫 Red Sandy Loam (तांबडी माती)" },
-    { id: "alluvial", label: "🟨 Alluvial Soil (गाळाची माती)" },
-    { id: "loam", label: "🪨 Clay Loam (पोयटा माती)" },
-    { id: "sandy", label: "🏜️ Light Sandy (हलकी मुरमाड)" }
+    { id: "black", label: t.soil_black },
+    { id: "red", label: t.soil_red },
+    { id: "alluvial", label: t.soil_alluvial },
+    { id: "loam", label: t.soil_loam },
+    { id: "sandy", label: t.soil_sandy }
   ];
 
   const waterOptions = [
-    { id: "rainfed", label: "🌧️ Rainfed (जिरायती / Monsoon)" },
-    { id: "supplemental_irrigation", label: "💧 Well / Supplemental (बागायती / विहीर)" },
-    { id: "irrigated", label: "🚿 Canal / Drip Irrigated (कॅनल / ठिबक)" }
+    { id: "rainfed", label: t.water_rainfed },
+    { id: "supplemental_irrigation", label: t.water_supplemental },
+    { id: "irrigated", label: t.water_irrigated }
   ];
 
   return (
@@ -300,8 +307,8 @@ export function FarmFormView({ t, done }: FarmFormViewProps) {
       <div className="section-title">
         <MapPin />
         <div>
-          <small>{t.home_add_farm}</small>
-          <h2>{t.farm}</h2>
+          <small>{editing ? farm!.name : t.home_add_farm}</small>
+          <h2>{editing ? t.edit_farm : t.farm}</h2>
         </div>
       </div>
 
@@ -315,6 +322,7 @@ export function FarmFormView({ t, done }: FarmFormViewProps) {
 
       {(
         <form onSubmit={submit}>
+          {readOnly && <p className="notice">{t.farm_read_only}</p>}
           {/* PIN Code Quick Search Box */}
           <div className="pincode-search-box">
             <span style={{ fontWeight: 700, fontSize: "13px", color: "var(--green-950)", display: "flex", alignItems: "center", gap: "6px" }}>
@@ -408,7 +416,7 @@ export function FarmFormView({ t, done }: FarmFormViewProps) {
                 <MapPin size={15} color="var(--lime-400)" />
                 <span>{t.plot_farm_boundary}</span>
               </div>
-              <div className="plot-toolbar-actions">
+              {!readOnly && <div className="plot-toolbar-actions">
                 <button type="button" className="plot-btn" onClick={autoPlot1Acre}>
                   📐 {t.plot_auto_1ac}
                 </button>
@@ -420,19 +428,19 @@ export function FarmFormView({ t, done }: FarmFormViewProps) {
                     ↺ {t.plot_clear}
                   </button>
                 )}
-              </div>
+              </div>}
             </div>
 
             <FieldMap
               center={[latNum, lonNum]}
               boundary={boundaryCoords}
-              onBoundaryChange={updateBoundary}
+              onBoundaryChange={readOnly ? undefined : updateBoundary}
               recenterKey={`${formData.latitude},${formData.longitude}`}
             />
 
             <div className="plot-info-bar">
               <span>
-                📍 {boundaryCoords.length > 0 ? t.plot_corners.replace("{n}", String(boundaryCoords.length)) : t.plot_helper_tip}
+                📍 {readOnly ? farm!.name : boundaryCoords.length > 0 ? t.plot_corners.replace("{n}", String(boundaryCoords.length)) : t.plot_helper_tip}
               </span>
               <span className="plot-acreage-badge">
                 {formData.area_value} {formData.area_unit}s ({boundaryCoords.length >= 3 ? "✓ Plotted" : "Estimated"})
@@ -528,7 +536,7 @@ export function FarmFormView({ t, done }: FarmFormViewProps) {
 
           {/* Water Access Selection */}
           <div className="form-section">
-            <div className="form-section-title">Water Access & Irrigation</div>
+            <div className="form-section-title">{t.water_section}</div>
             <div className="chip-group">
               {waterOptions.map(w => (
                 <button
@@ -545,7 +553,7 @@ export function FarmFormView({ t, done }: FarmFormViewProps) {
 
           {/* Soil Type Selection */}
           <div className="form-section">
-            <div className="form-section-title">Soil Classification</div>
+            <div className="form-section-title">{t.soil_section}</div>
             <div className="chip-group">
               {soilTypes.map(s => (
                 <button
@@ -626,11 +634,11 @@ export function FarmFormView({ t, done }: FarmFormViewProps) {
           <button
             type="submit"
             className="primary"
-            disabled={busy}
+            disabled={busy || readOnly}
             style={{ width: "100%", padding: "16px", marginTop: "20px", fontSize: "16px" }}
           >
             <CheckCircle2 size={18} />
-            {t.save}
+            {editing ? t.save_changes : t.save}
             <ArrowRight size={18} />
           </button>
         </form>
