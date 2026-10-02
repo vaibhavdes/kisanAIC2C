@@ -40,6 +40,7 @@ INDEX_CLASSES: dict[str, list[tuple[float, float, str, str]]] = {
 }
 INDEX_BANDS = {"NDVI": ("B8", "B4"), "NDMI": ("B8", "B11"), "NDWI": ("B3", "B8")}
 SQ_M_PER_ACRE = 4046.8564224
+EE_DEADLINE_MS = 20_000  # per Earth Engine call
 
 
 class SatelliteProvider:
@@ -51,6 +52,11 @@ class SatelliteProvider:
 
     def __init__(self, settings: Settings | None = None):
         self.settings = settings or get_settings()
+
+    def _init_ee(self, ee) -> None:
+        ee.Initialize(project=self.settings.google_cloud_project)
+        # Without a deadline a slow Earth Engine call holds the request until Cloud Run kills it.
+        ee.data.setDeadline(EE_DEADLINE_MS)
 
     @staticmethod
     def _water_stress(ndvi, ndwi, ndmi) -> str:
@@ -96,41 +102,51 @@ class SatelliteProvider:
             raise SatelliteUnavailable("Earth Engine is disabled")
         try:
             import ee
-            ee.Initialize(project=self.settings.google_cloud_project)
+            self._init_ee(ee)
             end = datetime.now(UTC)
             start = end - timedelta(days=days)
             geometry, _ = self._geometry(ee, farm)
 
-            def add_quality(image):
+            def clear_mask(image):
                 scl = image.select("SCL")
-                clear = scl.neq(1).And(scl.neq(3)).And(scl.neq(7)).And(scl.neq(8)).And(scl.neq(9)).And(scl.neq(10)).And(scl.neq(11))
-                clean = image.updateMask(clear)
-                ndvi = clean.normalizedDifference(["B8", "B4"]).rename("NDVI")
-                ndwi = clean.normalizedDifference(["B3", "B8"]).rename("NDWI")
-                ndmi = clean.normalizedDifference(["B8", "B11"]).rename("NDMI")
-                ndre = clean.normalizedDifference(["B8", "B5"]).rename("NDRE")
-                evi = clean.expression(
-                    "2.5 * ((nir-red) / (nir+6*red-7.5*blue+1))",
-                    {"nir": clean.select("B8").divide(10000), "red": clean.select("B4").divide(10000), "blue": clean.select("B2").divide(10000)},
-                ).rename("EVI")
-                return clean.addBands([ndvi, ndwi, ndmi, ndre, evi])
+                return scl.neq(1).And(scl.neq(3)).And(scl.neq(7)).And(scl.neq(8)).And(scl.neq(9)).And(scl.neq(10)).And(scl.neq(11))
 
+            def with_clear_share(image):
+                share = clear_mask(image).rename("clear").reduceRegion(ee.Reducer.mean(), geometry, 20, maxPixels=250000).get("clear")
+                return image.set("clear_share", share)
+
+            # Same scene choice as the satellite map: the newest one that is mostly clear over the
+            # field. The newest scene alone is often cloudy here, which left every value empty.
             collection = (
                 ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
                 .filterBounds(geometry)
-                .filterDate(start.date().isoformat(), end.date().isoformat())
-                .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 80))
-                .map(add_quality)
+                .filterDate(start.date().isoformat(), (end.date() + timedelta(days=1)).isoformat())
+                .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 70))
+                .map(with_clear_share)
+                .filter(ee.Filter.gte("clear_share", 0.6))
+                .sort("system:time_start", False)
             )
-            times = collection.aggregate_array("system:time_start").getInfo() or []
+            times = collection.limit(1).aggregate_array("system:time_start").getInfo() or []
             if not times:
-                raise SatelliteUnavailable("No Sentinel-2 scenes are available in the selected period")
-            image = collection.sort("system:time_start", False).first()
-            acquired = datetime.fromtimestamp(float(max(times)) / 1000, tz=UTC)
-            # Index means and the clear-pixel share in a single Earth Engine round trip.
+                raise SatelliteUnavailable(f"No Sentinel-2 scene with at least 60% clear sky over the field in the last {days} days")
+            # Indices are computed only for the chosen scene.
+            scene = ee.Image(collection.first())
+            clean = scene.updateMask(clear_mask(scene))
+            image = ee.Image.cat([
+                clean.normalizedDifference(["B8", "B4"]).rename("NDVI"),
+                clean.normalizedDifference(["B3", "B8"]).rename("NDWI"),
+                clean.normalizedDifference(["B8", "B11"]).rename("NDMI"),
+                clean.normalizedDifference(["B8", "B5"]).rename("NDRE"),
+                clean.expression(
+                    "2.5 * ((nir-red) / (nir+6*red-7.5*blue+1))",
+                    {"nir": clean.select("B8").divide(10000), "red": clean.select("B4").divide(10000), "blue": clean.select("B2").divide(10000)},
+                ).rename("EVI"),
+            ])
+            acquired = datetime.fromtimestamp(float(times[0]) / 1000, tz=UTC)
+            # Index medians (as on the map) and the clear-pixel share in one Earth Engine round trip.
             combined = ee.Dictionary({
                 "values": image.select(["NDVI", "NDWI", "NDMI", "NDRE", "EVI"]).reduceRegion(
-                    reducer=ee.Reducer.mean(), geometry=geometry, scale=20, maxPixels=250000),
+                    reducer=ee.Reducer.median(), geometry=geometry, scale=10, maxPixels=1_000_000),
                 "valid": image.select("NDVI").mask().reduceRegion(
                     reducer=ee.Reducer.mean(), geometry=geometry, scale=20, maxPixels=250000),
             }).getInfo() or {}
@@ -235,7 +251,7 @@ class SatelliteProvider:
 
         try:
             import ee
-            ee.Initialize(project=self.settings.google_cloud_project)
+            self._init_ee(ee)
             geometry, _ = self._geometry(ee, farm)
             low_band, high_band = INDEX_BANDS[normalized][1], INDEX_BANDS[normalized][0]
 

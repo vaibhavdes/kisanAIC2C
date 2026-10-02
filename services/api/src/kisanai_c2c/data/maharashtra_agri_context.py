@@ -386,6 +386,14 @@ def _load_dynamic_profiles() -> dict[str, DistrictAgroProfile] | None:
 _DYNAMIC_LOADED: bool = False
 
 
+# Renamed districts and common spellings: map lookups return the new official names.
+DISTRICT_ALIASES = {
+    "ahilyanagar": "ahmednagar",
+    "ahmadnagar": "ahmednagar",
+    "pune city": "pune",
+}
+
+
 def get_district_profile(district_name: str | None) -> DistrictAgroProfile | None:
     """Retrieve agro-climatic profile on-demand (lazy-loaded when requested)."""
     global _DYNAMIC_LOADED
@@ -399,5 +407,6 @@ def get_district_profile(district_name: str | None) -> DistrictAgroProfile | Non
             MAHARASHTRA_DISTRICT_PROFILES.update(dynamic_data)
         _DYNAMIC_LOADED = True
 
-    normalized = district_name.strip().lower()
+    normalized = " ".join(district_name.strip().lower().replace("district", "").split())
+    normalized = DISTRICT_ALIASES.get(normalized, normalized)
     return MAHARASHTRA_DISTRICT_PROFILES.get(normalized)

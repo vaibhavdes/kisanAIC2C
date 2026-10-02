@@ -1051,6 +1051,7 @@ nav.mobile-nav {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  min-width: 0;
 }
 
 .sat-outcome-card.ndmi {
@@ -1076,9 +1077,9 @@ nav.mobile-nav {
 
 .sat-outcome-main {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
 }
 
 .sat-outcome-number {
@@ -1096,7 +1097,8 @@ nav.mobile-nav {
   border-radius: 20px;
   background: #e0f2fe;
   color: #0369a1;
-  white-space: nowrap;
+  max-width: 100%;
+  line-height: 1.35;
 }
 
 .sat-outcome-pill.adequate, .sat-outcome-pill.healthy {
@@ -1860,12 +1862,23 @@ nav.mobile-nav {
 .home-farm-actions select { padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line); font-size: 13px; }
 .home-grid { display: grid; grid-template-columns: 1fr 1.6fr 1fr; gap: 14px; }
 .home-grid > * { background: #fff; border: 1px solid var(--line); border-radius: var(--radius-md); padding: 16px; text-align: left; font: inherit; color: inherit; }
-.home-weather { background: linear-gradient(140deg, var(--green-800), var(--green-900)) !important; color: #fff !important; cursor: pointer; display: grid; gap: 12px; align-content: start; }
-.home-weather-now { display: flex; align-items: baseline; gap: 8px; }
-.home-weather-now strong { font-size: 44px; font-family: 'Fraunces', serif; line-height: 1; }
-.home-weather-now span { color: var(--lime-400); font-size: 12px; font-weight: 700; text-transform: uppercase; }
-.home-weather-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 13px; color: #d7e4da; }
-.home-weather-stats span { display: inline-flex; align-items: center; gap: 6px; }
+.home-weather { background: linear-gradient(140deg, var(--green-800), var(--green-900)) !important; color: #fff !important; cursor: pointer; display: flex; flex-direction: column; gap: 12px; }
+.home-weather-now { display: flex; align-items: center; gap: 10px; }
+.home-weather-icon { font-size: 34px; line-height: 1; }
+.home-weather-now strong { font-size: 40px; font-family: 'Fraunces', serif; line-height: 1; }
+.home-weather-now > span:last-child { color: var(--lime-400); font-size: 12px; font-weight: 700; text-transform: uppercase; align-self: flex-start; margin-top: 4px; }
+.home-weather-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0; }
+.home-weather-stats > div { background: rgba(255,255,255,0.07); border-radius: 10px; padding: 7px 9px; min-width: 0; }
+.home-weather-stats dt { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #b9cfc0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home-weather-stats dd { margin: 2px 0 0; font-size: 14px; font-weight: 700; color: #fff; white-space: nowrap; }
+.home-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; border-top: 1px solid rgba(255,255,255,0.12); padding-top: 10px; }
+.home-week > div { display: grid; justify-items: center; gap: 2px; padding: 4px 0; border-radius: 8px; min-width: 0; }
+.home-week > div.rainy { background: rgba(116,173,209,0.22); }
+.home-week small { font-size: 10px; color: #b9cfc0; white-space: nowrap; }
+.home-week span { font-size: 15px; line-height: 1.2; }
+.home-week b { font-size: 12px; }
+.home-weather-total { margin-top: auto; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 12px; color: #b9cfc0; border-top: 1px solid rgba(255,255,255,0.12); padding-top: 10px; }
+.home-weather-total b { color: #fff; font-size: 14px; }
 .home-weather .muted { color: #cbd8cf; }
 .home-advice { display: grid; gap: 4px; padding: 8px !important; }
 .home-advice-row { display: grid; grid-template-columns: auto auto 1fr; gap: 6px 10px; align-items: center; text-align: left; background: none; border: 0; border-radius: 10px; padding: 8px; cursor: pointer; font: inherit; color: inherit; }
@@ -1998,7 +2011,7 @@ nav.mobile-nav {
 .sat-outcome-pill.stress-low { background: #dcfce7; color: #166534; }
 .sat-outcome-pill.stress-medium { background: var(--amber-100); color: var(--amber-700); }
 .sat-outcome-pill.stress-high { background: var(--red-100); color: var(--red-700); }
-.sat-observed { grid-column: 1 / -1; }
+.sat-observed { display: block; margin: -4px 0 12px; }
 .sat-body > div > small { display: block; margin-top: 6px; }
 small.block { display: block; font-size: 11px; }
 button.timestamp-badge { cursor: pointer; font: inherit; font-size: 12px; color: inherit; }
@@ -2063,4 +2076,46 @@ button.timestamp-badge { cursor: pointer; font: inherit; font-size: 12px; color:
 @media (max-width: 760px) {
   .sat-body { grid-template-columns: 1fr; }
   .sat-table { font-size: 12px; }
+}
+
+/* Responsive guards: grid/flex children and form controls may shrink below their content
+   width (a long dropdown option otherwise pushes the whole page sideways on phones). */
+input, select, textarea { min-width: 0; max-width: 100%; }
+.field { min-width: 0; }
+.field input, .field select, .field textarea { width: 100%; }
+.form-grid > *, .weather-dashboard > *, .sat-body > *, .home-grid > *, .sat-outcome-grid > * { min-width: 0; }
+.pincode-search-box { flex-wrap: wrap; }
+.pincode-input { flex: 1 1 120px; min-width: 0; }
+.sat-index-pick { min-width: 0; max-width: 100%; }
+.sat-index-pick select { min-width: 0; }
+.chat-input input { min-width: 0; }
+.chat-input button { flex-shrink: 0; }
+@media (max-width: 820px) {
+  .form-grid, .weather-dashboard, .sat-body { grid-template-columns: minmax(0, 1fr); }
+}
+.forecast-bars { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.forecast-day-col { min-width: 0; }
+.forecast-day-rain { font-size: 10px; color: var(--muted); text-align: center; line-height: 1.25; }
+.sat-table-wrap { overflow-x: auto; }
+.plan-controls input { min-width: min(200px, 100%); }
+@media (max-width: 480px) {
+  .forecast-bars { gap: 3px; }
+  .sat-table th, .sat-table td { padding: 5px 3px; }
+}
+.home-farm-actions { flex-wrap: wrap; }
+.quick-actions { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.quick-actions button { min-width: 0; overflow-wrap: anywhere; }
+.weather-temp-main { flex-wrap: wrap; }
+.season-btn-group { flex-wrap: wrap; }
+.baseline-meta-item { min-width: 0; overflow-wrap: anywhere; }
+.soil-upload { min-width: min(260px, 100%); }
+@media (max-width: 900px) {
+  .quick-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+.home-today { grid-template-columns: minmax(0, 1fr); }
+.about-grid { grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr)); }
+header { gap: 10px; }
+@media (max-width: 360px) {
+  .brand { gap: 8px; font-size: 17px; }
+  .brand .mark { flex-shrink: 0; }
 }

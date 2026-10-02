@@ -139,3 +139,9 @@ def test_expert_role_needs_access_code_when_configured():
     assert Role.expert in current_actor(None, "e1", "expert", None, "s3cret-code", settings).roles
     # Local development without a configured code keeps working.
     assert Role.expert in current_actor(None, "e1", "expert", None, None, Settings(expert_access_code=None)).roles
+
+
+def test_renamed_district_names_find_the_profile():
+    from kisanai_c2c.data.maharashtra_agri_context import get_district_profile
+    assert get_district_profile("Ahilyanagar").district == "Ahmednagar"  # name returned by map lookups
+    assert get_district_profile("Ahilyanagar District").district == "Ahmednagar"

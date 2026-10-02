@@ -89,7 +89,7 @@ export function WeatherView({
       <div className="weather-dashboard">
         <div className="weather-metric-card">
           <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
               <span className="weather-live-indicator">
                 <span className="weather-live-dot" />
                 {t.weather_updated} {weatherObsDate} · {farm.district}
@@ -177,7 +177,7 @@ export function WeatherView({
                 const heightPct = Math.max(12, Math.round((mm / maxDailyMm) * 85));
                 return (
                   <div key={d.date} className="forecast-day-col">
-                    <span style={{ fontSize: "10px", color: "var(--muted)" }}>{mm.toFixed(1)}mm · {fmt(d.rain_prob)}%</span>
+                    <span className="forecast-day-rain">{mm.toFixed(1)} mm<br />{fmt(d.rain_prob)}%</span>
                     <div
                       className={`forecast-bar-fill ${mm > 0 ? "rainy" : ""}`}
                       style={{ height: `${heightPct}%` }}

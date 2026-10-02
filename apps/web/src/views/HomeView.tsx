@@ -31,6 +31,18 @@ const TAG_CLASS: Record<string, string> = {
   wait: "avoid", avoid: "avoid", irrigate: "avoid", high: "high", unknown: "hold",
 };
 
+// Open-Meteo (WMO) weather code -> icon; the number alone means nothing to a farmer.
+const weatherIcon = (code?: number | null) => {
+  if (code == null) return "🌡️";
+  if (code === 0) return "☀️";
+  if (code <= 2) return "🌤️";
+  if (code === 3) return "☁️";
+  if (code <= 48) return "🌫️";
+  if (code >= 95) return "⛈️";
+  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return "❄️";
+  return "🌧️";
+};
+
 export const HomeView: React.FC<HomeViewProps> = ({
   t, locale, farms, selected, setSelected, go, onDeleteFarm, onNewFarm, evidence, operational, cropRecs, loadingWeather, loadingRecs
 }) => {
@@ -63,7 +75,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
   }
 
   const now = parseWeatherFromEvidence(evidence, locale);
-  const today: Json | undefined = operational?.daily?.[0];
+  const week: Json[] = operational?.daily || [];
+  const today: Json | undefined = week[0];
   const statusLabel = (status?: string) => t[`st_${status || "unknown"}`] || status || "";
   const cards: Array<[string, string, string, string]> = [
     ["sowing", "🌱", t.sowing_window, "sowing"],
@@ -129,14 +142,31 @@ export const HomeView: React.FC<HomeViewProps> = ({
           ) : (
             <>
               <div className="home-weather-now">
-                <strong>{now.temp || "--"}</strong>
+                <span className="home-weather-icon" aria-hidden>{weatherIcon(today?.weather_code)}</span>
+                <strong>{now.temp || (today ? `${Math.round(today.temp_max)}°C` : "--")}</strong>
                 <span>{t.home_now}</span>
               </div>
-              <div className="home-weather-stats">
-                <span><Thermometer size={14} /> {today ? `${Math.round(today.temp_max)}° / ${Math.round(today.temp_min)}°` : "--"}</span>
-                <span><CloudRain size={14} /> {today ? `${today.rain_prob ?? 0}% · ${(today.rain_mm ?? 0).toFixed(1)} mm` : "--"}</span>
-                <span><Wind size={14} /> {today?.wind_max != null ? `${Math.round(today.wind_max)} km/h` : "--"}</span>
-                <span><Droplets size={14} /> {t.forecast_7d}: {operational?.rain_7d_total_mm != null ? `${operational.rain_7d_total_mm} mm` : "--"}</span>
+              <dl className="home-weather-stats">
+                <div><dt><Thermometer size={13} /> {t.col_temp}</dt><dd>{today ? `${Math.round(today.temp_max)}° / ${Math.round(today.temp_min)}°` : "--"}</dd></div>
+                <div><dt><CloudRain size={13} /> {t.col_rain}</dt><dd>{today ? `${Math.round(today.rain_prob ?? 0)}% · ${(today.rain_mm ?? 0).toFixed(1)} mm` : "--"}</dd></div>
+                <div><dt><Wind size={13} /> {t.col_wind}</dt><dd>{today?.wind_max != null ? `${Math.round(today.wind_max)} km/h` : "--"}</dd></div>
+                <div><dt><Droplets size={13} /> {t.col_humidity}</dt><dd>{now.humidity || (today?.humidity != null ? `${Math.round(today.humidity)}%` : "--")}</dd></div>
+              </dl>
+              {week.length > 1 && (
+                <div className="home-week" aria-label={t.forecast_7d}>
+                  {week.map(day => (
+                    <div key={day.date} className={day.rain_mm >= 1 ? "rainy" : ""}>
+                      <small>{String(day.label).split(" ")[0]}</small>
+                      <span aria-hidden>{weatherIcon(day.weather_code)}</span>
+                      <b>{Math.round(day.temp_max)}°</b>
+                      <small>{day.rain_mm >= 1 ? `${Math.round(day.rain_mm)} mm` : "–"}</small>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="home-weather-total">
+                <span>{t.rain_7d_label}</span>
+                <b>{operational?.rain_7d_total_mm != null ? `${operational.rain_7d_total_mm} mm` : "--"}</b>
               </div>
             </>
           )}

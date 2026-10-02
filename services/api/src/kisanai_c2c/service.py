@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
@@ -39,6 +40,8 @@ from .store import DocumentStore, get_store
 # Open-Meteo updates its models hourly; older forecasts are refetched before giving advice.
 WEATHER_MAX_AGE = timedelta(hours=3)
 SATELLITE_MAX_AGE = timedelta(days=5)
+SATELLITE_RETRY_AFTER = timedelta(hours=6)  # after a failed satellite fetch
+SATELLITE_WAIT_SECONDS = 25  # weather is not held up longer than this by the satellite reading
 # A field's satellite map (zones + PNG) is stored and reused for a day, then fetched again.
 SATELLITE_MAP_MAX_AGE = timedelta(days=1)
 
@@ -210,9 +213,10 @@ class AppService:
         if not include_satellite:
             self._store_evidence(farm.id, snapshots)
             return snapshots
+        pool = ThreadPoolExecutor(max_workers=1)
         try:
-            snapshots.append(SatelliteProvider(self.settings).fetch(farm))
-        except SatelliteUnavailable as exc:
+            snapshots.append(pool.submit(SatelliteProvider(self.settings).fetch, farm).result(timeout=SATELLITE_WAIT_SECONDS))
+        except (SatelliteUnavailable, FutureTimeout) as exc:
             snapshots.append(
                 EvidenceSnapshot(
                     farm_id=farm.id,
@@ -221,10 +225,12 @@ class AppService:
                     kind="satellite_observation",
                     mode="missing",
                     spatial_scope="125m_point_buffer",
-                    quality_flags=[str(exc)],
+                    quality_flags=[str(exc) or "Earth Engine did not answer in time"],
                     source_reference="COPERNICUS/S2_SR_HARMONIZED",
                 )
             )
+        finally:
+            pool.shutdown(wait=False)
         self._store_evidence(farm.id, snapshots)
         return snapshots
 
@@ -322,7 +328,11 @@ class AppService:
             # Sentinel-2 revisits every ~5 days, so the satellite query is only repeated when its
             # last observation is older than that; weather alone is refetched otherwise.
             satellite = next((snap for snap in evidence if snap.kind == "satellite_observation"), None)
-            satellite_stale = satellite is None or datetime.now(UTC) - satellite.fetched_at > SATELLITE_MAX_AGE
+            # A failed fetch, or a reading with no index values (cloud over the field), is retried sooner.
+            empty = satellite is not None and (
+                satellite.mode == "missing" or not any(v.name == "ndvi" and v.value is not None for v in satellite.values))
+            max_age = SATELLITE_RETRY_AFTER if empty else SATELLITE_MAX_AGE
+            satellite_stale = satellite is None or datetime.now(UTC) - satellite.fetched_at > max_age
             try:
                 self.refresh_evidence(actor, farm_id, include_satellite=satellite_stale)
                 evidence = self.evidence(actor, farm_id)

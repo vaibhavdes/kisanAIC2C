@@ -198,8 +198,10 @@ export function AdvisoryView({ t, locale, farm, satMap, satIndex, loadSatMap, ev
                 <p className="sat-outcome-simple">{sat.stressSimple}</p>
               </div>
             )}
-            {sat.observedAt && <small className="muted sat-observed">Sentinel-2 · {new Date(sat.observedAt).toLocaleDateString(locale)}</small>}
           </div>
+        )}
+        {sat.hasData && (sat.ndvi || sat.ndmi) && sat.observedAt && (
+          <small className="muted sat-observed">Sentinel-2 · {new Date(sat.observedAt).toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" })}</small>
         )}
 
         {!satMap || satMap.index !== satIndex ? (
@@ -232,7 +234,7 @@ export function AdvisoryView({ t, locale, farm, satMap, satIndex, loadSatMap, ev
                 </label>
                 <small className="muted">{explain(satIndex.toLowerCase(), locale)?.title || satMap.meaning} · {satMap.scene_date}{satMap.cloud_coverage_percent != null ? ` · ☁ ${satMap.cloud_coverage_percent}%` : ""}</small>
               </div>
-              <div>
+              <div className="sat-table-wrap">
                 <table className="sat-table">
                   <thead>
                     <tr>

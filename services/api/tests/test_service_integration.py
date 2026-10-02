@@ -490,3 +490,20 @@ def test_refresh_keeps_one_reading_per_source_and_keeps_good_one_on_failure(serv
     good = service.store.list("evidence", filters={"farm_id": farm.id, "kind": "weather_forecast"})[0]["id"]
     service._store_evidence(farm.id, [snap(mode="missing")])
     assert service.store.get("evidence", good) is not None
+
+
+def test_failed_satellite_reading_is_retried_after_hours_not_days(service: AppService, farmer: Actor, monkeypatch):
+    from datetime import UTC, datetime, timedelta
+    from kisanai_c2c.models import EvidenceSnapshot
+    payload = FarmCreate(name="Retry", state_code="MH", state_name="Maharashtra", district="Pune",
+                         area_value=1, location=Location(latitude=18.5, longitude=73.8), water_access="rainfed")
+    farm = service.create_farm(farmer, payload)
+    old = datetime.now(UTC) - timedelta(hours=7)
+    for kind, provider, mode in (("weather_forecast", "open_meteo", "live"), ("satellite_observation", "earth_engine_sentinel_2", "missing")):
+        snap = EvidenceSnapshot(farm_id=farm.id, node_id=farm.node_id, provider=provider, kind=kind, mode=mode,
+                                spatial_scope="point", source_reference="x", fetched_at=old)
+        service.store.put("evidence", snap.id, snap.model_dump(mode="json"))
+    asked = []
+    monkeypatch.setattr(service, "refresh_evidence", lambda actor, farm_id, include_satellite=True: asked.append(include_satellite) or [])
+    service.current_evidence(farmer, farm.id)
+    assert asked == [True]  # a failed reading 7 h ago is retried; a good one would wait 5 days
