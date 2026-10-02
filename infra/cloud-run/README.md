@@ -11,4 +11,4 @@ Builds the root `Dockerfile` with Cloud Build and deploys the `kisanai-c2c` serv
 - Session affinity keeps a farmer's Krishi Mitra chat on the same instance (chat memory is in-process and expires after 5 minutes).
 - IMD warnings are off until IMD API credentials are added.
 - The service account needs Vertex AI, Earth Engine and Speech/Text-to-Speech access.
-- Expert review needs the code stored in Secret Manager secret `kisanai-ag02-expert-code`; the runtime account has secret accessor on that secret only. Share the code with reviewers privately.
+- Expert review is open to everyone for the demo. To lock it later, set `EXPERT_ACCESS_CODE` on the service; the expert screen then asks for that code.
