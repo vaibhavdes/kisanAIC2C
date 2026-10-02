@@ -213,3 +213,15 @@ export function getImdWarningLevel(
   }
   return { level: null, msg: "" };
 }
+
+// Open-Meteo (WMO) weather code -> icon; the number alone means nothing to a farmer.
+export const weatherIcon = (code?: number | null) => {
+  if (code == null) return "🌡️";
+  if (code === 0) return "☀️";
+  if (code <= 2) return "🌤️";
+  if (code === 3) return "☁️";
+  if (code <= 48) return "🌫️";
+  if (code >= 95) return "⛈️";
+  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return "❄️";
+  return "🌧️";
+};

@@ -4,7 +4,7 @@ import {
   Sprout, Thermometer, Trash2, Wind
 } from "lucide-react";
 import { Json, Locale, TranslationDictionary, View } from "../types";
-import { parseWeatherFromEvidence } from "../utils/weather";
+import { parseWeatherFromEvidence, weatherIcon } from "../utils/weather";
 import { InfoTip, ListenButton } from "../components/InfoTip";
 import { PlatformInfo } from "../components/PlatformInfo";
 
@@ -29,18 +29,6 @@ const TAG_CLASS: Record<string, string> = {
   ready: "safe", safe: "safe", not_needed: "safe", low: "safe", normal: "safe",
   marginal: "caution", caution: "caution", monitor: "caution", moderate: "moderate", conserve: "caution", cold: "caution",
   wait: "avoid", avoid: "avoid", irrigate: "avoid", high: "high", unknown: "hold",
-};
-
-// Open-Meteo (WMO) weather code -> icon; the number alone means nothing to a farmer.
-const weatherIcon = (code?: number | null) => {
-  if (code == null) return "🌡️";
-  if (code === 0) return "☀️";
-  if (code <= 2) return "🌤️";
-  if (code === 3) return "☁️";
-  if (code <= 48) return "🌫️";
-  if (code >= 95) return "⛈️";
-  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return "❄️";
-  return "🌧️";
 };
 
 export const HomeView: React.FC<HomeViewProps> = ({
@@ -75,8 +63,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   }
 
   const now = parseWeatherFromEvidence(evidence, locale);
-  const week: Json[] = operational?.daily || [];
-  const today: Json | undefined = week[0];
+  const today: Json | undefined = operational?.daily?.[0];
   const statusLabel = (status?: string) => t[`st_${status || "unknown"}`] || status || "";
   const cards: Array<[string, string, string, string]> = [
     ["sowing", "🌱", t.sowing_window, "sowing"],
@@ -152,18 +139,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 <div><dt><Wind size={13} /> {t.col_wind}</dt><dd>{today?.wind_max != null ? `${Math.round(today.wind_max)} km/h` : "--"}</dd></div>
                 <div><dt><Droplets size={13} /> {t.col_humidity}</dt><dd>{now.humidity || (today?.humidity != null ? `${Math.round(today.humidity)}%` : "--")}</dd></div>
               </dl>
-              {week.length > 1 && (
-                <div className="home-week" aria-label={t.forecast_7d}>
-                  {week.map(day => (
-                    <div key={day.date} className={day.rain_mm >= 1 ? "rainy" : ""}>
-                      <small>{String(day.label).split(" ")[0]}</small>
-                      <span aria-hidden>{weatherIcon(day.weather_code)}</span>
-                      <b>{Math.round(day.temp_max)}°</b>
-                      <small>{day.rain_mm >= 1 ? `${Math.round(day.rain_mm)} mm` : "–"}</small>
-                    </div>
-                  ))}
-                </div>
-              )}
               <div className="home-weather-total">
                 <span>{t.rain_7d_label}</span>
                 <b>{operational?.rain_7d_total_mm != null ? `${operational.rain_7d_total_mm} mm` : "--"}</b>

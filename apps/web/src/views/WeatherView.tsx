@@ -1,7 +1,11 @@
+import { useEffect, useRef, useState } from "react";
 import { CloudRain, MapPin, Activity, RefreshCw, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { View, Locale, Json } from "../types";
-import { parseWeatherFromEvidence, getImdWarningLevel } from "../utils/weather";
+import { parseWeatherFromEvidence, getImdWarningLevel, weatherIcon } from "../utils/weather";
 import { InfoTip, ListenButton } from "../components/InfoTip";
+
+// A full rain jar is a heavy-rain day; lighter rain fills it part way.
+const JAR_FULL_MM = 25;
 
 // Status from the API -> existing tag colour classes.
 const TAG_CLASS: Record<string, string> = {
@@ -33,6 +37,15 @@ export function WeatherView({
   refreshEvidence,
   go
 }: WeatherViewProps) {
+  const [dayIndex, setDayIndex] = useState(0);
+  const dayCard = useRef<HTMLDivElement>(null);
+  useEffect(() => setDayIndex(0), [farm?.id]);
+  const pickDay = (index: number) => {
+    setDayIndex(index);
+    // On phones the day card sits above the jars; bring it into view.
+    if (window.innerWidth <= 820) dayCard.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   if (!farm) {
     return (
       <section className="panel" style={{ textAlign: "center", padding: "60px 20px" }}>
@@ -46,7 +59,6 @@ export function WeatherView({
   }
 
   const weatherData = parseWeatherFromEvidence(evidence, locale);
-  const maxDailyMm = Math.max(1, ...((operational?.daily as Json[]) || []).map((d: Json) => d.rain_mm || 0));
   const imdAlert = getImdWarningLevel(evidence, locale);
 
 
@@ -57,6 +69,7 @@ export function WeatherView({
   const daily: Json[] = operational?.daily || [];
   const statusLabel = (status?: string) => t[`st_${status || "unknown"}`] || status || "";
   const fmt = (value: unknown, digits = 0) => (typeof value === "number" ? value.toFixed(digits) : "--");
+  const selected: Json | undefined = dayIndex > 0 ? daily[dayIndex] : undefined;
 
   return (
     <section className="panel">
@@ -87,22 +100,31 @@ export function WeatherView({
 
       {/* Dynamic Weather Dashboard */}
       <div className="weather-dashboard">
-        <div className="weather-metric-card">
+        <div className="weather-metric-card" ref={dayCard}>
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
-              <span className="weather-live-indicator">
-                <span className="weather-live-dot" />
-                {t.weather_updated} {weatherObsDate} · {farm.district}
-              </span>
-              <button
-                className="secondary"
-                disabled={loadingWeather}
-                style={{ padding: "6px 12px", fontSize: "12px", borderRadius: "8px" }}
-                onClick={refreshEvidence}
-              >
-                <RefreshCw size={13} className={loadingWeather ? "spin" : ""} />
-                {t.refresh}
-              </button>
+              {selected ? (
+                <>
+                  <span className="weather-live-indicator">{t.day_forecast_for.replace("{day}", selected.label)} · {farm.district}</span>
+                  <button className="secondary weather-back-today" onClick={() => setDayIndex(0)}>{t.day_back_today}</button>
+                </>
+              ) : (
+                <>
+                  <span className="weather-live-indicator">
+                    <span className="weather-live-dot" />
+                    {t.weather_updated} {weatherObsDate} · {farm.district}
+                  </span>
+                  <button
+                    className="secondary"
+                    disabled={loadingWeather}
+                    style={{ padding: "6px 12px", fontSize: "12px", borderRadius: "8px" }}
+                    onClick={refreshEvidence}
+                  >
+                    <RefreshCw size={13} className={loadingWeather ? "spin" : ""} />
+                    {t.refresh}
+                  </button>
+                </>
+              )}
             </div>
 
             {loadingWeather ? (
@@ -110,9 +132,21 @@ export function WeatherView({
                 <RefreshCw className="spin" size={24} style={{ marginBottom: "8px" }} />
                 <div style={{ fontSize: "14px", color: "#cbd8cf" }}>{t.forecast_pending}</div>
               </div>
+            ) : selected ? (
+              <div className="weather-temp-main">
+                <span className="weather-temp-icon" aria-hidden>{weatherIcon(selected.weather_code)}</span>
+                <h2>{fmt(selected.temp_max)}° <small>/ {fmt(selected.temp_min)}°</small></h2>
+                <div>
+                  <span style={{ fontSize: "15px", color: "#cbd8cf", display: "block" }}>
+                    {t.col_rain}: <strong>{fmt(selected.rain_mm, 1)} mm · {fmt(selected.rain_prob)}%</strong>
+                  </span>
+                  <span style={{ fontSize: "12px", color: "var(--lime-400)" }}>Open-Meteo</span>
+                </div>
+              </div>
             ) : (
               <div className="weather-temp-main">
-                <h2>{weatherData.temp || (weatherData.hasData ? "--" : "--")}</h2>
+                <span className="weather-temp-icon" aria-hidden>{weatherIcon(daily[0]?.weather_code)}</span>
+                <h2>{weatherData.temp || "--"}</h2>
                 <div>
                   <span style={{ fontSize: "15px", color: "#cbd8cf", display: "block" }}>
                     {t.rainfall_today}: <strong>{weatherData.hasData ? (weatherData.rainfall || "0.0 mm") : "--"}</strong>
@@ -125,37 +159,59 @@ export function WeatherView({
             )}
           </div>
 
-          <div className="weather-details-grid">
-            <div>
-              <small>{t.wind_speed}</small>
-              <strong>{weatherData.wind || (weatherData.hasData ? "0 km/h" : "--")}</strong>
+          {selected ? (
+            <div className="weather-details-grid">
+              <div>
+                <small>{t.col_wind}</small>
+                <strong>{fmt(selected.wind_max)} km/h</strong>
+                {selected.gust_max != null && <small>{t.col_gusts} {fmt(selected.gust_max)} km/h</small>}
+              </div>
+              <div>
+                <small>{t.col_humidity}</small>
+                <strong>{selected.humidity != null ? `${fmt(selected.humidity)}%` : "--"}</strong>
+              </div>
+              <div>
+                <small>{t.col_et0} <InfoTip term="et0" locale={locale} /></small>
+                <strong>{fmt(selected.et0, 1)} mm</strong>
+              </div>
+              <div>
+                <small>{t.col_spray} <InfoTip term="spray" locale={locale} /></small>
+                <span className={`agri-tag ${TAG_CLASS[selected.spray as string] || "hold"}`}>{statusLabel(selected.spray)}</span>
+              </div>
             </div>
-            <div>
-              <small>{t.humidity}</small>
-              <strong>{weatherData.humidity || (weatherData.hasData ? "N/A" : "--")}</strong>
+          ) : (
+            <div className="weather-details-grid">
+              <div>
+                <small>{t.wind_speed}</small>
+                <strong>{weatherData.wind || (weatherData.hasData ? "0 km/h" : "--")}</strong>
+              </div>
+              <div>
+                <small>{t.humidity}</small>
+                <strong>{weatherData.humidity || (weatherData.hasData ? "N/A" : "--")}</strong>
+              </div>
+              <div>
+                <small>{t.forecast_7d}</small>
+                <strong>{operational?.has_forecast ? `${fmt(operational.rain_7d_total_mm, 1)} mm` : "--"}</strong>
+              </div>
+              <div>
+                <small>{t.past_7d_rain}</small>
+                <strong>{operational?.past_7d_rain_mm != null ? `${fmt(operational.past_7d_rain_mm, 1)} mm` : "--"}</strong>
+              </div>
+              <div>
+                <small>{t.water_balance} <InfoTip term="water_balance" locale={locale} /></small>
+                <strong>{operational?.water_balance_7d_mm != null ? `${operational.water_balance_7d_mm > 0 ? "+" : ""}${fmt(operational.water_balance_7d_mm)} mm` : "--"}</strong>
+              </div>
+              <div>
+                <small>{t.soil_moisture_label} <InfoTip term="soil_moisture" locale={locale} /></small>
+                <strong>
+                  {operational?.soil_moisture?.root_available_pct != null
+                    ? `${operational.soil_moisture.top_available_pct}% / ${operational.soil_moisture.root_available_pct}%`
+                    : "--"}
+                </strong>
+                <small>{t.top_soil} / {t.root_zone}</small>
+              </div>
             </div>
-            <div>
-              <small>{t.forecast_7d}</small>
-              <strong>{operational?.has_forecast ? `${fmt(operational.rain_7d_total_mm, 1)} mm` : "--"}</strong>
-            </div>
-            <div>
-              <small>{t.past_7d_rain}</small>
-              <strong>{operational?.past_7d_rain_mm != null ? `${fmt(operational.past_7d_rain_mm, 1)} mm` : "--"}</strong>
-            </div>
-            <div>
-              <small>{t.water_balance} <InfoTip term="water_balance" locale={locale} /></small>
-              <strong>{operational?.water_balance_7d_mm != null ? `${operational.water_balance_7d_mm > 0 ? "+" : ""}${fmt(operational.water_balance_7d_mm)} mm` : "--"}</strong>
-            </div>
-            <div>
-              <small>{t.soil_moisture_label} <InfoTip term="soil_moisture" locale={locale} /></small>
-              <strong>
-                {operational?.soil_moisture?.root_available_pct != null
-                  ? `${operational.soil_moisture.top_available_pct}% / ${operational.soil_moisture.root_available_pct}%`
-                  : "--"}
-              </strong>
-              <small>{t.top_soil} / {t.root_zone}</small>
-            </div>
-          </div>
+          )}
         </div>
 
         <div className="forecast-card">
@@ -171,23 +227,34 @@ export function WeatherView({
               <RefreshCw className="spin" size={20} />
             </div>
           ) : daily.length > 0 ? (
-            <div className="forecast-bars">
-              {daily.map(d => {
-                const mm = d.rain_mm || 0;
-                const heightPct = Math.max(12, Math.round((mm / maxDailyMm) * 85));
-                return (
-                  <div key={d.date} className="forecast-day-col">
-                    <span className="forecast-day-rain">{mm.toFixed(1)} mm<br />{fmt(d.rain_prob)}%</span>
-                    <div
-                      className={`forecast-bar-fill ${mm > 0 ? "rainy" : ""}`}
-                      style={{ height: `${heightPct}%` }}
-                      title={`${d.label}: ${mm} mm (${fmt(d.rain_prob)}%)`}
-                    />
-                    <span>{d.label}</span>
-                  </div>
-                );
-              })}
-            </div>
+            <>
+              <div className="rain-jars" role="tablist" aria-label={t.forecast_7d}>
+                {daily.map((d, index) => {
+                  const mm = d.rain_mm || 0;
+                  const fill = mm > 0 ? Math.max(6, Math.min(100, (mm / JAR_FULL_MM) * 100)) : 0;
+                  return (
+                    <button
+                      key={d.date}
+                      role="tab"
+                      aria-selected={index === dayIndex}
+                      className={`rain-jar-day ${index === dayIndex ? "active" : ""}`}
+                      onClick={() => pickDay(index)}
+                      title={`${d.label}: ${fmt(mm, 1)} mm (${fmt(d.rain_prob)}%)`}
+                    >
+                      <span className="rain-jar-mm">{fmt(mm, 1)} mm</span>
+                      <span className="rain-jar" aria-hidden>
+                        <span className="rain-jar-fill" style={{ height: `${fill}%` }} />
+                      </span>
+                      <span className="rain-jar-chance">💧 {fmt(d.rain_prob)}%</span>
+                      <b className="rain-jar-label">{d.label}</b>
+                      <span className="rain-jar-icon" aria-hidden>{weatherIcon(d.weather_code)}</span>
+                      <span className="rain-jar-temp">{fmt(d.temp_max)}° <small>{fmt(d.temp_min)}°</small></span>
+                    </button>
+                  );
+                })}
+              </div>
+              <small className="rain-jar-legend">{t.rain_jar_scale} · {t.day_tap_hint}</small>
+            </>
           ) : (
             <div style={{ textAlign: "center", padding: "30px 16px", color: "var(--muted)" }}>
               <p style={{ margin: "0 0 12px", fontSize: "14px" }}>
