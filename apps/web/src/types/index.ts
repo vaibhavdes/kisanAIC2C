@@ -1,6 +1,6 @@
 import { Json } from "../api";
 
-export type View = "home" | "farm" | "weather" | "soil" | "crops" | "advice" | "diagnose" | "expert";
+export type View = "home" | "farm" | "weather" | "soil" | "crops" | "market" | "advice" | "diagnose" | "expert";
 
 export type Locale = "en-IN" | "hi-IN" | "mr-IN" | "te-IN" | "kn-IN";
 

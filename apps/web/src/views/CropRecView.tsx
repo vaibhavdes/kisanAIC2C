@@ -20,7 +20,11 @@ export interface CropRecViewProps {
   handleSeasonChange: (s: string) => void;
   loadCropRecs: (s: string) => Promise<void>;
   go: (v: View) => void;
+  openMarket?: (crop: string) => void;
 }
+
+const ACRE = 0.40468564224;
+const rupees = (v?: number | null) => (v == null ? "—" : `₹${Math.round(v).toLocaleString("en-IN")}`);
 
 export function CropRecView({
   t,
@@ -31,7 +35,8 @@ export function CropRecView({
   season,
   handleSeasonChange,
   loadCropRecs,
-  go
+  go,
+  openMarket
 }: CropRecViewProps) {
   const [expandedCrop, setExpandedCrop] = useState<string | null>(null);
   const [showUnsuitable, setShowUnsuitable] = useState(false);
@@ -197,6 +202,26 @@ export function CropRecView({
                           </div>
                         </div>
 
+                        {cropItem.economics && (
+                          <div className={`crop-econ-strip ${cropItem.economics.crowding}`}>
+                            <div>
+                              <small>{t.market_profit_per_acre}</small>
+                              <b className={(cropItem.economics.profit_per_ha_p50 ?? 0) < 0 ? "neg" : ""}>{rupees((cropItem.economics.profit_per_ha_p50 ?? 0) * ACRE)}</b>
+                              <span>{rupees((cropItem.economics.profit_per_ha_p10 ?? 0) * ACRE)} – {rupees((cropItem.economics.profit_per_ha_p90 ?? 0) * ACRE)}</span>
+                            </div>
+                            <div>
+                              <small>{t.market_expected_price}</small>
+                              <b>{rupees(cropItem.economics.expected_price)}</b>
+                              <span>{t.market_last_season}: {rupees(cropItem.economics.last_season_price)}</span>
+                            </div>
+                            <div>
+                              <small>{t.market_crowding}</small>
+                              <b className="crowd">{t[`market_crowd_${cropItem.economics.crowding}`]}</b>
+                              <span>{t.market_loss_chance}: {Math.round((cropItem.economics.loss_probability || 0) * 100)}%</span>
+                            </div>
+                            {openMarket && <button className="secondary" onClick={() => openMarket(cropItem.crop as string)}>{t.market_open_sim}</button>}
+                          </div>
+                        )}
                         <div className="crop-rec-card-body">
                           {/* Factor Accordion Toggle */}
                           <button
@@ -307,8 +332,8 @@ export function CropRecView({
         <button className="nav-prev-btn" onClick={() => go("soil")}>
           {t.btn_back_soil}
         </button>
-        <button className="nav-next-btn" onClick={() => go("advice")}>
-          {t.btn_proceed_plan}
+        <button className="nav-next-btn" onClick={() => go(cropRecs?.market_covered ? "market" : "advice")}>
+          {cropRecs?.market_covered ? t.btn_to_market : t.btn_proceed_plan}
         </button>
       </div>
     </section>

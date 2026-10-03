@@ -14,8 +14,8 @@ export const PipelineStepper: React.FC<PipelineStepperProps> = ({
   setView,
   farm
 }) => {
-  const stepOrder: View[] = ["farm", "weather", "soil", "crops", "advice"];
-  const effectiveIndex = view === "diagnose" ? 5 : stepOrder.indexOf(view);
+  const stepOrder: View[] = ["farm", "weather", "soil", "crops", "market", "advice"];
+  const effectiveIndex = view === "diagnose" ? 6 : stepOrder.indexOf(view);
 
   return (
     <div className="pipeline-stepper-bar">
@@ -77,12 +77,22 @@ export const PipelineStepper: React.FC<PipelineStepperProps> = ({
       />
 
       <button
-        className={`step-node ${view === "advice" ? "active" : farm && effectiveIndex >= 5 ? "done" : ""}`}
+        className={`step-node ${view === "market" ? "active" : farm && effectiveIndex > 4 ? "done" : ""}`}
+        disabled={!farm}
+        onClick={() => setView("market")}
+      >
+        <span className="step-num">5</span>
+        <span>{t.step_market}</span>
+      </button>
+      <div className={`step-connector ${farm && effectiveIndex > 4 ? "active" : ""}`} />
+
+      <button
+        className={`step-node ${view === "advice" ? "active" : farm && effectiveIndex >= 6 ? "done" : ""}`}
         disabled={!farm}
         onClick={() => setView("advice")}
       >
-        <span className="step-num">5</span>
-        <span>{t.step_advice}</span>
+        <span className="step-num">6</span>
+        <span>{(t.step_advice_6 || t.step_advice).replace(/^\S+\s/, "")}</span>
       </button>
     </div>
   );

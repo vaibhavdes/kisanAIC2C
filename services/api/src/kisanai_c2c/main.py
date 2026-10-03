@@ -10,7 +10,7 @@ from fastapi.responses import Response
 
 from .auth import current_actor, require_roles
 from .models import (
-    ActionUpdate, Actor, Advisory, AdvisoryRequest, CropRecommendationResult, DiagnosisRequest,
+    ActionUpdate, Actor, Advisory, AdvisoryRequest, CropPlanCreate, CropRecommendationResult, DiagnosisRequest, SimulationRequest,
     ExpertReview, Farm, FarmChatRequest, FarmChatResponse, FarmCreate, HealthResponse,
     Role, SoilExtraction, SoilTest, SoilTestCreate,
     SpeechRequest, VoiceTranscription,
@@ -38,6 +38,42 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+import threading as _threading
+import time as _time
+
+# Per-client limits for the heavier endpoints (each market call reads files and runs a simulation; each
+# geocode call reaches OpenStreetMap). Requests per minute, by client address.
+RATE_LIMITS = (("/market/simulate", 20), ("/market/", 60), ("/crop-plan", 20), ("/regional-crop-mix", 60),
+               ("/crop-recommendations", 60), ("/geo/", 30))
+_buckets: dict[tuple[str, str], list[float]] = {}
+_bucket_lock = _threading.Lock()
+
+
+@app.middleware("http")
+async def rate_limit(request: Request, call_next):
+    path = request.url.path
+    rule = next(((prefix, limit) for prefix, limit in RATE_LIMITS if prefix in path), None)
+    if rule:
+        client = get_client_ip(request)
+        now = _time.monotonic()
+        with _bucket_lock:
+            hits = [t for t in _buckets.get((client, rule[0]), []) if now - t < 60]
+            if len(hits) >= rule[1]:
+                retry = int(60 - (now - hits[0])) + 1
+                return _rate_limited(retry)
+            hits.append(now)
+            _buckets[(client, rule[0])] = hits
+            if len(_buckets) > 20000:
+                _buckets.clear()
+    return await call_next(request)
+
+
+def _rate_limited(retry: int):
+    response = _error(status.HTTP_429_TOO_MANY_REQUESTS, "rate_limited", f"Too many requests; try again in {retry} s", True)
+    response.headers["Retry-After"] = str(retry)
+    return response
 
 
 def service() -> AppService:
@@ -218,6 +254,26 @@ def list_advisories(farm_id: str, actor: Actor = Depends(current_actor), svc: Ap
 @app.get("/api/v1/farms/{farm_id}/crop-recommendations", response_model=CropRecommendationResult)
 def crop_recommendations(farm_id: str, season: Literal["kharif", "rabi", "summer"] | None = None, locale: str = "en-IN", actor: Actor = Depends(current_actor), svc: AppService = Depends(service)):
     return svc.crop_recommendations(actor, farm_id, season=season, locale=locale)
+
+
+@app.get("/api/v1/farms/{farm_id}/market/outlook")
+def market_outlook(farm_id: str, crop: str, season: Literal["kharif", "rabi", "summer"], lookback: int = Query(3, ge=1, le=10), actor: Actor = Depends(current_actor), svc: AppService = Depends(service)):
+    return svc.market_outlook(actor, farm_id, crop, season, lookback)
+
+
+@app.post("/api/v1/farms/{farm_id}/market/simulate")
+def market_simulate(farm_id: str, payload: SimulationRequest, actor: Actor = Depends(current_actor), svc: AppService = Depends(service)):
+    return svc.market_simulate(actor, farm_id, payload)
+
+
+@app.post("/api/v1/farms/{farm_id}/crop-plan", status_code=201)
+def save_crop_plan(farm_id: str, payload: CropPlanCreate, actor: Actor = Depends(current_actor), svc: AppService = Depends(service)):
+    return svc.save_crop_plan(actor, farm_id, payload)
+
+
+@app.get("/api/v1/farms/{farm_id}/regional-crop-mix")
+def regional_crop_mix(farm_id: str, season: Literal["kharif", "rabi", "summer"], actor: Actor = Depends(current_actor), svc: AppService = Depends(service)):
+    return svc.regional_mix(actor, farm_id, season)
 
 
 @app.patch("/api/v1/actions/{action_id}")
@@ -584,6 +640,8 @@ def reverse_geocode(latitude: float, longitude: float):
                 or ""
             )
             district = district.replace(" District", "").strip()
+            from .providers.geo import clean_taluka
+            taluka = clean_taluka(addr.get("county"))
             state = addr.get("state", "")
             village = (
                 addr.get("village")
@@ -603,6 +661,7 @@ def reverse_geocode(latitude: float, longitude: float):
                     "state_name": state,
                     "state_code": sc,
                     "village": village,
+                    "taluka": taluka or None,
                     "pincode": postcode,
                     "source": "nominatim_reverse",
                 }

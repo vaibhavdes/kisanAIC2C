@@ -35,6 +35,7 @@ from .providers.satellite import SatelliteProvider, SatelliteUnavailable
 from .providers.weather import WeatherProvider
 from .settings import Settings, get_settings
 from .store import DocumentStore, get_store
+from .market_service import MarketService
 
 
 # Open-Meteo updates its models hourly; older forecasts are refetched before giving advice.
@@ -57,6 +58,7 @@ class AppService:
         self.media_store = media_store or get_media_store()
         self.settings = settings or get_settings()
         self.gemini = GeminiProvider(self.settings)
+        self.market = MarketService(self.store, self.settings)
 
     @staticmethod
     def _is_creator(farm: Farm, actor: Actor, client_ip: str | None, device_id: str | None) -> bool:
@@ -120,7 +122,7 @@ class AppService:
         if not self._is_creator(Farm.model_validate(value), actor, client_ip, device_id):
             raise PermissionError("Only the creator of this farm can delete it.")
         # The farm's own records go with it; plant doctor cases stay for the expert's history.
-        for collection in ("evidence", "soil_tests", "soil_extractions", "advisories"):
+        for collection in ("evidence", "soil_tests", "soil_extractions", "advisories", "crop_plans"):
             for item in self.store.list(collection, filters={"farm_id": farm_id}, limit=500):
                 self.store.delete(collection, item["id"])
         self._drop_satellite_maps(farm_id)
@@ -347,7 +349,7 @@ class AppService:
         evidence_dump = [item.model_dump(mode="json") for item in evidence]
         if payload.goal == "crop_plan":
             # Same ranking as the crop recommendation screen, so the plan never contradicts it.
-            ranked = generate_crop_recommendations(farm, soil, season=payload.season, evidence=evidence_dump, locale=payload.locale)
+            ranked = self._ranked(farm, soil, payload.season, evidence_dump, payload.locale)
             options = ranked.recommendations + ranked.unsuitable_crops
         else:
             options = build_options(farm, soil, goal=payload.goal, season=payload.season, rainfall_7d_mm=rainfall_total(evidence_dump))
@@ -398,7 +400,62 @@ class AppService:
         evidence = self.current_evidence(actor, farm_id)
         soil = self.latest_soil(farm_id)
         evidence_dump = [item.model_dump(mode="json") for item in evidence]
-        return generate_crop_recommendations(farm, soil, season=season, evidence=evidence_dump, locale=locale)
+        return self._ranked(farm, soil, season, evidence_dump, locale)
+
+    def _ranked(self, farm: Farm, soil: SoilTest | None, season: str | None, evidence_dump: list, locale: str) -> CropRecommendationResult:
+        """Agronomic ranking, then (in market districts) price, crowding and profit folded in."""
+        farm = self._with_taluka(farm)
+        result = generate_crop_recommendations(farm, soil, season=season, evidence=evidence_dump, locale=locale)
+        self.market.economics_for(farm, result.recommendations, result.season, locale)
+        result.recommendations.sort(key=lambda item: item.rank_score or 0.0, reverse=True)
+        from .market import is_covered
+        result.market_covered = is_covered(farm.district)
+        if result.market_covered:
+            result.data_sources_used.append({"name": "AGMARKNET mandi prices + UPAg crop statistics", "type": "Price, crowding and profit (MSP: PIB)", "status": "2014 onwards"})
+        result.taluka = farm.taluka
+        return result
+
+    def _with_taluka(self, farm: Farm) -> Farm:
+        """Fills the farm's taluka from its coordinates once (OpenStreetMap 'county' is the taluka in India)."""
+        from .providers.geo import clean_taluka, taluka_for
+        if farm.taluka:
+            cleaned = clean_taluka(farm.taluka)
+            return farm if cleaned == farm.taluka else farm.model_copy(update={"taluka": cleaned})
+        taluka = taluka_for(farm.location.latitude, farm.location.longitude, self.store)
+        if not taluka:
+            return farm
+        stored = self.store.get("farms", farm.id)
+        if stored:
+            stored["taluka"] = taluka
+            self.store.put("farms", farm.id, stored)
+        return farm.model_copy(update={"taluka": taluka})
+
+    # ---------------------------------------------------------------- market
+    def _soil_score(self, farm: Farm, soil: SoilTest | None, crop: str, season: str) -> float | None:
+        result = generate_crop_recommendations(farm, soil, season=season, evidence=[], locale="en-IN")
+        for option in result.recommendations + result.unsuitable_crops:
+            if option.crop == crop:
+                return next((d.score for d in option.dimensions if d.name == "soil_fit"), None)
+        return None
+
+    def market_outlook(self, actor: Actor, farm_id: str, crop: str, season: str, lookback: int = 3) -> dict[str, Any]:
+        from .domain import normalize_crop
+        farm = self._with_taluka(self.farm(actor, farm_id))
+        crop = normalize_crop(crop)
+        return self.market.outlook(farm, crop, season, lookback, self._soil_score(farm, self.latest_soil(farm_id), crop, season))
+
+    def market_simulate(self, actor: Actor, farm_id: str, payload) -> dict[str, Any]:
+        from .domain import normalize_crop
+        farm = self._with_taluka(self.farm(actor, farm_id))
+        return self.market.simulate(farm, payload, self._soil_score(farm, self.latest_soil(farm_id), normalize_crop(payload.crop), payload.season))
+
+    def save_crop_plan(self, actor: Actor, farm_id: str, payload) -> dict[str, Any]:
+        farm = self._with_taluka(self.farm(actor, farm_id))
+        return self.market.save_plan(farm, payload)
+
+    def regional_mix(self, actor: Actor, farm_id: str, season: str) -> dict[str, Any]:
+        farm = self._with_taluka(self.farm(actor, farm_id))
+        return self.market.regional_mix(farm, season) | {"my_plan": self.market.my_plan(farm, season)}
 
     def soil_profile(self, actor: Actor, farm_id: str) -> dict[str, Any]:
         farm = self.farm(actor, farm_id)

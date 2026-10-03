@@ -55,6 +55,11 @@ class Settings(BaseSettings):
     open_meteo_base_url: str = "https://api.open-meteo.com/v1/forecast"
     earth_engine_enabled: bool = False
 
+    # Market economics (prices, crowding, profit simulation) are offered for these districts.
+    market_districts: str = "Pune,Ahilyanagar"
+    ceda_api_key: str | None = None  # CEDA Ashoka Agri Market API: recent daily mandi prices
+    data_gov_in_api_key: str | None = None  # data.gov.in: today's AGMARKNET prices (optional)
+
     speech_enabled: bool = False
     speech_location: str = "global"
     default_locale: str = "en-IN"

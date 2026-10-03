@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import {
   Activity, ArrowRight, CloudRain, Droplets, FlaskConical, MapPin, Microscope, Plus, RefreshCw,
-  Sprout, Thermometer, Trash2, Wind
+  Sprout, Thermometer, Trash2, Wind, IndianRupee
 } from "lucide-react";
 import { Json, Locale, TranslationDictionary, View } from "../types";
 import { parseWeatherFromEvidence, weatherIcon } from "../utils/weather";
@@ -188,6 +188,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         <button onClick={() => go("weather")}><CloudRain size={18} /><span>{t.weather}</span></button>
         <button onClick={() => go("soil")}><FlaskConical size={18} /><span>{t.soil_title}</span></button>
         <button onClick={() => go("crops")}><Sprout size={18} /><span>{t.crops}</span></button>
+        <button onClick={() => go("market")}><IndianRupee size={18} /><span>{t.market_title}</span></button>
         <button onClick={() => go("advice")}><Activity size={18} /><span>{t.plan_title}</span></button>
         <button onClick={() => go("diagnose")}><Microscope size={18} /><span>{t.plant_doctor}</span></button>
       </div>

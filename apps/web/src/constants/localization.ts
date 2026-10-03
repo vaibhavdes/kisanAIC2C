@@ -1,4 +1,5 @@
 import { Locale } from "../types";
+import { marketCopy } from "./marketLocalization";
 
 export const copy: Record<Locale, Record<string, string>> = {
   "en-IN": {
@@ -1553,3 +1554,4 @@ export const copy: Record<Locale, Record<string, string>> = {
   }
 };
 
+for (const locale of Object.keys(marketCopy) as Locale[]) Object.assign(copy[locale], marketCopy[locale]);

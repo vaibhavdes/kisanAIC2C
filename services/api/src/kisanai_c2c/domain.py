@@ -48,6 +48,8 @@ CROP_POLICIES = (
     CropPolicy("cotton", ("kharif",), ("black", "unknown"), (6.0, 8.0), (600, 1100), 2, ("diverse-rotation", "field-scouting", "water-budget"), rainfed_seasons=("kharif",)),
     CropPolicy("onion", ("kharif", "rabi", "summer"), ("black", "red", "loam", "alluvial", "unknown"), (6.0, 7.5), (400, 800), 2, ("raised-bed-planting", "drip-irrigation-check", "field-scouting"), sowing_tmax_max=35.0),
     CropPolicy("sugarcane", ("kharif", "rabi", "summer"), ("black", "alluvial", "clay", "loam", "unknown"), (6.0, 8.0), (1000, 2000), 3, ("trash-mulching", "drip-irrigation-budget", "intercropping-pulses"), sowing_tmax_max=40.0),
+    CropPolicy("tomato", ("kharif", "rabi", "summer"), ("red", "black", "loam", "alluvial", "sandy", "unknown"), (6.0, 7.5), (400, 800), 3, ("raised-bed-planting", "drip-irrigation-check", "field-scouting"), sowing_tmax_max=35.0),
+    CropPolicy("potato", ("kharif", "rabi"), ("loam", "sandy", "alluvial", "red", "black", "unknown"), (5.5, 7.5), (350, 650), 3, ("raised-bed-planting", "drip-irrigation-check", "diverse-rotation"), sowing_tmax_max=30.0),
     CropPolicy("rice", ("kharif",), ("clay", "alluvial", "black", "unknown"), (5.5, 7.5), (900, 1800), 3, ("water-budget", "alternate-wetting-review", "residue-management"), rainfed_seasons=("kharif",), rainfed_min_normal_mm=1200.0),
 )
 
@@ -199,6 +201,11 @@ def normalize_crop(value: str) -> str:
         "mungfali": "groundnut",
         "kapas": "cotton",
         "kapus": "cotton",
+        "tamatar": "tomato",
+        "tamato": "tomato",
+        "batata": "potato",
+        "aloo": "potato",
+        "alu": "potato",
     }
     cleaned = "_".join(value.strip().lower().split())
     return aliases.get(cleaned, cleaned)
@@ -221,6 +228,8 @@ CROP_LOCALIZED_NAMES: dict[str, dict[str, str]] = {
     "cotton": {"en-IN": "Cotton (Kapas)", "hi-IN": "कपास (Kapas)", "mr-IN": "कापूस (Kapas)", "te-IN": "పత్తి (Patti)", "kn-IN": "ಹತ್ತಿ (Hatti)"},
     "onion": {"en-IN": "Onion (Kanda)", "hi-IN": "प्याज (Pyaaz)", "mr-IN": "कांदा (Kanda)", "te-IN": "ఉల్లిపాయ (Ullipaya)", "kn-IN": "ಈರುಳ್ಳಿ (Eerulli)"},
     "sugarcane": {"en-IN": "Sugarcane (Oos)", "hi-IN": "गन्ना (Ganna)", "mr-IN": "ऊस (Oos)", "te-IN": "చెరకు (Cheraku)", "kn-IN": "ಕಬ್ಬು (Kabbu)"},
+    "tomato": {"en-IN": "Tomato", "hi-IN": "टमाटर (Tamatar)", "mr-IN": "टोमॅटो (Tomato)", "te-IN": "టమాటా (Tomato)", "kn-IN": "ಟೊಮೆಟೊ (Tomato)"},
+    "potato": {"en-IN": "Potato (Batata)", "hi-IN": "आलू (Aloo)", "mr-IN": "बटाटा (Batata)", "te-IN": "బంగాళాదుంప (Aloo)", "kn-IN": "ಆಲೂಗಡ್ಡೆ (Aloo)"},
     "rice": {"en-IN": "Rice / Paddy (Bhat)", "hi-IN": "धान / चावल (Paddy)", "mr-IN": "भात (Paddy)", "te-IN": "వరి (Vari)", "kn-IN": "ಭತ್ತ (Bhatta)"},
 }
 

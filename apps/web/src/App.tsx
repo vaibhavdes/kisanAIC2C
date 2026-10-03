@@ -20,6 +20,7 @@ import { CropRecView } from "./views/CropRecView";
 import { AdvisoryView } from "./views/AdvisoryView";
 import { DiagnoseView } from "./views/DiagnoseView";
 import { ExpertView } from "./views/ExpertView";
+import { MarketView } from "./views/MarketView";
 
 export function App() {
   const [view, setViewState] = useState<View>("home");
@@ -62,6 +63,7 @@ export function App() {
   const [season, setSeason] = useState<string>(() => currentSeason());
   const [loadingWeather, setLoadingWeather] = useState(false);
   const [loadingRecs, setLoadingRecs] = useState(false);
+  const [marketCrop, setMarketCrop] = useState<string | undefined>(undefined);
 
   const t = copy[locale] || copy["en-IN"];
   const farm = farms.find(f => f.id === selected) || farms[0];
@@ -319,7 +321,11 @@ export function App() {
             handleSeasonChange={handleSeasonChange}
             loadCropRecs={loadCropRecs}
             go={setView}
+            openMarket={(crop: string) => { setMarketCrop(crop); setView("market"); }}
           />
+        )}
+        {view === "market" && (
+          <MarketView t={t} locale={locale} farm={farm} season={season} cropRecs={cropRecs} initialCrop={marketCrop} go={setView} />
         )}
         {view === "advice" && (
           <AdvisoryView

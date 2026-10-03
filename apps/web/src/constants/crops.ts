@@ -41,6 +41,7 @@ export const MAHARASHTRA_CROPS: CropCategory[] = [
       { id: "sugarcane", label: "🎋 Sugarcane (ऊस)" },
       { id: "onion", label: "🧅 Onion (कांदा)" },
       { id: "tomato", label: "🍅 Tomato (टोमॅटो)" },
+      { id: "potato", label: "🥔 Potato (बटाटा)" },
       { id: "chilli", label: "🌶️ Chilli (मिरची)" },
       { id: "turmeric", label: "🟡 Turmeric (हळद)" },
       { id: "ginger", label: "🫚 Ginger (आले)" },

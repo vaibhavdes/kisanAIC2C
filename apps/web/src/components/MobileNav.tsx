@@ -1,5 +1,5 @@
 import React from "react";
-import { Activity, CloudRain, Leaf, MapPin, Microscope, Sprout } from "lucide-react";
+import { Activity, CloudRain, IndianRupee, Leaf, MapPin, Microscope, Sprout } from "lucide-react";
 import { Json, View } from "../types";
 
 interface MobileNavProps {
@@ -41,6 +41,14 @@ export const MobileNav: React.FC<MobileNavProps> = ({ t, view, setView, farm }) 
       >
         <Sprout />
         <span>{t.nav_crops}</span>
+      </button>
+      <button
+        className={view === "market" ? "active" : ""}
+        disabled={!farm}
+        onClick={() => setView("market")}
+      >
+        <IndianRupee />
+        <span>{t.nav_market}</span>
       </button>
       <button
         className={view === "advice" ? "active" : ""}

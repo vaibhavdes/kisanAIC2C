@@ -108,6 +108,42 @@ AI converts the validated weather, soil, crop recommendation, and agronomic cont
 
 ---
 
+### 💰 Market Price, Crowding & Profit Simulator (Pune, Ahilyanagar)
+
+Crop choice also depends on what the crop will sell for, and that depends on how many neighbours plant it.
+For farms in the market districts (`MARKET_DISTRICTS`, default `Pune,Ahilyanagar`) every recommended crop gets:
+
+| Signal | How it is worked out | Data |
+|---|---|---|
+| **Past price farmer got** | Average district mandi price in each past harvest window (1, 3 or 5 seasons, farmer's choice), with MSP and how often the mandi was below it | AGMARKNET monthly prices 2014–2026 |
+| **Farmers near you** | Crops planned by KISANAI farmers in the same taluka/district ("I'll grow this crop", anonymous counts; taluka shown from 3 farms) vs the district's usual crop share; district area trend vs 5-year average | KISANAI crop plans, UPAg district APY |
+| **Expected harvest price** | ½ last season + ½ median of chosen seasons (+4%/yr), × damped momentum of the last 3 months, × crowding effect (price flexibility estimated from 2013–2024 district production vs price, blended with a per-crop starting value) | AGMARKNET, UPAg |
+| **Live price** | Today's / this month's mandi price: data.gov.in (with key) → CEDA Ashoka daily prices → AGMARKNET current month | data.gov.in, CEDA, AGMARKNET |
+| **Nearby APMCs** | Harvest price and arrivals (tonnes, change vs last season) per APMC, distance from the field | AGMARKNET market-wise reports, OSM |
+| **Yield** | Recent district yield (outlier years removed), × water access, × soil fit; cotton converted lint → kapas | UPAg |
+| **Cost** | CACP A2+FL cost of production × all-India yield; onion uses a labelled estimate | PIB MSP releases |
+| **Profit simulation** | 2,000 seeded Monte Carlo seasons over the mapped area: production, income, cost, profit (bad/typical/good year), chance of loss, break-even price, transport to nearest APMC, optional MSP floor; farmer can override area, price, cost and yield | all of the above |
+| **Best month to sell** | Seasonal price index; for storable crops the best month within 6 months of harvest | AGMARKNET |
+
+Crops covered: soybean, cotton, tur, chickpea, wheat, jowar, bajra, maize, groundnut, rice, onion, sugarcane,
+**tomato and potato** (horticulture yields/costs are labelled estimates; prices are AGMARKNET). Crowding is
+shown at **village, taluka and district** level; the taluka comes from OpenStreetMap (edge-of-city villages
+such as Wagholi are mapped to Haveli).
+
+**Caching and rate limits.** Every call to AGMARKNET, CEDA, data.gov.in and OpenStreetMap goes through one
+client (`providers/http_cache.py`): answers are cached in memory and in the database (`http_cache`), each host
+gets a minimum gap between requests (≈1/s for AGMARKNET and Nominatim), and after a 429/5xx the host is paused
+(Retry-After or growing back-off) while the last cached answer is served. Live prices are kept 6 h, taluka
+lookups 180 days, market outlooks 10 min. The app's own market, crop-plan, recommendation and geocode
+endpoints are limited per client (20–60 requests a minute, HTTP 429 with Retry-After).
+
+The crop ranking becomes 60% agronomy + 40% economics (profit and chance of loss), and each crop gets a
+"Market price and profit" factor in all five languages. Outside the market districts nothing changes.
+
+Data refresh: `services/api/scripts/fetch_agmarknet_prices.py` (district prices; `--markets Pune,Ahilyanagar` for APMCs),
+`fetch_upag_apy.py` (UPAg district APY), `geocode_apmc.py` (APMC locations). `seed_regional_demo.py` adds labelled sample
+crop plans (`source=demo`) to a local database so the crowding signal can be demonstrated.
+
 ## Supporting Capabilities
 
 ### 📍 Farm Location & Boundary
@@ -425,6 +461,9 @@ Detailed request and response schemas are available through FastAPI OpenAPI / Sw
 | `POST /api/v1/farms/{id}/chat` | Krishi Mitra follow-up conversation |
 
 ---
+
+Market endpoints: `GET /api/v1/farms/{id}/market/outlook?crop=&season=&lookback=`, `POST /api/v1/farms/{id}/market/simulate`,
+`POST /api/v1/farms/{id}/crop-plan`, `GET /api/v1/farms/{id}/regional-crop-mix?season=`.
 
 ## Tech Stack
 

@@ -103,6 +103,7 @@ class FarmCreate(BaseModel):
     state_name: str = Field(min_length=2, max_length=120)
     district: str = Field(min_length=2, max_length=120)
     village: str | None = Field(default=None, max_length=120)
+    taluka: str | None = Field(default=None, max_length=120)
     pincode: str | None = Field(default=None, max_length=10)
     boundary_coordinates: list[list[float]] = Field(default_factory=list)
     area_value: float = Field(gt=0, le=10000)
@@ -303,6 +304,8 @@ class CropPracticeOption(BaseModel):
     evidence_coverage: float = Field(default=1.0, ge=0, le=1)
     rank_score: float | None = Field(default=None, ge=0, le=1)
     factors: list[CropDecisionFactor] = Field(default_factory=list)
+    agronomic_score: float | None = Field(default=None, ge=0, le=1)
+    economics: dict[str, Any] | None = None  # price outlook, crowding and simulated profit (market districts only)
 
 
 class CropRecommendationResult(BaseModel):
@@ -324,6 +327,8 @@ class CropRecommendationResult(BaseModel):
     regional_notes: str | None = None  # English reference text from the district profile
     district_main_crops: list[str] = Field(default_factory=list)  # in the requested language
     previous_crop_name: str | None = None
+    market_covered: bool = False
+    taluka: str | None = None
 
 
 class AdvisoryAction(BaseModel):
@@ -467,3 +472,22 @@ class FarmChatResponse(BaseModel):
     locale: str
     expires_in_seconds: int = 300
     cleaned_up: bool = False
+
+
+class CropPlanCreate(BaseModel):
+    crop: str = Field(min_length=2, max_length=40)
+    season: Literal["kharif", "rabi", "summer"]
+    area_ha: float | None = Field(default=None, gt=0, le=10000)
+
+
+class SimulationRequest(BaseModel):
+    crop: str = Field(min_length=2, max_length=40)
+    season: Literal["kharif", "rabi", "summer"]
+    lookback: int = Field(default=3, ge=1, le=10)
+    area_ha: float | None = Field(default=None, gt=0, le=10000)
+    price_override: float | None = Field(default=None, gt=0, le=1_000_000)
+    cost_per_ha_override: float | None = Field(default=None, ge=0, le=10_000_000)
+    yield_override_kg_ha: float | None = Field(default=None, gt=0, le=500_000)
+    use_msp_floor: bool = False
+    transport_rs_per_qtl_km: float | None = Field(default=None, ge=0, le=100)
+    locale: str = "en-IN"

@@ -12,6 +12,15 @@ SERVICE_NAME="kisanai-c2c"
 FIRESTORE_DATABASE="kisanai-ag02"
 MEDIA_BUCKET="${PROJECT_ID}-kisanai-ag02"
 
+# Market price keys are optional; they are read from the environment or .env.local, never stored here.
+if [ -f .env.local ]; then
+  CEDA_API_KEY="${CEDA_API_KEY:-$(grep -E '^CEDA_API_KEY=' .env.local | cut -d= -f2- | tr -d '"' || true)}"
+  DATA_GOV_IN_API_KEY="${DATA_GOV_IN_API_KEY:-$(grep -E '^DATA_GOV_IN_API_KEY=' .env.local | cut -d= -f2- | tr -d '"' || true)}"
+fi
+MARKET_ENV="MARKET_DISTRICTS=Pune,Ahilyanagar"
+[ -n "${CEDA_API_KEY:-}" ] && MARKET_ENV="${MARKET_ENV},CEDA_API_KEY=${CEDA_API_KEY}"
+[ -n "${DATA_GOV_IN_API_KEY:-}" ] && MARKET_ENV="${MARKET_ENV},DATA_GOV_IN_API_KEY=${DATA_GOV_IN_API_KEY}"
+
 echo "Deploying ${SERVICE_NAME} to Google Cloud Run..."
 echo "Project: ${PROJECT_ID}"
 echo "Region:  ${REGION}"
@@ -30,6 +39,6 @@ gcloud run deploy "${SERVICE_NAME}" \
   --max-instances=3 \
   --session-affinity \
   --timeout=60 \
-  --set-env-vars="APP_ENV=development,NODE_ID=india-node-mh,AUTH_MODE=local,STORE_PROVIDER=firestore,FIRESTORE_DATABASE=${FIRESTORE_DATABASE},MEDIA_PROVIDER=gcs,MEDIA_BUCKET=${MEDIA_BUCKET},AI_ENABLED=true,AI_PROVIDER=vertex,GEMINI_MODEL=gemini-2.5-flash,VERTEX_LOCATION=${REGION},GOOGLE_CLOUD_PROJECT=${PROJECT_ID},EARTH_ENGINE_ENABLED=true,SPEECH_ENABLED=true,OPEN_METEO_ENABLED=true,IMD_ENABLED=false"
+  --set-env-vars="APP_ENV=development,NODE_ID=india-node-mh,AUTH_MODE=local,STORE_PROVIDER=firestore,FIRESTORE_DATABASE=${FIRESTORE_DATABASE},MEDIA_PROVIDER=gcs,MEDIA_BUCKET=${MEDIA_BUCKET},AI_ENABLED=true,AI_PROVIDER=vertex,GEMINI_MODEL=gemini-2.5-flash,VERTEX_LOCATION=${REGION},GOOGLE_CLOUD_PROJECT=${PROJECT_ID},EARTH_ENGINE_ENABLED=true,SPEECH_ENABLED=true,OPEN_METEO_ENABLED=true,IMD_ENABLED=false,${MARKET_ENV}"
 
 echo "Deployment finished."

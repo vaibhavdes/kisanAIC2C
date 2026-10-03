@@ -1,0 +1,183 @@
+{
+  "version": "2026-10-03",
+  "notes": "Official figures are from Government of India press releases (PIB). Entries with \"estimate\": true are reference estimates used only where no official district or cost figure exists; the app labels them as estimates and lets the farmer replace them.",
+  "sources": {
+    "pib_kharif_2026_27": "https://www.pib.gov.in/PressReleasePage.aspx?PRID=2260617",
+    "pib_rabi_2026_27": "https://www.pib.gov.in/PressReleasePage.aspx?PRID=2173567",
+    "rabi_2027_28": "https://www.dtnext.in/news/business/centre-raises-wheat-msp-by-rs-25-to-rs-2610quintal-pulses-oilseeds-get-bigger-hike-for-2027-28",
+    "frp_2026_27": "https://www.businessworld.in/article/centre-raises-sugarcane-frp-to-rs-365-qtl-ensures-income-cushion-for-farmers-605533"
+  },
+  "msp_history": {
+    "_comment": "MSP in Rs/quintal by the calendar year the crop is harvested and sold (kharif year Y = marketing season Y-(Y+1); rabi year Y = marketing season Y-(Y+1) harvested in spring Y).",
+    "rice": {
+      "2022": 2040,
+      "2023": 2183,
+      "2024": 2300,
+      "2025": 2369,
+      "2026": 2441
+    },
+    "sorghum": {
+      "2022": 2970,
+      "2023": 3180,
+      "2024": 3371,
+      "2025": 3699,
+      "2026": 4023
+    },
+    "pearl_millet": {
+      "2022": 2350,
+      "2023": 2500,
+      "2024": 2625,
+      "2025": 2775,
+      "2026": 2900
+    },
+    "maize": {
+      "2022": 1962,
+      "2023": 2090,
+      "2024": 2225,
+      "2025": 2400,
+      "2026": 2410
+    },
+    "pigeon_pea": {
+      "2022": 6600,
+      "2023": 7000,
+      "2024": 7550,
+      "2025": 8000,
+      "2026": 8450
+    },
+    "groundnut": {
+      "2022": 5850,
+      "2023": 6377,
+      "2024": 6783,
+      "2025": 7263,
+      "2026": 7517
+    },
+    "soybean": {
+      "2022": 4300,
+      "2023": 4600,
+      "2024": 4892,
+      "2025": 5328,
+      "2026": 5708
+    },
+    "cotton": {
+      "2022": 6080,
+      "2023": 6620,
+      "2024": 7121,
+      "2025": 7710,
+      "2026": 8267
+    },
+    "wheat": {
+      "2023": 2125,
+      "2024": 2275,
+      "2025": 2425,
+      "2026": 2585,
+      "2027": 2610
+    },
+    "chickpea": {
+      "2023": 5335,
+      "2024": 5440,
+      "2025": 5650,
+      "2026": 5875,
+      "2027": 5958
+    },
+    "sugarcane": {
+      "2023": 315,
+      "2024": 340,
+      "2025": 355,
+      "2026": 365
+    }
+  },
+  "cost_a2fl_rs_qtl": {
+    "_comment": "All-India weighted average cost of production (A2+FL: paid-out costs plus family labour) published with the latest MSP. Cost per hectare = this x all-India yield.",
+    "rice": {
+      "value": 1627,
+      "year": "Kharif 2026-27",
+      "source": "pib_kharif_2026_27"
+    },
+    "sorghum": {
+      "value": 2682,
+      "year": "Kharif 2026-27",
+      "source": "pib_kharif_2026_27"
+    },
+    "pearl_millet": {
+      "value": 1858,
+      "year": "Kharif 2026-27",
+      "source": "pib_kharif_2026_27"
+    },
+    "maize": {
+      "value": 1544,
+      "year": "Kharif 2026-27",
+      "source": "pib_kharif_2026_27"
+    },
+    "pigeon_pea": {
+      "value": 5496,
+      "year": "Kharif 2026-27",
+      "source": "pib_kharif_2026_27"
+    },
+    "groundnut": {
+      "value": 5011,
+      "year": "Kharif 2026-27",
+      "source": "pib_kharif_2026_27"
+    },
+    "soybean": {
+      "value": 3805,
+      "year": "Kharif 2026-27",
+      "source": "pib_kharif_2026_27"
+    },
+    "cotton": {
+      "value": 5511,
+      "year": "Kharif 2026-27",
+      "source": "pib_kharif_2026_27"
+    },
+    "wheat": {
+      "value": 1264,
+      "year": "Rabi 2027-28",
+      "source": "rabi_2027_28"
+    },
+    "chickpea": {
+      "value": 3699,
+      "year": "Rabi 2026-27",
+      "source": "pib_rabi_2026_27"
+    },
+    "sugarcane": {
+      "value": 182,
+      "year": "Sugar season 2026-27",
+      "source": "frp_2026_27"
+    }
+  },
+  "estimates": {
+    "onion": {
+      "estimate": true,
+      "yield_kg_ha": 12900,
+      "yield_cv": 0.25,
+      "yield_note": "Maharashtra state average 2023-24 (about 86 lakh tonnes from 6.67 lakh ha, DA&FW horticulture estimate); district figures are not published in UPAg.",
+      "cost_rs_ha": 120000,
+      "usual_share": 0.12,
+      "usual_share_note": "Approximate share of rabi/summer cropped area under onion in Pune and Ahilyanagar (horticulture area is not in UPAg district data).",
+      "cost_note": "Reference estimate for red onion on a small farm in Maharashtra (seedlings, fertiliser, irrigation, hired and family labour); no CACP figure exists for onion. Replace it with your own cost."
+    },
+    "tomato": {
+      "estimate": true,
+      "yield_kg_ha": 25000,
+      "yield_cv": 0.3,
+      "usual_share": 0.03,
+      "yield_note": "Approximate Maharashtra tomato yield (horticulture estimate); district figures are not published in UPAg.",
+      "usual_share_note": "Approximate share of cropped area under tomato in Pune and Ahilyanagar.",
+      "cost_rs_ha": 180000,
+      "cost_note": "Reference estimate for open-field tomato with staking and drip (seedlings, fertiliser, sprays, labour); no CACP figure exists. Replace it with your own cost."
+    },
+    "potato": {
+      "estimate": true,
+      "yield_kg_ha": 17000,
+      "yield_cv": 0.25,
+      "usual_share": 0.02,
+      "yield_note": "Approximate Maharashtra potato yield (horticulture estimate); district figures are not published in UPAg.",
+      "usual_share_note": "Approximate share of cropped area under potato in Pune and Ahilyanagar (Khed, Ambegaon, Junnar, Shirur).",
+      "cost_rs_ha": 140000,
+      "cost_note": "Reference estimate for potato (seed tubers are the largest cost, fertiliser, irrigation, labour); no CACP figure exists. Replace it with your own cost."
+    }
+  },
+  "ginning_outturn": 0.34,
+  "ginning_note": "UPAg cotton yield is lint; mandi prices and MSP are for kapas (seed cotton). Kapas = lint / 0.34.",
+  "price_inflation_per_year": 0.04,
+  "transport_rs_per_qtl_km": 0.6
+}

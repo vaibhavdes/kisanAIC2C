@@ -27,6 +27,7 @@ export function FarmFormView({ t, farm, done }: FarmFormViewProps) {
     state_code: farm?.state_code ?? "MH",
     district: farm?.district ?? "",
     village: farm?.village ?? "",
+    taluka: farm?.taluka ?? "",
     latitude: farm ? String(farm.location.latitude) : "19.7500",
     longitude: farm ? String(farm.location.longitude) : "75.7100",
     area_value: farm ? String(farm.area_value) : "1",
@@ -138,6 +139,7 @@ export function FarmFormView({ t, farm, done }: FarmFormViewProps) {
             state_name: rev.state_name || prev.state_name,
             state_code: rev.state_code || prev.state_code,
             village: rev.village || prev.village,
+            taluka: rev.taluka || prev.taluka,
             pincode: rev.pincode || prev.pincode,
           }));
           const labelParts = [rev.village, rev.district, rev.state_name].filter(Boolean);
@@ -263,6 +265,7 @@ export function FarmFormView({ t, farm, done }: FarmFormViewProps) {
           state_name: formData.state_name || "Maharashtra",
           district: formData.district,
           village: formData.village || null,
+          taluka: formData.taluka || null,
           area_value: Number(formData.area_value) || 1,
           area_unit: formData.area_unit,
           location: {
@@ -525,11 +528,20 @@ export function FarmFormView({ t, farm, done }: FarmFormViewProps) {
             </label>
 
             <label className="field">
-              <span>Village / Taluka (Optional)</span>
+              <span>{t.village_label || "Village"}</span>
               <input
                 value={formData.village}
                 onChange={e => setFormData({ ...formData, village: e.target.value })}
                 placeholder={t.village_placeholder}
+              />
+            </label>
+
+            <label className="field">
+              <span>Taluka</span>
+              <input
+                value={formData.taluka}
+                onChange={e => setFormData({ ...formData, taluka: e.target.value })}
+                placeholder="e.g. Baramati"
               />
             </label>
           </div>
