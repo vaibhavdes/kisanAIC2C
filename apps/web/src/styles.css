@@ -753,7 +753,7 @@ nav.mobile-nav {
 
   nav.mobile-nav {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(7, minmax(0, 1fr));
     position: fixed;
     bottom: 0;
     left: 0;
@@ -1978,7 +1978,7 @@ button.timestamp-badge { cursor: pointer; font: inherit; font-size: 12px; color:
   .mobile-nav { left: 0; right: 0; width: auto; }
 }
 @media (max-width: 820px) {
-  nav.mobile-nav { grid-template-columns: repeat(6, minmax(0, 1fr)); padding-left: 2px; padding-right: 2px; }
+  nav.mobile-nav { grid-template-columns: repeat(7, minmax(0, 1fr)); padding-left: 2px; padding-right: 2px; }
   nav.mobile-nav button { font-size: 10px; min-width: 0; padding-left: 0; padding-right: 0; }
   nav.mobile-nav button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 }
