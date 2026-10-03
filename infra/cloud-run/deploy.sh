@@ -17,7 +17,7 @@ if [ -f .env.local ]; then
   CEDA_API_KEY="${CEDA_API_KEY:-$(grep -E '^CEDA_API_KEY=' .env.local | cut -d= -f2- | tr -d '"' || true)}"
   DATA_GOV_IN_API_KEY="${DATA_GOV_IN_API_KEY:-$(grep -E '^DATA_GOV_IN_API_KEY=' .env.local | cut -d= -f2- | tr -d '"' || true)}"
 fi
-MARKET_ENV="MARKET_DISTRICTS=Pune,Ahilyanagar"
+MARKET_ENV="MARKET_DISTRICTS=Pune|Ahilyanagar"
 [ -n "${CEDA_API_KEY:-}" ] && MARKET_ENV="${MARKET_ENV},CEDA_API_KEY=${CEDA_API_KEY}"
 [ -n "${DATA_GOV_IN_API_KEY:-}" ] && MARKET_ENV="${MARKET_ENV},DATA_GOV_IN_API_KEY=${DATA_GOV_IN_API_KEY}"
 

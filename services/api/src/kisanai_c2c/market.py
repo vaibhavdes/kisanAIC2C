@@ -144,7 +144,7 @@ def india_yield() -> dict[str, tuple[int, float]]:
 
 def covered_districts() -> set[str]:
     from .settings import get_settings
-    return {norm_district(d) for d in get_settings().market_districts.split(",") if d.strip()}
+    return {norm_district(d) for d in get_settings().market_districts.replace("|", ",").split(",") if d.strip()}
 
 
 def is_covered(district: str | None) -> bool:
