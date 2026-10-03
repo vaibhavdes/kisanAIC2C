@@ -5,7 +5,8 @@
     "pib_kharif_2026_27": "https://www.pib.gov.in/PressReleasePage.aspx?PRID=2260617",
     "pib_rabi_2026_27": "https://www.pib.gov.in/PressReleasePage.aspx?PRID=2173567",
     "rabi_2027_28": "https://www.dtnext.in/news/business/centre-raises-wheat-msp-by-rs-25-to-rs-2610quintal-pulses-oilseeds-get-bigger-hike-for-2027-28",
-    "frp_2026_27": "https://www.businessworld.in/article/centre-raises-sugarcane-frp-to-rs-365-qtl-ensures-income-cushion-for-farmers-605533"
+    "frp_2026_27": "https://www.businessworld.in/article/centre-raises-sugarcane-frp-to-rs-365-qtl-ensures-income-cushion-for-farmers-605533",
+    "pib_rabi_2027_28": "https://static.pib.gov.in/WriteReadData/specificdocs/documents/2026/sep/doc_10051_20260930_19540901.pdf"
   },
   "msp_history": {
     "_comment": "MSP in Rs/quintal by the calendar year the crop is harvested and sold (kharif year Y = marketing season Y-(Y+1); rabi year Y = marketing season Y-(Y+1) harvested in spring Y).",
@@ -134,9 +135,9 @@
       "source": "rabi_2027_28"
     },
     "chickpea": {
-      "value": 3699,
-      "year": "Rabi 2026-27",
-      "source": "pib_rabi_2026_27"
+      "value": 3751,
+      "year": "Rabi 2027-28",
+      "source": "pib_rabi_2027_28"
     },
     "sugarcane": {
       "value": 182,

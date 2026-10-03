@@ -100,6 +100,8 @@ class AppService:
         items = self.store.list("farms", filters=filters)
         result: list[Farm] = []
         for item in items:
+            if item.get("listed") is False:  # sample neighbour farms feed the crowding signal only
+                continue
             f = Farm.model_validate(item)
             f.is_mine = self._is_creator(f, actor, client_ip, device_id)
             result.append(self._public(f))

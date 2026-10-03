@@ -2185,3 +2185,11 @@ header { gap: 10px; }
 .mk-legend-line { display: inline-block; width: 16px; border-top: 2px solid var(--green-700); }
 .mk-legend-band { display: inline-block; width: 14px; height: 10px; background: var(--lime-500); opacity: .5; border-radius: 2px; margin-left: 8px; }
 .mk-legend-msp { margin-left: 8px; }
+
+.mk-map { height: 240px; border-radius: 10px; margin: 10px 0 6px; border: 1px solid var(--line); z-index: 0; }
+.mk-map-legend { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 11px; color: var(--muted); }
+.mk-map-legend span { display: inline-flex; align-items: center; gap: 4px; }
+.mk-map-legend span.on { color: var(--green-900); font-weight: 700; }
+.mk-map-legend i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.mk-bar.fc { fill: var(--lime-100); stroke: var(--green-700); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.mk-acc { margin-top: 8px; font-size: 12px; color: var(--green-700); background: var(--lime-50); border-radius: 6px; padding: 5px 8px; }

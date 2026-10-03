@@ -3,6 +3,7 @@ import { Locale } from "../types";
 /** Text for the market, crowding and profit screens; merged into `copy` in localization.ts. */
 export const marketCopy: Record<Locale, Record<string, string>> = {
   "en-IN": {
+    market_accuracy: "Checked on the last {n} seasons: forecast was off by {err}% on average", market_yield_title: "Yield in the district, by year", market_forecast: "forecast", market_yield_note: "Forecast {kg} kg/ha for the coming season (trend {trend} kg/ha a year; checked on past years: off by {err}% on average)", market_other: "Other",
     market_trend: "Price trend and forecast", market_trend_line: "Monthly mandi price", market_trend_band: "Expected at harvest", market_crowd_village: "{same} of {total} planned farms in {village} chose this crop",
     nav_market: "Market", step_market: "5. Market & Profit", step_advice_6: "6. Field Plan",
     market_title: "Market price & profit", market_sub: "Past mandi prices, how many farmers near you grow the same crop, and what your field can earn.",
@@ -29,6 +30,7 @@ export const marketCopy: Record<Locale, Record<string, string>> = {
     btn_back_crops: "← Back to Crops", btn_to_market: "Market & Profit →",
   },
   "hi-IN": {
+    market_accuracy: "पिछले {n} सीज़न पर जांचा: अनुमान औसतन {err}% अलग रहा", market_yield_title: "ज़िले की उपज, वर्षवार", market_forecast: "अनुमान", market_yield_note: "आने वाले सीज़न का अनुमान {kg} किग्रा/हे. (रुझान {trend} किग्रा/हे. प्रति वर्ष; पिछले वर्षों पर औसत अंतर {err}%)", market_other: "अन्य",
     market_trend: "भाव का रुझान और अनुमान", market_trend_line: "मासिक मंडी भाव", market_trend_band: "कटाई पर अनुमान", market_crowd_village: "{village} में {total} में से {same} किसानों ने यह फसल चुनी",
     nav_market: "बाज़ार", step_market: "5. बाज़ार व मुनाफा", step_advice_6: "6. खेत योजना",
     market_title: "बाज़ार भाव और मुनाफा", market_sub: "पिछले मंडी भाव, आसपास कितने किसान यही फसल लगा रहे हैं, और आपके खेत से कितनी कमाई हो सकती है।",
@@ -55,6 +57,7 @@ export const marketCopy: Record<Locale, Record<string, string>> = {
     btn_back_crops: "← फसलों पर वापस", btn_to_market: "बाज़ार व मुनाफा →",
   },
   "mr-IN": {
+    market_accuracy: "मागील {n} हंगामांवर तपासले: अंदाज सरासरी {err}% फरकाने", market_yield_title: "जिल्ह्यातील उत्पादन, वर्षनिहाय", market_forecast: "अंदाज", market_yield_note: "येत्या हंगामाचा अंदाज {kg} किलो/हे. (कल {trend} किलो/हे. प्रति वर्ष; मागील वर्षांवर सरासरी फरक {err}%)", market_other: "इतर",
     market_trend: "भावाचा कल आणि अंदाज", market_trend_line: "मासिक बाजारभाव", market_trend_band: "काढणीवेळचा अंदाज", market_crowd_village: "{village} मध्ये {total} पैकी {same} शेतकऱ्यांनी हे पीक निवडले",
     nav_market: "बाजार", step_market: "५. बाजार व नफा", step_advice_6: "६. शेत योजना",
     market_title: "बाजारभाव आणि नफा", market_sub: "मागील बाजारभाव, तुमच्या भागात किती शेतकरी हेच पीक घेत आहेत, आणि तुमच्या शेतातून किती कमाई होऊ शकते.",
@@ -81,6 +84,7 @@ export const marketCopy: Record<Locale, Record<string, string>> = {
     btn_back_crops: "← पिकांकडे परत", btn_to_market: "बाजार व नफा →",
   },
   "te-IN": {
+    market_accuracy: "గత {n} సీజన్లపై పరీక్షించాం: అంచనా సగటున {err}% తేడా", market_yield_title: "జిల్లా దిగుబడి, సంవత్సరాల వారీగా", market_forecast: "అంచనా", market_yield_note: "రాబోయే సీజన్ అంచనా {kg} కిలో/హె. (ధోరణి ఏటా {trend} కిలో/హె.; గత సంవత్సరాలపై సగటు తేడా {err}%)", market_other: "ఇతర",
     market_trend: "ధర ధోరణి, అంచనా", market_trend_line: "నెలవారీ మండీ ధర", market_trend_band: "కోత సమయ అంచనా", market_crowd_village: "{village}లో {total}లో {same} మంది ఈ పంట ఎంచుకున్నారు",
     nav_market: "మార్కెట్", step_market: "5. మార్కెట్ & లాభం", step_advice_6: "6. పొలం ప్రణాళిక",
     market_title: "మార్కెట్ ధర & లాభం", market_sub: "గత మండీ ధరలు, మీ దగ్గర ఎంత మంది రైతులు ఇదే పంట వేస్తున్నారు, మీ పొలం ఎంత సంపాదించగలదు.",
@@ -107,6 +111,7 @@ export const marketCopy: Record<Locale, Record<string, string>> = {
     btn_back_crops: "← పంటలకు వెనక్కి", btn_to_market: "మార్కెట్ & లాభం →",
   },
   "kn-IN": {
+    market_accuracy: "ಕಳೆದ {n} ಹಂಗಾಮುಗಳಲ್ಲಿ ಪರೀಕ್ಷಿಸಲಾಗಿದೆ: ಅಂದಾಜು ಸರಾಸರಿ {err}% ವ್ಯತ್ಯಾಸ", market_yield_title: "ಜಿಲ್ಲೆಯ ಇಳುವರಿ, ವರ್ಷವಾರು", market_forecast: "ಅಂದಾಜು", market_yield_note: "ಮುಂದಿನ ಹಂಗಾಮಿನ ಅಂದಾಜು {kg} ಕೆಜಿ/ಹೆ. (ಪ್ರವೃತ್ತಿ ವರ್ಷಕ್ಕೆ {trend} ಕೆಜಿ/ಹೆ.; ಹಿಂದಿನ ವರ್ಷಗಳಲ್ಲಿ ಸರಾಸರಿ ವ್ಯತ್ಯಾಸ {err}%)", market_other: "ಇತರ",
     market_trend: "ಬೆಲೆ ಪ್ರವೃತ್ತಿ ಮತ್ತು ಅಂದಾಜು", market_trend_line: "ಮಾಸಿಕ ಮಂಡಿ ಬೆಲೆ", market_trend_band: "ಕಟಾವಿನ ಅಂದಾಜು", market_crowd_village: "{village} ನಲ್ಲಿ {total} ರಲ್ಲಿ {same} ರೈತರು ಈ ಬೆಳೆ ಆರಿಸಿದ್ದಾರೆ",
     nav_market: "ಮಾರುಕಟ್ಟೆ", step_market: "5. ಮಾರುಕಟ್ಟೆ & ಲಾಭ", step_advice_6: "6. ಹೊಲದ ಯೋಜನೆ",
     market_title: "ಮಾರುಕಟ್ಟೆ ಬೆಲೆ & ಲಾಭ", market_sub: "ಹಿಂದಿನ ಮಂಡಿ ಬೆಲೆಗಳು, ನಿಮ್ಮ ಸುತ್ತ ಎಷ್ಟು ರೈತರು ಇದೇ ಬೆಳೆ ಬೆಳೆಯುತ್ತಿದ್ದಾರೆ, ನಿಮ್ಮ ಹೊಲ ಎಷ್ಟು ಗಳಿಸಬಹುದು.",

@@ -48,6 +48,8 @@ class MarketService:
             "id": f"{farm.id}_{payload.season}_{year}", "farm_id": farm.id, "node_id": farm.node_id,
             "district": m.norm_district(farm.district), "taluka": (farm.taluka or "").strip() or None,
             "village": (farm.village or "").strip() or None,
+            # About 1 km precision: enough for the neighbours map, not enough to find the field.
+            "lat": round(farm.location.latitude, 2), "lon": round(farm.location.longitude, 2),
             "crop": normalize_crop(payload.crop), "season": payload.season, "year": year,
             "area_ha": payload.area_ha or farm.area_ha, "source": source,
             "created_at": datetime.now(UTC).isoformat(), "owner_subject": farm.owner_subject,
@@ -87,6 +89,8 @@ class MarketService:
             "village": farm.village, "village_counts": tally(village_items) if len(village_items) >= 3 else {}, "village_farms": len(village_items),
             "sample_entries": sum(1 for p in plans if p.get("source") == "demo"),
             "usual_mix": dict(sorted(usual.items(), key=lambda kv: -kv[1]["share"])),
+            "points": [{"lat": p["lat"], "lon": p["lon"], "crop": p["crop"], "village": p.get("village"), "mine": p.get("farm_id") == farm.id}
+                       for p in plans if p.get("lat") is not None and p.get("lon") is not None][:400],
         }
 
     # ------------------------------------------------------------ markets
@@ -135,7 +139,7 @@ class MarketService:
         crowd |= self._village_counts(farm, crop, plans)
         price = m.price_forecast(farm.district, crop, season, lookback, crowd["supply_shift"])
         profile = get_district_profile(farm.district)
-        yld = m.yield_model(farm.district, crop, season, farm.water_access, soil_score, getattr(profile, "dryspell_risk_category", None))
+        yld = m.yield_model(farm.district, crop, season, farm.water_access, soil_score, getattr(profile, "dryspell_risk_category", None), m.next_sowing_year(season, crop))
         cost = m.cost_per_ha(crop)
         apmcs = self.apmc_table(farm, crop, season)
         nearest = next((a for a in apmcs if a["distance_km"] is not None), apmcs[0] if apmcs else None)
@@ -170,7 +174,7 @@ class MarketService:
         crowd = m.crowding(farm.district, crop, req.season, self.plans(farm, req.season), farm.taluka)
         price = m.price_forecast(farm.district, crop, req.season, req.lookback, crowd["supply_shift"])
         profile = get_district_profile(farm.district)
-        yld = m.yield_model(farm.district, crop, req.season, farm.water_access, soil_score, getattr(profile, "dryspell_risk_category", None))
+        yld = m.yield_model(farm.district, crop, req.season, farm.water_access, soil_score, getattr(profile, "dryspell_risk_category", None), m.next_sowing_year(req.season, crop))
         if req.yield_override_kg_ha and not yld:
             yld = {"kg_ha": req.yield_override_kg_ha, "cv": 0.2, "source": "your yield", "estimate": False}
         if req.price_override and not price:
@@ -238,7 +242,7 @@ class MarketService:
         crowd = m.crowding(farm.district, crop, season, plans, farm.taluka)
         price = m.price_forecast(farm.district, crop, season, 3, crowd["supply_shift"])
         profile = get_district_profile(farm.district)
-        yld = m.yield_model(farm.district, crop, season, farm.water_access, soil, getattr(profile, "dryspell_risk_category", None))
+        yld = m.yield_model(farm.district, crop, season, farm.water_access, soil, getattr(profile, "dryspell_risk_category", None), m.next_sowing_year(season, crop))
         if not price or not yld:
             return None
         cost = m.cost_per_ha(crop)

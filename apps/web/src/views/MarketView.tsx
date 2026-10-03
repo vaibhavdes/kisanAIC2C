@@ -2,6 +2,11 @@ import { useEffect, useState } from "react";
 import { IndianRupee, RefreshCw, Users, Store, Calculator, CheckCircle2 } from "lucide-react";
 import { api } from "../api";
 import { Json, Locale, View } from "../types";
+import { CROP_COLORS, NeighbourMap } from "../components/NeighbourMap";
+
+// Fixed crop -> colour assignment (by crop, never by rank); other crops are grey.
+const MAP_CROPS = ["onion", "wheat", "sorghum", "tomato", "sugarcane", "chickpea"];
+const cropColor = (c: string) => { const i = MAP_CROPS.indexOf(c); return i >= 0 ? CROP_COLORS[i] : "#9aa39c"; };
 
 const ACRE = 0.40468564224;
 const MONTHS: Record<string, string[]> = {
@@ -80,6 +85,27 @@ function TrendChart({ recent, price, locale, t }: { recent: Json[]; price: Json;
       {recent.map(r => <circle key={r.month} cx={x(r.month)} cy={y(r.price)} r={6} className="mk-hit"><title>{`${names[Number(r.month.slice(5)) - 1]} ${r.month.slice(0, 4)}: ${rs(r.price)}`}</title></circle>)}
       <circle cx={(x0 + x1) / 2} cy={y(price.expected)} r={4.5} className="mk-dot" />
       {ticks.map(m => <text key={m} x={x(m)} y={h - 4} className="mk-lbl">{m.slice(0, 4)}</text>)}
+    </svg>
+  );
+}
+
+/** District yield by year (bars) and the forecast for the coming season (outlined bar). */
+function YieldBars({ history, forecast, year, t }: { history: Json[]; forecast: number; year: number; t: Record<string, string> }) {
+  const rows = [...history.slice(-8), { year, kg_ha: forecast, fc: true }];
+  const w = 340, h = 130, bw = w / rows.length, max = Math.max(...rows.map(r => r.kg_ha)) * 1.12 || 1;
+  return (
+    <svg viewBox={`0 0 ${w} ${h + 16}`} className="mk-chart" role="img" aria-label={t.market_yield_title}>
+      {rows.map((r, i) => {
+        const bh = (r.kg_ha / max) * h;
+        return (
+          <g key={r.year}>
+            <rect x={i * bw + bw * 0.18} y={h - bh} width={bw * 0.64} height={bh} rx={3} className={r.fc ? "mk-bar fc" : "mk-bar"}>
+              <title>{`${r.year}-${String(r.year + 1).slice(2)}: ${Math.round(r.kg_ha)} kg/ha${r.fc ? ` (${t.market_forecast})` : ""}`}</title>
+            </rect>
+            <text x={i * bw + bw / 2} y={h + 12} className="mk-lbl">{`${String(r.year).slice(2)}-${String(r.year + 1).slice(2)}`}</text>
+          </g>
+        );
+      })}
     </svg>
   );
 }
@@ -233,6 +259,9 @@ export function MarketView({ t, locale, farm, season, cropRecs, initialCrop, go 
               {price.past?.[0] && <div className="mk-row"><span>{t.market_last_season} ({price.past[0].label})</span><b>{rs(price.past[0].price)}</b></div>}
               {price.msp && !isFrp && <div className="mk-row"><span>{t.market_msp}</span><b>{rs(price.msp)}</b></div>}
               {price.below_msp_seasons > 0 && <div className="mk-warn">{fill(t.market_below_msp, { n: price.below_msp_seasons, m: price.past.length })}</div>}
+              {price.backtest?.mape != null && (
+                <div className="mk-acc">✓ {fill(t.market_accuracy, { n: price.backtest.seasons.length, err: Math.round(price.backtest.mape * 100) })}</div>
+              )}
               {outlook.live && (
                 <div className="mk-live">● {t.market_live_now}: <b>{rs(outlook.live.median_rs_qtl)}</b>
                   <small> ({outlook.live.month ? `${names[Number(outlook.live.month.slice(5)) - 1]} ${outlook.live.month.slice(0, 4)} · AGMARKNET` : fill(t.market_live_detail, { n: outlook.live.reports, d: outlook.live.days })})</small>
@@ -265,6 +294,15 @@ export function MarketView({ t, locale, farm, season, cropRecs, initialCrop, go 
                 {crowd.sample_entries > 0 && <small> ({fill(t.market_crowd_sample, { n: crowd.sample_entries })})</small>}</p>}
               {crowd?.apy_trend && <p>{fill(t.market_crowd_apy, { year: `${crowd.apy_trend.latest_year}-${String(crowd.apy_trend.latest_year + 1).slice(2)}`, area: Math.round(crowd.apy_trend.area_ha).toLocaleString("en-IN"), change: pct(crowd.apy_trend.change) })}</p>}
               {!isFrp && price.base_before_crowding && <p className="mk-muted">{fill(t.market_crowd_effect, { effect: pct(price.expected / price.base_before_crowding - 1) })}</p>}
+              {mix?.points?.length > 0 && (
+                <>
+                  <NeighbourMap points={mix!.points} center={[farm.location.latitude, farm.location.longitude]} crop={crop} colorOf={cropColor} nameOf={nameOf} />
+                  <div className="mk-map-legend">
+                    {MAP_CROPS.map(c => <span key={c} className={c === crop ? "on" : ""}><i style={{ background: cropColor(c) }} />{nameOf(c)}</span>)}
+                    <span><i style={{ background: "#9aa39c" }} />{t.market_other}</span>
+                  </div>
+                </>
+              )}
               {mix && Object.keys(mix.district_counts || {}).length > 0 && (
                 <div className="mk-mix">
                   {Object.entries(mix.district_counts as Record<string, number>).slice(0, 6).map(([c, n]) => (
@@ -277,6 +315,14 @@ export function MarketView({ t, locale, farm, season, cropRecs, initialCrop, go 
                 : <button className="secondary" onClick={savePlan}>{t.market_plan_btn}</button>}
               {planMsg && mix?.my_plan?.crop !== crop && <div className="mk-ok">{planMsg}</div>}
             </div>
+
+            {y?.history?.length > 2 && (
+              <div className="mk-card">
+                <h4>{t.market_yield_title}</h4>
+                <YieldBars history={y.history} forecast={y.district_kg_ha} year={outlook.sow_year} t={t} />
+                <p className="mk-muted">{fill(t.market_yield_note, { kg: y.district_kg_ha, trend: y.trend_per_year > 0 ? `+${y.trend_per_year}` : y.trend_per_year, err: y.mape != null ? Math.round(y.mape * 100) : "—" })}</p>
+              </div>
+            )}
 
             {outlook.monthly_profile?.length > 6 && outlook.storable && (
               <div className="mk-card">

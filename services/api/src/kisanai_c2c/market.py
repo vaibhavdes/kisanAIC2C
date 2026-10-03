@@ -118,7 +118,17 @@ def apy() -> dict[tuple[str, str, str], dict[int, tuple[float, float]]]:
         area, yld = float(row["area_ha"]), float(row["yield_kg_ha"])
         if area > 0 and yld > 0:
             out.setdefault((norm_district(row["district"]), row["crop"], row["season"]), {})[int(row["crop_year"])] = (area, yld)
+    # Maharashtra Agriculture Department rows fill only years UPAg has not published yet (2025-26 provisional).
+    for row in _csv("state_apy_district.csv"):
+        area, yld = float(row["area_ha"] or 0), float(row["yield_kg_ha"] or 0)
+        key = (norm_district(row["district"]), row["crop"], row["season"])
+        if area > 0 and yld > 0 and int(row["crop_year"]) not in out.get(key, {}):
+            out.setdefault(key, {})[int(row["crop_year"])] = (area, yld)
+            PROVISIONAL.add((*key, int(row["crop_year"])))
     return out
+
+
+PROVISIONAL: set[tuple[str, str, str, int]] = set()
 
 
 @lru_cache
@@ -347,57 +357,59 @@ def price_forecast(district: str, crop: str, season: str, lookback: int, supply_
     past = past_harvest_prices(district, crop, season, max(lookback, 6), today)
     if not past:
         return None
-    infl = reference().get("price_inflation_per_year", 0.04)
+    from .forecast import price_backtest, price_forecast_at
+    series = district_prices().get((norm_district(district), crop), {})
     sell_year = window[0][0]
-    adjusted = [p["price"] * (1 + infl) ** (sell_year - int(p["months"][0][:4])) for p in past]
-    used = adjusted[:lookback]
-    # Half the latest season (where prices are now), half the median of the chosen seasons.
-    base = 0.5 * adjusted[0] + 0.5 * statistics.median(used)
-    logs = [math.log(v) for v in adjusted]
-    sigma = max(0.08, min(0.6, statistics.pstdev(logs))) if len(logs) >= 3 else 0.2
-    momentum = price_momentum(district, crop, today)
-    # Where prices are now carries over only weakly to a harvest months away (high prices also pull
-    # more farmers into the crop), so a quarter-power of the year-on-year change is applied.
-    base *= momentum ** 0.25
+    infl = reference().get("price_inflation_per_year", 0.04)
+    model = price_forecast_at(series, (today.year, today.month), window)
+    if model:
+        base, method = model["value"], "seasonal_decomposition"
+    else:  # too little monthly history: inflation-adjusted average of past harvest prices
+        adjusted = [p["price"] * (1 + infl) ** (sell_year - int(p["months"][0][:4])) for p in past]
+        base, method = 0.5 * adjusted[0] + 0.5 * statistics.median(adjusted[:lookback]), "past_harvest_average"
+    # Back-test: forecast each of the last six harvests as if standing at its sowing month.
+    cal = season_calendar(crop, season)
+    windows = [(p["label"], (p["sow_year"], cal["sow"]), [tuple(map(int, k.split("-"))) for k in p["months"]]) for p in past[:6]]
+    backtest = price_backtest(series, windows)
+    if backtest["log_rmse"] is not None and len(backtest["seasons"]) >= 3:
+        sigma = max(0.08, min(0.6, backtest["log_rmse"]))
+    else:
+        logs = [math.log(p["price"]) for p in past]
+        sigma = max(0.08, min(0.6, statistics.pstdev(logs))) if len(logs) >= 3 else 0.2
     flex = price_flexibility(crop, season)
     expected = base * math.exp(flex["value"] * supply_shift)
     msp = msp_for(crop, sell_year)
     below = sum(1 for p in past[:lookback] if p.get("msp") and p["price"] < p["msp"])
+    path = [{"month": f"{y}-{m:02d}", "price": round(v * math.exp(flex["value"] * supply_shift))}
+            for (y, m), v in sorted((model or {}).get("path", {}).items())]
     return {
         "expected": round(expected), "low": round(expected * math.exp(-1.2816 * sigma)), "high": round(expected * math.exp(1.2816 * sigma)),
-        "sigma": round(sigma, 3), "basis": "mandi", "sell_months": [f"{y}-{m:02d}" for y, m in window], "base_before_crowding": round(base),
-        "msp": msp, "flexibility": flex, "past": past[:lookback], "momentum": round(momentum, 3), "below_msp_seasons": below, "inflation_per_year": infl,
+        "sigma": round(sigma, 3), "basis": "mandi", "method": method, "sell_months": [f"{y}-{m:02d}" for y, m in window],
+        "base_before_crowding": round(base), "drift_per_year": round((model or {}).get("drift_per_year", 0.0), 3),
+        "seasonal": (model or {}).get("seasonal"), "path": path, "backtest": backtest,
+        "msp": msp, "flexibility": flex, "past": past[:lookback], "below_msp_seasons": below, "inflation_per_year": infl,
     }
 
 
-def price_momentum(district: str, crop: str, today: date | None = None) -> float:
-    """Last three months' district price against the same months a year earlier (1.0 = unchanged), capped."""
-    today = today or date.today()
-    series = district_prices().get((norm_district(district), crop), {})
-    recent = sorted(k for k in series if k < (today.year, today.month))[-3:]
-    pairs = [(series[k], series.get((k[0] - 1, k[1]))) for k in recent]
-    pairs = [(a, b) for a, b in pairs if b]
-    if not pairs:
-        return 1.0
-    ratio = sum(a for a, _ in pairs) / sum(b for _, b in pairs)
-    return max(0.6, min(1.6, ratio))
-
-
-def yield_model(district: str, crop: str, season: str, water_access: str, soil_score: float | None, dryspell: str | None) -> dict[str, Any] | None:
+def yield_model(district: str, crop: str, season: str, water_access: str, soil_score: float | None, dryspell: str | None,
+                target_year: int | None = None) -> dict[str, Any] | None:
     """Expected yield (kg/ha of what is sold) and its spread, from the district's recent years."""
     ref = reference()
     years = apy().get((norm_district(district), crop, season))
     if not years and crop in FRP_CROPS:  # UPAg records sugarcane under one season
         years = next((v for (d, c, _s), v in apy().items() if d == norm_district(district) and c == crop), None)
     estimate = (ref.get("estimates") or {}).get(crop)
+    trend = None
     if years:
-        mid = statistics.median(v[1] for v in years.values())
-        # Small-area districts carry the odd impossible year in UPAg; drop values far from the median.
-        recent = [years[y][1] for y in sorted(years)[-6:] if 0.33 * mid <= years[y][1] <= 2.5 * mid] or [mid]
-        weights = list(range(1, len(recent) + 1))
-        mean = sum(w * v for w, v in zip(weights, recent)) / sum(weights)
-        cv = statistics.pstdev(recent) / statistics.mean(recent) if len(recent) >= 3 else 0.2
-        source = f"UPAg district yield, {min(sorted(years)[-6:])}-{max(years)}"
+        from .forecast import yield_forecast
+        target = target_year or max(years) + 1
+        trend = yield_forecast({y: v[1] for y, v in years.items()}, target)
+        values = [h["kg_ha"] for h in trend["history"][-6:]] if trend else [v[1] for v in years.values()]
+        mean = trend["value"] if trend else statistics.median(values)
+        # Spread: the back-test error when there is one, else the year-to-year variation.
+        cv = (trend or {}).get("rmse_rel") or (statistics.pstdev(values) / statistics.mean(values) if len(values) >= 3 else 0.2)
+        provisional = any((norm_district(district), crop, season, y) in PROVISIONAL for y in years)
+        source = f"District yield trend {min(years)}-{str(max(years) + 1)[-2:]} (UPAg" + (", 2025-26 State provisional)" if provisional else ")")
         is_estimate = False
     elif estimate and estimate.get("yield_kg_ha"):
         mean, cv, source, is_estimate = float(estimate["yield_kg_ha"]), float(estimate.get("yield_cv", 0.25)), estimate.get("yield_note", "Reference estimate"), True
@@ -409,8 +421,14 @@ def yield_model(district: str, crop: str, season: str, water_access: str, soil_s
     water_factor = {"rainfed": 0.9, "supplemental_irrigation": 1.0, "irrigated": 1.12}.get(water_access, 1.0)
     soil_factor = 0.85 + 0.15 * soil_score if soil_score is not None else 1.0
     cv = max(0.1, min(0.5, cv)) * (1.3 if dryspell == "high" else 1.0)
+    history = None
+    if trend:
+        scale = 1 / ref.get("ginning_outturn", 0.34) if crop == "cotton" else 1.0
+        history = [{"year": h["year"], "kg_ha": round(h["kg_ha"] * scale)} for h in trend["history"]]
     return {"kg_ha": round(mean * water_factor * soil_factor), "district_kg_ha": round(mean), "cv": round(cv, 3),
-            "water_factor": water_factor, "soil_factor": round(soil_factor, 3), "source": source, "estimate": is_estimate}
+            "water_factor": water_factor, "soil_factor": round(soil_factor, 3), "source": source, "estimate": is_estimate,
+            "method": "damped_trend" if trend else "reference", "history": history,
+            "trend_per_year": (trend or {}).get("trend_per_year"), "backtest": (trend or {}).get("backtest"), "mape": (trend or {}).get("mape")}
 
 
 def cost_per_ha(crop: str) -> dict[str, Any] | None:
